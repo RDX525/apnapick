@@ -1,0 +1,3 @@
+-- ApnaPick seed entrypoint note.
+-- Actual DEV seed: ./seed/pune_dev.sql (configured in config.toml [db.seed]).
+-- Production: keep [db.seed] disabled / never point hosted projects at this path.

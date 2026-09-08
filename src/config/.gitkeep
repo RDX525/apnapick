@@ -1,0 +1,34 @@
+# ApnaPick Environment Example
+# Copy to `.env.local` — never commit secrets.
+
+# -----------------------------------------------------------------------------
+# Public (safe for the browser — NEXT_PUBLIC_*)
+# -----------------------------------------------------------------------------
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_NAME=ApnaPick
+NEXT_PUBLIC_DEFAULT_CITY=Pune
+NEXT_PUBLIC_DEFAULT_COUNTRY=IN
+NEXT_PUBLIC_DEFAULT_LAT=18.5204
+NEXT_PUBLIC_DEFAULT_LNG=73.8567
+
+# Optional until Supabase is provisioned
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Client analytics switch (still uses abstraction; default off in Phase 1)
+NEXT_PUBLIC_ENABLE_ANALYTICS=false
+
+# -----------------------------------------------------------------------------
+# Server-only (never expose to the browser)
+# -----------------------------------------------------------------------------
+SUPABASE_SERVICE_ROLE_KEY=
+SEARCH_DEFAULT_RADIUS_M=8000
+# Optional JSON partial override for RankingService weights (organic only — never paid)
+# SEARCH_RANKING_WEIGHTS={"queryRelevance":0.32,"distance":0.14}
+LOG_LEVEL=info
+
+# Optional Redis URL for multi-instance rate limiting
+# RATE_LIMIT_REDIS_URL=
+
+# Override feature flags as JSON, e.g. {"searchEnabled":true,"analyticsEnabled":false}
+# FEATURE_FLAGS_JSON=
