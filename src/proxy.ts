@@ -44,11 +44,28 @@ export async function proxy(request: NextRequest) {
   const hasAuthCookie = request.cookies
     .getAll()
     .some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
-  if (publicApi || !hasAuthCookie) {
+  if (publicApi || !hasAuthCookie || !needsSessionRefresh(pathname)) {
     return response;
   }
 
   return updateSession(request, response);
+}
+
+function needsSessionRefresh(pathname: string) {
+  const sessionPages = [
+    "/admin",
+    "/business",
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+    "/auth",
+  ];
+  const sessionApis = ["/api/business", "/api/admin", "/api/reviews", "/api/billing"];
+  return (
+    sessionPages.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
+    sessionApis.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+  );
 }
 
 export const config = {

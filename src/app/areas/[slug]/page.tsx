@@ -21,6 +21,8 @@ import type { SeoHubPage } from "@/domain/seo/types";
 
 type Props = { params: Promise<{ slug: string }> };
 
+export const revalidate = 120;
+
 const getAreaBusinesses = cache(async (slug: string) => {
   const { items } = await listPublishedBusinesses(80);
   if (slug === "pune") return items;

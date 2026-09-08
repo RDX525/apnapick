@@ -22,6 +22,8 @@ import { HeroStage } from "@/features/home/hero-stage";
 import { PopularItemsGallery } from "@/features/home/popular-items-gallery";
 import { categoryCover, MEDIA } from "@/config/visual-media";
 
+export const revalidate = 120;
+
 export const metadata = buildPageMetadata({
   title: "Find the best local places",
   description:
@@ -174,9 +176,6 @@ export default async function HomePage() {
                     src={categoryCover(category.slug, category.name)}
                     alt=""
                     sizes="(max-width: 640px) 100vw, 25vw"
-                    loading={
-                      category.slug === "beauty-personal-care" ? "eager" : "lazy"
-                    }
                     className="transition duration-700 ease-out group-hover:scale-[1.07]"
                   />
                   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_16_28/12%)_0%,rgb(6_16_28/18%)_35%,rgb(6_16_28/88%)_100%)]" />

@@ -2,7 +2,7 @@
 export const MEDIA = {
   puneCity: "/images/ShaniwarWada.jpg",
   loginAtmosphere:
-    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1800&q=88",
+    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
   restaurants:
     "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
   cafes:
@@ -12,11 +12,11 @@ export const MEDIA = {
   plumbers:
     "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=1200&q=80",
   beauty:
-    "https://images.pexels.com/photos/965989/pexels-photo-965989.jpeg?auto=compress&cs=tinysrgb&w=1800",
+    "https://images.pexels.com/photos/965989/pexels-photo-965989.jpeg?auto=compress&cs=tinysrgb&w=1200",
   curry:
-    "https://images.unsplash.com/photo-1742599361574-6fb156181466?auto=format&fit=crop&w=1800&q=88",
+    "https://images.unsplash.com/photo-1742599361574-6fb156181466?auto=format&fit=crop&w=1200&q=80",
   biryani:
-    "https://images.pexels.com/photos/34382327/pexels-photo-34382327.jpeg?auto=compress&cs=tinysrgb&w=1800",
+    "https://images.pexels.com/photos/34382327/pexels-photo-34382327.jpeg?auto=compress&cs=tinysrgb&w=1200",
   pizza:
     "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=900&q=80",
   noodles:
@@ -29,11 +29,11 @@ export const MEDIA = {
   vegBowl:
     "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
   coffee:
-    "https://images.pexels.com/photos/16128085/pexels-photo-16128085.jpeg?auto=compress&cs=tinysrgb&w=1800",
+    "https://images.pexels.com/photos/16128085/pexels-photo-16128085.jpeg?auto=compress&cs=tinysrgb&w=1200",
   barberCut:
-    "https://images.unsplash.com/photo-1541533848490-bc8115cd6522?auto=format&fit=crop&w=1800&q=88",
+    "https://images.unsplash.com/photo-1541533848490-bc8115cd6522?auto=format&fit=crop&w=1200&q=80",
   plumberWork:
-    "https://images.pexels.com/photos/32588548/pexels-photo-32588548.jpeg?auto=compress&cs=tinysrgb&w=1800",
+    "https://images.pexels.com/photos/32588548/pexels-photo-32588548.jpeg?auto=compress&cs=tinysrgb&w=1200",
 } as const;
 
 const CATEGORY_IMAGES: Record<string, string> = {

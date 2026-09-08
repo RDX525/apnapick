@@ -1,8 +1,10 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import type { ParsedSearchQuery, SearchCandidate } from "@/domain/search/types";
 import type { SearchEngine, SearchRetrieveOptions } from "@/domain/search/search-engine";
-import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { SEARCH_DATA_REVALIDATE_SECONDS } from "@/lib/cache/public-data";
+import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createLogger } from "@/lib/logging/logger";
 
 const log = createLogger({ module: "postgres-search-repository" });
@@ -31,12 +33,106 @@ type RpcRow = {
   has_offer?: boolean | null;
 };
 
-function priceLevelsFromParsed(parsed: ParsedSearchQuery): number[] | null {
-  if (parsed.pricePreference === "cheap") return [1, 2];
-  if (parsed.pricePreference === "moderate") return [2, 3];
-  if (parsed.pricePreference === "premium") return [3, 4];
-  return null;
+function roundCoord(value: number | undefined) {
+  return value == null ? null : Number(value.toFixed(3));
 }
+
+function searchCacheKey(parsed: ParsedSearchQuery, options?: SearchRetrieveOptions) {
+  const location = options?.location;
+  const filters = options?.filters;
+  return JSON.stringify({
+    q: parsed.normalized,
+    items: parsed.itemTerms,
+    expanded: parsed.expandedTerms,
+    services: parsed.serviceTerms,
+    free: parsed.freeTextTokens,
+    cats: parsed.categorySlugs,
+    attrs: parsed.attributes,
+    price: parsed.pricePreference,
+    open: parsed.openNow,
+    lat: roundCoord(location?.lat),
+    lng: roundCoord(location?.lng),
+    radius: filters?.distanceM ?? location?.radiusM ?? 8000,
+    filterCats: filters?.categorySlugs ?? null,
+    filterAttrs: filters?.attributes ?? null,
+    minRating: filters?.minRating ?? null,
+    priceLevels: filters?.priceLevels ?? null,
+    filterOpen: filters?.openNow ?? null,
+    offers: filters?.hasOffers ?? null,
+    filterServices: filters?.services ?? null,
+    limit: options?.limit ?? 50,
+    offset: options?.offset ?? 0,
+  });
+}
+
+async function retrieveUncached(cacheKey: string): Promise<SearchCandidate[]> {
+  const parsedKey = JSON.parse(cacheKey) as ReturnType<typeof JSON.parse>;
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return [];
+
+  const q =
+    [...parsedKey.items, ...parsedKey.expanded, ...parsedKey.services, ...parsedKey.free]
+      .join(" ")
+      .trim() || parsedKey.q;
+
+  const categorySlugs =
+    parsedKey.filterCats && parsedKey.filterCats.length > 0
+      ? parsedKey.filterCats
+      : parsedKey.cats.length > 0
+        ? parsedKey.cats
+        : null;
+
+  const attributes = [
+    ...new Set([...(parsedKey.attrs ?? []), ...(parsedKey.filterAttrs ?? [])]),
+  ];
+
+  const priceLevels =
+    parsedKey.priceLevels && parsedKey.priceLevels.length > 0
+      ? parsedKey.priceLevels
+      : parsedKey.price === "cheap"
+        ? [1, 2]
+        : parsedKey.price === "moderate"
+          ? [2, 3]
+          : parsedKey.price === "premium"
+            ? [3, 4]
+            : null;
+
+  const openNow = parsedKey.filterOpen ?? (parsedKey.open ? true : null);
+
+  const { data, error } = await supabase.rpc("search_business_candidates", {
+    p_query: q,
+    p_lat: parsedKey.lat,
+    p_lng: parsedKey.lng,
+    p_radius_m: parsedKey.radius,
+    p_category_slugs: categorySlugs,
+    p_attribute_keys: attributes.length > 0 ? attributes : null,
+    p_min_rating: parsedKey.minRating,
+    p_price_levels: priceLevels,
+    p_open_now: openNow,
+    p_require_offers: parsedKey.offers,
+    p_service_terms:
+      parsedKey.filterServices && parsedKey.filterServices.length > 0
+        ? parsedKey.filterServices
+        : parsedKey.services.length > 0
+          ? parsedKey.services
+          : null,
+    p_limit: parsedKey.limit,
+    p_offset: parsedKey.offset,
+  });
+
+  if (error) {
+    log.error("search_rpc_failed", { message: error.message });
+    return [];
+  }
+
+  return mapRows((data ?? []) as RpcRow[]);
+}
+
+const loadCachedSearchCandidates = unstable_cache(
+  retrieveUncached,
+  ["search-candidates"],
+  { revalidate: SEARCH_DATA_REVALIDATE_SECONDS, tags: ["search-candidates"] },
+);
 
 /**
  * Postgres FTS + pg_trgm + PostGIS retrieval.
@@ -49,69 +145,7 @@ export class PostgresSearchRepository implements SearchEngine {
     parsed: ParsedSearchQuery,
     options?: SearchRetrieveOptions,
   ): Promise<SearchCandidate[]> {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) return [];
-
-    const location = options?.location;
-    const filters = options?.filters;
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
-
-    const q =
-      [
-        ...parsed.itemTerms,
-        ...parsed.expandedTerms,
-        ...parsed.serviceTerms,
-        ...parsed.freeTextTokens,
-      ]
-        .join(" ")
-        .trim() || parsed.normalized;
-
-    const categorySlugs =
-      filters?.categorySlugs && filters.categorySlugs.length > 0
-        ? filters.categorySlugs
-        : parsed.categorySlugs.length > 0
-          ? parsed.categorySlugs
-          : null;
-
-    const attributes = [
-      ...new Set([...(parsed.attributes ?? []), ...(filters?.attributes ?? [])]),
-    ];
-
-    const priceLevels =
-      filters?.priceLevels && filters.priceLevels.length > 0
-        ? filters.priceLevels
-        : priceLevelsFromParsed(parsed);
-
-    const openNow = filters?.openNow ?? (parsed.openNow ? true : null);
-
-    const { data, error } = await supabase.rpc("search_business_candidates", {
-      p_query: q,
-      p_lat: location?.lat ?? null,
-      p_lng: location?.lng ?? null,
-      p_radius_m: filters?.distanceM ?? location?.radiusM ?? 8000,
-      p_category_slugs: categorySlugs,
-      p_attribute_keys: attributes.length > 0 ? attributes : null,
-      p_min_rating: filters?.minRating ?? null,
-      p_price_levels: priceLevels,
-      p_open_now: openNow,
-      p_require_offers: filters?.hasOffers ?? null,
-      p_service_terms:
-        filters?.services && filters.services.length > 0
-          ? filters.services
-          : parsed.serviceTerms.length > 0
-            ? parsed.serviceTerms
-            : null,
-      p_limit: limit,
-      p_offset: offset,
-    });
-
-    if (error) {
-      log.error("search_rpc_failed", { message: error.message });
-      return [];
-    }
-
-    return mapRows((data ?? []) as RpcRow[]);
+    return loadCachedSearchCandidates(searchCacheKey(parsed, options));
   }
 }
 

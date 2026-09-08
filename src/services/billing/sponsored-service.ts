@@ -2,8 +2,8 @@ import "server-only";
 
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { hasSupabaseConfig, hasServiceRoleKey } from "@/config/env";
+import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createAdminClient } from "@/lib/db/supabase-admin";
-import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import type { SponsoredResult } from "@/domain/billing/types";
 import type { ParsedSearchQuery } from "@/domain/search/types";
 
@@ -21,7 +21,7 @@ export async function listSponsoredResults(input: {
 
   const supabase = hasServiceRoleKey()
     ? createAdminClient()
-    : await createServerSupabaseClient();
+    : createPublicSupabaseClient();
   if (!supabase) return [];
 
   const now = new Date().toISOString();

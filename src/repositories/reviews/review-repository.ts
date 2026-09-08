@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PublicReview, RatingSummary, ReviewStatus } from "@/domain/reviews/types";
 import { aggregateRatings, emptyDistribution } from "@/services/reviews/aggregation";
+import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { createLogger } from "@/lib/logging/logger";
 import { hasSupabaseConfig } from "@/config/env";
@@ -75,7 +76,7 @@ export async function getBusinessRatingSummary(
   if (!hasSupabaseConfig()) {
     return { average: 0, count: 0, distribution: emptyDistribution() };
   }
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) {
     return { average: 0, count: 0, distribution: emptyDistribution() };
   }
@@ -100,7 +101,7 @@ export async function listPublishedReviews(
   viewerId?: string | null,
 ): Promise<PublicReview[]> {
   if (!hasSupabaseConfig()) return [];
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
   const { data, error } = await supabase

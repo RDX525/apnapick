@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import type { ConsumerBusinessCard } from "@/domain/consumer/types";
 import type { SeoCatalogItem } from "@/domain/seo/types";
-import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createLogger } from "@/lib/logging/logger";
 import { hasSupabaseConfig } from "@/config/env";
 import { listPublishedBusinesses } from "@/repositories/consumer/business-repository";
@@ -44,7 +44,7 @@ const listBusinessesForSeoSupply = cache(async function listBusinessesForSeoSupp
     return false;
   });
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase || businesses.length === 0) {
     return { businesses, catalogItems: [], source };
   }
@@ -145,7 +145,7 @@ export async function listIndexableSeoPagesFromDb(): Promise<
   { path: string; canonicalPath: string; updatedAt: string | null }[]
 > {
   if (!hasSupabaseConfig()) return [];
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
   const { data, error } = await supabase
@@ -170,7 +170,7 @@ export async function listPublishedBusinessSlugsForSitemap(): Promise<
   { slug: string; updatedAt: string | null }[]
 > {
   if (!hasSupabaseConfig()) return [];
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
   const { data, error } = await supabase

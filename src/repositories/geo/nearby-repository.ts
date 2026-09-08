@@ -1,7 +1,9 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import type { NearbyBusiness } from "@/domain/geo/types";
-import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { PUBLIC_DATA_REVALIDATE_SECONDS } from "@/lib/cache/public-data";
+import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createLogger } from "@/lib/logging/logger";
 import { hasSupabaseConfig } from "@/config/env";
 import { haversineMeters } from "@/lib/geo/distance";
@@ -16,7 +18,7 @@ export async function queryNearbyBusinesses(input: {
 }): Promise<NearbyBusiness[]> {
   if (!hasSupabaseConfig()) return [];
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
   const { data, error } = await supabase.rpc("nearby_businesses", {
@@ -60,8 +62,15 @@ export async function queryBusinessCoordinates(
   businessIds: string[],
 ): Promise<Record<string, { lat: number; lng: number; suburb: string | null }>> {
   if (!hasSupabaseConfig() || businessIds.length === 0) return {};
+  const idKey = [...new Set(businessIds)].sort().join(",");
+  return loadCachedBusinessCoordinates(idKey);
+}
 
-  const supabase = await createServerSupabaseClient();
+async function queryCoordinatesByKey(idKey: string) {
+  const businessIds = idKey.split(",").filter(Boolean);
+  if (businessIds.length === 0) return {};
+
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return {};
 
   const { data, error } = await supabase.rpc("business_coordinates", {
@@ -98,3 +107,9 @@ export async function queryBusinessCoordinates(
   }
   return out;
 }
+
+const loadCachedBusinessCoordinates = unstable_cache(
+  queryCoordinatesByKey,
+  ["business-coordinates"],
+  { revalidate: PUBLIC_DATA_REVALIDATE_SECONDS, tags: ["published-businesses"] },
+);

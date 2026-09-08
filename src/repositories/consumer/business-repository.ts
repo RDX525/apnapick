@@ -1,20 +1,22 @@
 import "server-only";
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type {
   ConsumerBusinessCard,
   ConsumerBusinessProfile,
 } from "@/domain/consumer/types";
-import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { PUBLIC_DATA_REVALIDATE_SECONDS } from "@/lib/cache/public-data";
+import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createLogger } from "@/lib/logging/logger";
 import { resolvePhotoUrl } from "@/lib/media/photo-url";
 import { hasSupabaseConfig } from "@/config/env";
 
 const log = createLogger({ module: "business-repository" });
 
-export const listPublishedBusinesses = cache(async function listPublishedBusinesses(
-  limit = 8,
-  categoryKey = "",
+async function queryPublishedBusinesses(
+  limit: number,
+  categoryKey: string,
 ): Promise<{
   items: ConsumerBusinessCard[];
   source: "supabase" | "empty";
@@ -23,7 +25,7 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
     return { items: [], source: "empty" };
   }
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return { items: [], source: "empty" };
 
   const categorySlugs = categoryKey.split(",").filter(Boolean);
@@ -131,14 +133,25 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
   });
 
   return { items, source: "supabase" };
+}
+
+const loadCachedPublishedBusinesses = unstable_cache(
+  queryPublishedBusinesses,
+  ["published-businesses"],
+  { revalidate: PUBLIC_DATA_REVALIDATE_SECONDS, tags: ["published-businesses"] },
+);
+
+export const listPublishedBusinesses = cache(async function listPublishedBusinesses(
+  limit = 8,
+  categoryKey = "",
+) {
+  return loadCachedPublishedBusinesses(limit, categoryKey);
 });
 
-export const getBusinessBySlug = cache(async function getBusinessBySlug(
-  slug: string,
-): Promise<ConsumerBusinessProfile | null> {
+async function queryBusinessBySlug(slug: string): Promise<ConsumerBusinessProfile | null> {
   if (!hasSupabaseConfig()) return null;
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
   if (!supabase) return null;
 
   const { data, error } = await supabase
@@ -395,6 +408,16 @@ export const getBusinessBySlug = cache(async function getBusinessBySlug(
     hours,
     reviews,
   };
+}
+
+const loadCachedBusinessBySlug = unstable_cache(
+  queryBusinessBySlug,
+  ["business-by-slug"],
+  { revalidate: PUBLIC_DATA_REVALIDATE_SECONDS, tags: ["published-businesses"] },
+);
+
+export const getBusinessBySlug = cache(async function getBusinessBySlug(slug: string) {
+  return loadCachedBusinessBySlug(slug);
 });
 
 export async function listBusinessesByCategoryArea(
