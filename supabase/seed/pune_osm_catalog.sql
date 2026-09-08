@@ -28,7 +28,8 @@ values
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','restaurants','Restaurants','Places to eat',1),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','cafes','Cafés','Coffee, bakeries, and light bites',2),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3','barbers','Barbers','Haircuts and grooming',3),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4','plumbers','Plumbers','Home plumbing services',4)
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb5','beauty-personal-care','Beauty & Personal Care','Perfume, skincare, and personal care',4),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4','plumbers','Plumbers','Home plumbing services',5)
 on conflict (slug) do nothing;
 
 insert into public.businesses (

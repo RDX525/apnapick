@@ -4,8 +4,44 @@ import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { canManageBusiness } from "@/services/business/ownership";
+import { fetchOwnerListingSnapshot } from "@/repositories/dashboard/owner-workspace-repository";
+import { workspaceFromOwnerListing } from "@/services/dashboard/owner-workspace";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Load the signed-in owner's listing into the dashboard workspace.
+ * Anonymous / local-only clients receive `workspace: null`.
+ */
+export async function GET() {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      return jsonOk({ workspace: null, source: "anonymous" });
+    }
+
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return jsonOk({ workspace: null, source: "local" });
+    }
+
+    const snapshot = await fetchOwnerListingSnapshot(supabase, user.id).catch((error) => {
+      throw new AppError({
+        message: "Couldn’t load your listing.",
+        code: "OWNER_WORKSPACE_LOAD_FAILED",
+        status: 500,
+        expose: true,
+        cause: error,
+      });
+    });
+    return jsonOk({
+      workspace: snapshot ? workspaceFromOwnerListing(snapshot) : null,
+      source: "supabase",
+    });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
 
 /**
  * Persist dashboard workspace snapshot for authenticated owners.
@@ -62,7 +98,7 @@ export async function PUT(request: NextRequest) {
       action: "dashboard_workspace_saved",
       entity_type: "business",
       entity_id: businessId,
-      metadata: { source: "dashboard" },
+      new_data: { source: "dashboard" },
     });
 
     return jsonOk({ ok: true, persisted: true });

@@ -1,6 +1,7 @@
 import type { ConsumerBusinessProfile } from "@/domain/consumer/types";
 import type { SeoBreadcrumb, SeoHubPage } from "@/domain/seo/types";
 import { getPublicEnv } from "@/config/env";
+import { isUsableImageSrc } from "@/lib/media/photo-url";
 import { escapeJsonForScript } from "@/lib/security/sanitize";
 
 function absolute(path: string) {
@@ -81,7 +82,7 @@ export function localBusinessJsonLd(
     description: business.description,
     url: absolute(`/b/${business.slug}`),
     telephone: business.phone,
-    image: business.coverImageUrl ?? undefined,
+    image: isUsableImageSrc(business.coverImageUrl) ? business.coverImageUrl : undefined,
     address: {
       "@type": "PostalAddress",
       streetAddress: business.addressLine1,

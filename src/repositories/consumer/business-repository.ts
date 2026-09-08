@@ -7,16 +7,14 @@ import type {
 } from "@/domain/consumer/types";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { createLogger } from "@/lib/logging/logger";
+import { resolvePhotoUrl } from "@/lib/media/photo-url";
 import { hasSupabaseConfig } from "@/config/env";
 
 const log = createLogger({ module: "business-repository" });
 
-function dayName(day: number) {
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day] ?? "";
-}
-
 export const listPublishedBusinesses = cache(async function listPublishedBusinesses(
   limit = 8,
+  categoryKey = "",
 ): Promise<{
   items: ConsumerBusinessCard[];
   source: "supabase" | "empty";
@@ -28,7 +26,36 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { items: [], source: "empty" };
 
-  const { data, error } = await supabase
+  const categorySlugs = categoryKey.split(",").filter(Boolean);
+  let scopedIds: string[] | null = null;
+  if (categorySlugs.length > 0) {
+    const { data: categories, error: categoryError } = await supabase
+      .from("categories")
+      .select("id")
+      .in("slug", categorySlugs);
+    if (categoryError) {
+      log.error("list_published_categories_failed", { message: categoryError.message });
+      return { items: [], source: "empty" };
+    }
+    const categoryIds = (categories ?? []).map((row) => row.id as string);
+    if (categoryIds.length === 0) return { items: [], source: "supabase" };
+    const { data: memberships, error: membershipError } = await supabase
+      .from("business_categories")
+      .select("business_id")
+      .in("category_id", categoryIds);
+    if (membershipError) {
+      log.error("list_published_memberships_failed", {
+        message: membershipError.message,
+      });
+      return { items: [], source: "empty" };
+    }
+    scopedIds = [
+      ...new Set((memberships ?? []).map((row) => row.business_id as string)),
+    ];
+    if (scopedIds.length === 0) return { items: [], source: "supabase" };
+  }
+
+  let query = supabase
     .from("businesses")
     .select(
       `
@@ -44,6 +71,10 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
     .order("avg_rating", { ascending: false })
     .order("name", { ascending: true })
     .limit(limit);
+
+  if (scopedIds) query = query.in("id", scopedIds);
+
+  const { data, error } = await query;
 
   if (error) {
     log.error("list_published_failed", { message: error.message });
@@ -64,7 +95,15 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
       is_cover: boolean;
       deleted_at: string | null;
     }[];
-    const cover = photos.find((p) => p.is_cover && !p.deleted_at) ?? photos[0];
+    const livePhotos = photos.filter((p) => !p.deleted_at);
+    const orderedPhotos = [
+      ...livePhotos.filter((p) => p.is_cover),
+      ...livePhotos.filter((p) => !p.is_cover),
+    ];
+    const coverImageUrl =
+      orderedPhotos
+        .map((p) => resolvePhotoUrl(p.storage_path))
+        .find((url): url is string => Boolean(url)) ?? null;
 
     return {
       id: row.id as string,
@@ -85,7 +124,7 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
         .map((c) => c.categories?.slug)
         .filter((s): s is string => Boolean(s)),
       matchedItem: null,
-      coverImageUrl: cover?.storage_path ?? null,
+      coverImageUrl,
       lat: null,
       lng: null,
     };
@@ -313,7 +352,10 @@ export const getBusinessBySlug = cache(async function getBusinessBySlug(
         })),
     }));
 
-  void dayName;
+  const resolvedPhotos = photos.flatMap((p) => {
+    const url = resolvePhotoUrl(p.storage_path);
+    return url ? [{ id: p.id, url, alt: p.alt_text }] : [];
+  });
 
   return {
     id: data.id as string,
@@ -335,7 +377,7 @@ export const getBusinessBySlug = cache(async function getBusinessBySlug(
       .map((c) => c.categories?.slug)
       .filter((s): s is string => Boolean(s)),
     matchedItem: null,
-    coverImageUrl: photos[0]?.storage_path ?? null,
+    coverImageUrl: resolvedPhotos[0]?.url ?? null,
     lat: null,
     lng: null,
     phone: (data.phone as string | null) ?? null,
@@ -344,11 +386,7 @@ export const getBusinessBySlug = cache(async function getBusinessBySlug(
     addressLine1: loc?.address_line1 ?? null,
     postcode: loc?.postcode ?? null,
     completeness: Number(data.completeness ?? 0),
-    photos: photos.map((p) => ({
-      id: p.id,
-      url: p.storage_path,
-      alt: p.alt_text,
-    })),
+    photos: resolvedPhotos,
     products,
     services,
     menu: menus,

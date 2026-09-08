@@ -109,6 +109,7 @@ export type OnboardingDraftPayload = {
   social: SocialLinks;
 
   submittedAt?: string | null;
+  submittedBusinessId?: string | null;
   verificationStatus?: ClaimStatus | "UNCLAIMED" | null;
 };
 
@@ -175,6 +176,7 @@ export function createEmptyDraft(): OnboardingDraftPayload {
     orderUrl: "",
     social: {},
     submittedAt: null,
+    submittedBusinessId: null,
     verificationStatus: "UNCLAIMED",
   };
 }

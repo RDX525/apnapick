@@ -34,7 +34,8 @@ export async function getHomepageContent(): Promise<HomepageContent> {
           .from("categories")
           .select("slug, name, description")
           .eq("is_active", true)
-          .order("sort_order", { ascending: true }),
+          .order("sort_order", { ascending: true })
+          .limit(8),
         supabase
           .from("geographic_areas")
           .select("slug, name, area_type")

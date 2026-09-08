@@ -129,6 +129,25 @@ export const SEO_CATEGORIES: SeoCategoryDef[] = [
     ],
   },
   {
+    slug: "beauty-personal-care",
+    name: "Beauty & Personal Care",
+    description: "Perfume, skincare, and personal care in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["beauty-personal-care"],
+    facets: [
+      {
+        slug: "spas",
+        name: "Spas",
+        matchTerms: ["spa", "massage", "facial", "wellness"],
+      },
+      {
+        slug: "skincare",
+        name: "Skincare",
+        matchTerms: ["skincare", "skin care", "facial", "beauty treatment"],
+      },
+    ],
+  },
+  {
     slug: "services",
     name: "Services",
     description: "Home and local services across Pune",

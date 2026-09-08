@@ -174,6 +174,9 @@ export default async function HomePage() {
                     src={categoryCover(category.slug, category.name)}
                     alt=""
                     sizes="(max-width: 640px) 100vw, 25vw"
+                    loading={
+                      category.slug === "beauty-personal-care" ? "eager" : "lazy"
+                    }
                     className="transition duration-700 ease-out group-hover:scale-[1.07]"
                   />
                   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_16_28/12%)_0%,rgb(6_16_28/18%)_35%,rgb(6_16_28/88%)_100%)]" />
@@ -259,7 +262,7 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
-      <section aria-labelledby="popular-businesses">
+      <section className="ap-defer-paint" aria-labelledby="popular-businesses">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20">
           <Reveal>
             <h2
@@ -294,7 +297,7 @@ export default async function HomePage() {
       </section>
 
       <section
-        className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-24"
+        className="ap-defer-paint mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-24"
         aria-labelledby="popular-items"
       >
         <Reveal>
@@ -350,7 +353,7 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
-      <section aria-labelledby="areas">
+      <section className="ap-defer-paint" aria-labelledby="areas">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20">
           <Reveal>
             <div className="ap-brand-panel relative min-h-[22rem] overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-12">
@@ -358,7 +361,7 @@ export default async function HomePage() {
                 src={MEDIA.puneCity}
                 alt=""
                 sizes="(max-width: 1280px) 100vw, 80rem"
-                quality={85}
+                quality={75}
                 className="scale-105 object-[center_48%]"
               />
               <div className="ap-brand-scrim pointer-events-none absolute inset-0" />

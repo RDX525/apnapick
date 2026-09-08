@@ -7,13 +7,11 @@ import {
   useEffect,
   useMemo,
   useState,
-  useTransition,
   type ReactNode,
 } from "react";
 import type { AdminWorkspace } from "@/domain/admin/types";
 import {
-  createSeedAdminWorkspace,
-  loadAdminWorkspace,
+  createEmptyAdminWorkspace,
   saveAdminWorkspace,
 } from "@/services/admin/workspace";
 import {
@@ -79,20 +77,36 @@ async function postAdminAction(body: Record<string, unknown>) {
 }
 
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [workspace, setWorkspace] = useState(createSeedAdminWorkspace);
+  const [workspace, setWorkspace] = useState(createEmptyAdminWorkspace);
   const [hydrated, setHydrated] = useState(false);
   const [pendingActions, setPendingActions] = useState<Set<string>>(() => new Set());
   const [actionError, setActionError] = useState<string | null>(null);
-  const [, startHydrate] = useTransition();
   const saving = pendingActions.size > 0;
 
   useEffect(() => {
-    startHydrate(() => {
-      const saved = loadAdminWorkspace();
-      setWorkspace(saved ?? createSeedAdminWorkspace());
-      if (!saved) saveAdminWorkspace(createSeedAdminWorkspace());
-      setHydrated(true);
-    });
+    const controller = new AbortController();
+    void fetch("/api/admin/approvals", { signal: controller.signal })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => ({}))) as Partial<AdminWorkspace> & {
+          error?: string;
+        };
+        if (!response.ok) throw new Error(body.error ?? "Could not load approval queues");
+        setWorkspace({
+          ...createEmptyAdminWorkspace(),
+          ...body,
+          updatedAt: new Date().toISOString(),
+        });
+        setHydrated(true);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setActionError(
+          error instanceof Error ? error.message : "Could not load approval queues",
+        );
+        setHydrated(true);
+      });
+
+    return () => controller.abort();
   }, []);
 
   const persist = useCallback((next: AdminWorkspace) => {

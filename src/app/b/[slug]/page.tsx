@@ -9,6 +9,7 @@ import { RatingStars } from "@/components/trust/rating-summary";
 import { BusinessReviewsSection } from "@/features/reviews/business-reviews-section";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import {
+  breadcrumbListJsonLd,
   jsonLdScript,
   localBusinessJsonLd,
   organizationJsonLd,
@@ -25,7 +26,11 @@ import { getSessionUser } from "@/lib/auth/session";
 import type { PublicReview } from "@/domain/reviews/types";
 import { BusinessImage } from "@/components/media/business-image";
 import { CoverPhoto } from "@/components/media/cover-photo";
+import { BackLink } from "@/components/navigation/back-link";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { categoryCover } from "@/config/visual-media";
+import { isDiscoveryAreaSlug } from "@/config/geo-areas";
+import type { SeoBreadcrumb } from "@/domain/seo/types";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -56,6 +61,17 @@ export async function generateMetadata({ params }: Props) {
     path: `/b/${business.slug}`,
     imageUrl: business.photos[0]?.url,
   });
+}
+
+/** Only areas that have a hub page can be linked as a breadcrumb. */
+function hubAreaSlug(label: string | null) {
+  if (!label) return null;
+  const slug = label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return isDiscoveryAreaSlug(slug) ? slug : null;
 }
 
 function formatPrice(cents: number | null) {
@@ -96,9 +112,24 @@ export default async function BusinessProfilePage({ params }: Props) {
     isOwn: session?.id === r.userId,
   }));
 
+  const areaLabel = business.suburb ?? business.city;
+  const categorySlug = business.categorySlugs?.[0] ?? null;
+  const areaSlug = hubAreaSlug(areaLabel);
+
+  const breadcrumbs: SeoBreadcrumb[] = [{ name: "Home", path: "/" }];
+  if (categorySlug && business.categoryLabel) {
+    breadcrumbs.push({ name: business.categoryLabel, path: `/${categorySlug}` });
+    if (areaSlug && areaLabel) {
+      breadcrumbs.push({ name: areaLabel, path: `/${categorySlug}/${areaSlug}` });
+    }
+  }
+  breadcrumbs.push({ name: business.name, path: `/b/${business.slug}` });
+  const parentPath = breadcrumbs[breadcrumbs.length - 2]!.path;
+
   const jsonLd = [
     organizationJsonLd(),
     localBusinessJsonLd(business),
+    breadcrumbListJsonLd(breadcrumbs),
     ...business.products.slice(0, 5).map((p) =>
       productJsonLd({
         name: p.name,
@@ -136,6 +167,11 @@ export default async function BusinessProfilePage({ params }: Props) {
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 lg:pb-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
+
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <BackLink href={parentPath} />
+        <Breadcrumbs items={breadcrumbs} />
+      </div>
 
       <div className="ap-surface overflow-hidden rounded-[1.75rem]">
         <div className="flex snap-x snap-mandatory gap-1 overflow-x-auto sm:grid sm:grid-cols-3 sm:grid-rows-2 sm:overflow-visible">

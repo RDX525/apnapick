@@ -40,17 +40,13 @@ export function LocationControl({ value, onChange, className }: Props) {
 
   useEffect(() => {
     const saved = loadSessionLocation();
-    if (saved) {
-      const unchanged =
-        Math.abs(saved.position.lat - value.position.lat) < 0.0001 &&
-        Math.abs(saved.position.lng - value.position.lng) < 0.0001 &&
-        saved.areaSlug === value.areaSlug;
-      if (!unchanged) onChange(saved);
-      return;
-    }
     if (!saved) return;
+    const unchanged =
+      Math.abs(saved.position.lat - value.position.lat) < 0.0001 &&
+      Math.abs(saved.position.lng - value.position.lng) < 0.0001 &&
+      saved.areaSlug === value.areaSlug;
+    if (!unchanged) onChange(saved);
     // GPS is requested from LocationAccessDialog / Near me — don't prompt twice.
-    // hydrate once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { BackLink } from "@/components/navigation/back-link";
 
 type InfoSection = {
   title: string;
@@ -19,13 +18,7 @@ export function InfoPage({
 }) {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-12 sm:px-6 lg:py-20">
-      <Link
-        href="/"
-        className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-2 text-sm"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Back to ApnaPick
-      </Link>
+      <BackLink href="/" />
       <header className="mt-10 max-w-3xl">
         <p className="ap-kicker">{eyebrow}</p>
         <h1 className="font-display text-ink mt-4 text-4xl text-balance sm:text-5xl">

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       action: "claim_created",
       entity_type: "business_claim",
       entity_id: claimId,
-      metadata: { businessId: parsed.data.businessId },
+      new_data: { businessId: parsed.data.businessId },
     });
 
     return jsonOk({

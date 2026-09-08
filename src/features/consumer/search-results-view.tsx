@@ -7,6 +7,7 @@ import { Filter, Map as MapIcon, List, Navigation } from "lucide-react";
 import { BusinessResultCard } from "@/components/search/business-result-card";
 import { SponsoredResultCard } from "@/components/search/sponsored-result-card";
 import { SearchBox } from "@/components/search/search-box";
+import { BackLink } from "@/components/navigation/back-link";
 import { EmptyState } from "@/components/states/empty-state";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -60,13 +61,31 @@ export function SearchResultsView({
   const [desktopMap, setDesktopMap] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [coords, setCoords] = useState<CoordMap>(initialCoords);
-  const [location, setLocation] = useState<DiscoveryLocation>(initialLocation);
+  const [fetchedCoords, setFetchedCoords] = useState<CoordMap>({});
+  const [location, setLocation] = useState(initialLocation);
+  const [locationSource, setLocationSource] = useState(initialLocation);
   const hoverSelectTimer = useRef<number | null>(null);
   const requestedCoordinateIds = useRef(new Set<string>());
   const pendingRevealResult = useRef<string | null>(null);
-
+  const coordsRef = useRef<CoordMap>(initialCoords);
   const results = response.results;
+  const coords = useMemo(
+    () => ({ ...initialCoords, ...fetchedCoords }),
+    [fetchedCoords, initialCoords],
+  );
+  const activeSelectedId =
+    selectedId && results.some((result) => result.businessId === selectedId)
+      ? selectedId
+      : null;
+
+  if (initialLocation !== locationSource) {
+    setLocationSource(initialLocation);
+    setLocation(initialLocation);
+  }
+
+  useEffect(() => {
+    coordsRef.current = coords;
+  }, [coords]);
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -80,7 +99,7 @@ export function SearchResultsView({
     if (!desktopMap && !mobileMap) return;
     const missing = results
       .map((r) => r.businessId)
-      .filter((id) => !coords[id] && !requestedCoordinateIds.current.has(id));
+      .filter((id) => !coordsRef.current[id] && !requestedCoordinateIds.current.has(id));
     if (missing.length === 0) return;
     missing.forEach((id) => requestedCoordinateIds.current.add(id));
     const controller = new AbortController();
@@ -90,7 +109,7 @@ export function SearchResultsView({
       .then((r) => r.json())
       .then((json: { data?: { coordinates?: CoordMap } }) => {
         if (!json.data?.coordinates) return;
-        setCoords((prev) => ({ ...prev, ...json.data!.coordinates }));
+        setFetchedCoords((prev) => ({ ...prev, ...json.data!.coordinates }));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -100,7 +119,7 @@ export function SearchResultsView({
         /* list still works without coords */
       });
     return () => controller.abort();
-  }, [results, coords, desktopMap, mobileMap]);
+  }, [results, desktopMap, mobileMap]);
 
   const markers: MapMarker[] = useMemo(() => {
     const out: MapMarker[] = [];
@@ -113,15 +132,23 @@ export function SearchResultsView({
         label: r.name,
         subtitle: r.suburb ?? null,
         href: `/b/${r.slug}`,
-        selected: selectedId === r.businessId,
       });
     }
     return out;
-  }, [results, coords, selectedId]);
+  }, [results, coords]);
 
   const selectBusiness = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
+
+  const handleMapSelect = useCallback(
+    (id: string) => {
+      selectBusiness(id);
+      pendingRevealResult.current = id;
+      setMobileMap(false);
+    },
+    [selectBusiness],
+  );
 
   const selectBusinessSoon = useCallback((id: string) => {
     if (hoverSelectTimer.current != null) {
@@ -130,7 +157,7 @@ export function SearchResultsView({
     hoverSelectTimer.current = window.setTimeout(() => {
       setSelectedId(id);
       hoverSelectTimer.current = null;
-    }, 80);
+    }, 140);
   }, []);
 
   useEffect(
@@ -155,16 +182,16 @@ export function SearchResultsView({
   }, [mobileMap]);
 
   const activeDirectionsUrl = useMemo(() => {
-    if (!selectedId) return null;
-    const destination = coords[selectedId];
-    const result = results.find((item) => item.businessId === selectedId);
+    if (!activeSelectedId) return null;
+    const destination = coords[activeSelectedId];
+    const result = results.find((item) => item.businessId === activeSelectedId);
     if (!destination || !result) return null;
     return mapsDirectionsUrl({
       destination,
       destinationLabel: result.name,
       origin: location.position,
     });
-  }, [coords, location.position, results, selectedId]);
+  }, [activeSelectedId, coords, location.position, results]);
 
   const sortLinks = [
     ["recommended", "Recommended"],
@@ -186,7 +213,9 @@ export function SearchResultsView({
   }
 
   function navigate(next: Record<string, string | null | undefined>) {
-    startNavigation(() => router.push(hrefFor({ ...next, page: "1" })));
+    startNavigation(() =>
+      router.replace(hrefFor({ ...next, page: "1" }), { scroll: false }),
+    );
   }
 
   function changeLocation(next: DiscoveryLocation) {
@@ -197,24 +226,24 @@ export function SearchResultsView({
       next.areaSlug === location.areaSlug;
     if (unchanged) return;
     startNavigation(() => {
-      router.push(
+      router.replace(
         hrefFor({
           lat: String(next.position.lat),
           lng: String(next.position.lng),
           area: next.areaSlug ?? null,
           page: "1",
         }),
+        { scroll: false },
       );
     });
   }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
+      <BackLink href="/" />
       <SearchBox
         initialQuery={query}
-        initialArea={
-          area && isDiscoveryAreaSlug(area) ? area : CURRENT_LOCATION_VALUE
-        }
+        initialArea={area && isDiscoveryAreaSlug(area) ? area : CURRENT_LOCATION_VALUE}
         size="compact"
       />
 
@@ -274,6 +303,8 @@ export function SearchResultsView({
             <Link
               key={value}
               href={hrefFor({ sort: value, page: "1" })}
+              replace
+              scroll={false}
               className={cn(
                 "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm",
                 sort === value ||
@@ -308,6 +339,8 @@ export function SearchResultsView({
                   category: null,
                   page: "1",
                 })}
+                replace
+                scroll={false}
                 className="text-sea text-xs font-medium hover:underline"
               >
                 Clear all
@@ -320,6 +353,8 @@ export function SearchResultsView({
                   open_now: openNowOnly ? null : "1",
                   page: "1",
                 })}
+                replace
+                scroll={false}
                 className={cn(
                   "flex min-h-10 items-center rounded-xl px-3 text-sm",
                   openNowOnly ? "bg-primary text-primary-foreground" : "bg-secondary",
@@ -415,6 +450,8 @@ export function SearchResultsView({
                   verified: filters?.verifiedOnly ? null : "1",
                   page: "1",
                 })}
+                replace
+                scroll={false}
                 className={cn(
                   "flex min-h-10 items-center rounded-xl px-3 text-sm",
                   filters?.verifiedOnly
@@ -429,6 +466,8 @@ export function SearchResultsView({
                   has_offers: filters?.hasOffers ? null : "1",
                   page: "1",
                 })}
+                replace
+                scroll={false}
                 className={cn(
                   "flex min-h-10 items-center rounded-xl px-3 text-sm",
                   filters?.hasOffers
@@ -452,7 +491,7 @@ export function SearchResultsView({
                 </div>
               </dl>
             </div>
-            {selectedId && activeDirectionsUrl ? (
+            {activeSelectedId && activeDirectionsUrl ? (
               <Button asChild className="min-h-10 w-full" size="sm">
                 <a href={activeDirectionsUrl} target="_blank" rel="noopener noreferrer">
                   <Navigation className="size-4" aria-hidden />
@@ -497,7 +536,7 @@ export function SearchResultsView({
                 tabIndex={-1}
                 className={cn(
                   "rounded-2xl ring-offset-2 transition",
-                  selectedId === result.businessId && "ring-sea/60 ring-2",
+                  activeSelectedId === result.businessId && "ring-sea/60 ring-2",
                 )}
                 onMouseEnter={() => selectBusinessSoon(result.businessId)}
                 onFocus={() => selectBusiness(result.businessId)}
@@ -505,7 +544,6 @@ export function SearchResultsView({
                 <BusinessResultCard
                   result={result}
                   priority={index === 0}
-                  selected={selectedId === result.businessId}
                 />
               </div>
             ))
@@ -523,17 +561,17 @@ export function SearchResultsView({
 
         <aside
           className={cn(
-            "ap-surface relative h-fit overflow-hidden rounded-3xl shadow-[0_20px_50px_-24px_rgb(15_23_42/0.35)] ring-1 ring-black/5",
+            "ap-surface relative h-fit overflow-hidden rounded-3xl shadow-[0_20px_50px_-24px_rgb(15_23_42/0.35)] ring-1 ring-black/5 [contain:layout_paint]",
             mobileMap ? "block" : "hidden lg:block",
             "lg:sticky lg:top-[var(--ap-header-offset)]",
           )}
           aria-label="Map"
         >
           <div className="pointer-events-none absolute top-3 right-3 left-3 z-20 flex items-center justify-between">
-            <span className="bg-card/85 text-foreground rounded-full px-3 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/5 backdrop-blur-md">
+            <span className="bg-card text-foreground rounded-full px-3 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/5">
               Explore nearby
             </span>
-            <span className="bg-card/75 text-muted-foreground rounded-full px-2.5 py-1.5 text-[11px] ring-1 ring-black/5 backdrop-blur-md">
+            <span className="bg-card text-muted-foreground rounded-full px-2.5 py-1.5 text-[11px] ring-1 ring-black/5">
               {markers.length} places
             </span>
           </div>
@@ -546,12 +584,9 @@ export function SearchResultsView({
                   : null
               }
               markers={markers}
+              selectedId={activeSelectedId}
               mapsEnabled={mapsEnabled}
-              onSelect={(id) => {
-                selectBusiness(id);
-                pendingRevealResult.current = id;
-                setMobileMap(false);
-              }}
+              onSelect={handleMapSelect}
             />
           ) : (
             <div className="ap-map-canvas ap-map-premium text-muted-foreground flex aspect-[4/5] min-h-[320px] items-center justify-center text-sm">

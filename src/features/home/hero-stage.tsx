@@ -13,6 +13,7 @@ import { CoverPhoto } from "@/components/media/cover-photo";
 import { BusinessImage } from "@/components/media/business-image";
 import { categoryCover, MEDIA } from "@/config/visual-media";
 import type { ConsumerBusinessCard } from "@/domain/consumer/types";
+import { isUsableImageSrc, pickImageSrc } from "@/lib/media/photo-url";
 
 function formatRating(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -26,11 +27,14 @@ export function HeroStage({ featured }: { featured?: ConsumerBusinessCard | null
       .join(" · ") || "Pune";
   const rating =
     featured && featured.avgRating > 0 ? formatRating(featured.avgRating) : null;
-  const cover =
-    featured?.coverImageUrl ??
-    (featured
+  const featuredCover =
+    featured && isUsableImageSrc(featured.coverImageUrl) ? featured.coverImageUrl : null;
+  const cover = pickImageSrc(
+    featuredCover,
+    featured
       ? categoryCover(featured.categorySlugs?.[0], featured.categoryLabel)
-      : MEDIA.curry);
+      : MEDIA.curry,
+  );
   const areaLabel = featured?.suburb ?? featured?.city ?? "Pune";
   const distanceKm =
     featured?.distanceM != null ? `${(featured.distanceM / 1000).toFixed(1)} km` : null;
@@ -112,9 +116,9 @@ export function HeroStage({ featured }: { featured?: ConsumerBusinessCard | null
 
           <div className="bg-card/95 ring-border relative mt-4 ml-auto w-[94%] overflow-hidden rounded-[1.6rem] shadow-[0_30px_70px_-38px_rgb(15_23_42/0.5)] ring-1 backdrop-blur-md">
             <div className="group relative h-36 overflow-hidden">
-              {featured?.coverImageUrl ? (
+              {featuredCover ? (
                 <BusinessImage
-                  src={featured.coverImageUrl}
+                  src={featuredCover}
                   alt=""
                   fill
                   sizes="(max-width: 640px) 88vw, 28rem"

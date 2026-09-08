@@ -33,11 +33,13 @@ function pinHtml(marker: MapMarker, index: number) {
 export function FallbackDiscoveryMap({
   center,
   markers,
+  selectedId,
   onSelect,
   className,
 }: {
   center: LatLng;
   markers: MapMarker[];
+  selectedId?: string | null;
   onSelect?: (id: string) => void;
   className?: string;
 }) {
@@ -88,6 +90,7 @@ export function FallbackDiscoveryMap({
       </p>
       {markers.map((m, index) => {
         const pos = project(m.position.lat, m.position.lng);
+        const selected = selectedId === m.id || Boolean(m.selected);
         return (
           <button
             key={m.id}
@@ -97,14 +100,14 @@ export function FallbackDiscoveryMap({
             onClick={() => onSelect?.(m.id)}
             className={cn(
               "absolute z-10 -translate-x-1/2 -translate-y-1/2",
-              m.selected ? "z-20" : "",
+              selected ? "z-20" : "",
             )}
             style={{ left: pos.left, top: pos.top }}
           >
             <span
               className={cn(
                 "flex items-center gap-1.5 rounded-full shadow-lg transition",
-                m.selected
+                selected
                   ? "bg-primary text-primary-foreground py-1 pr-2.5 pl-1"
                   : "bg-card text-foreground size-8 justify-center ring-1 ring-black/10",
               )}
@@ -112,12 +115,12 @@ export function FallbackDiscoveryMap({
               <span
                 className={cn(
                   "grid size-6 place-items-center rounded-full text-[10px] font-semibold",
-                  m.selected ? "bg-white/20" : "bg-primary text-primary-foreground",
+                  selected ? "bg-white/20" : "bg-primary text-primary-foreground",
                 )}
               >
                 {index + 1}
               </span>
-              {m.selected ? (
+              {selected ? (
                 <span className="max-w-[8rem] truncate text-[11px] font-medium">
                   {m.label}
                 </span>
@@ -139,6 +142,7 @@ export function LeafletDiscoveryMap({
   center,
   userPosition,
   markers,
+  selectedId,
   onSelect,
   onFatalError,
   className,
@@ -146,6 +150,7 @@ export function LeafletDiscoveryMap({
   center: LatLng;
   userPosition?: LatLng | null;
   markers: MapMarker[];
+  selectedId?: string | null;
   onSelect?: (id: string) => void;
   onFatalError?: () => void;
   className?: string;
@@ -158,6 +163,8 @@ export function LeafletDiscoveryMap({
   const markerSignaturesRef = useRef<Map<string, string>>(new Map());
   const userMarkerRef = useRef<import("leaflet").Marker | null>(null);
   const onSelectRef = useRef(onSelect);
+  const selectedIdRef = useRef(selectedId ?? null);
+  const hasFittedRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -228,6 +235,7 @@ export function LeafletDiscoveryMap({
       markersMap.clear();
       markerSignatures.clear();
       userMarkerRef.current = null;
+      hasFittedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -239,6 +247,7 @@ export function LeafletDiscoveryMap({
 
     const existing = markersRef.current;
     const signatures = markerSignaturesRef.current;
+    const activeId = selectedId ?? null;
 
     for (const [id, marker] of existing) {
       if (!markers.some((m) => m.id === id)) {
@@ -249,21 +258,18 @@ export function LeafletDiscoveryMap({
     }
 
     markers.forEach((m, index) => {
-      const signature = [
-        m.position.lat,
-        m.position.lng,
-        m.label,
-        Boolean(m.selected),
-        index,
-      ].join("|");
+      const selected = activeId === m.id || Boolean(m.selected);
+      const signature = [m.position.lat, m.position.lng, m.label, selected, index].join(
+        "|",
+      );
       const prev = existing.get(m.id);
       if (prev && signatures.get(m.id) === signature) return;
 
       const icon = L.divIcon({
         className: "ap-map-pin-wrap",
-        iconSize: m.selected ? [168, 36] : [32, 32],
-        iconAnchor: m.selected ? [18, 18] : [16, 16],
-        html: pinHtml(m, index),
+        iconSize: selected ? [168, 36] : [32, 32],
+        iconAnchor: selected ? [18, 18] : [16, 16],
+        html: pinHtml({ ...m, selected }, index),
       });
 
       if (prev) {
@@ -302,19 +308,23 @@ export function LeafletDiscoveryMap({
       }).addTo(map);
     }
 
-    const selected = markers.find((m) => m.selected);
-    if (selected) {
-      map.panTo([selected.position.lat, selected.position.lng]);
-    } else if (markers.length > 0) {
-      const bounds = L.latLngBounds(
-        markers.map((m) => [m.position.lat, m.position.lng] as [number, number]),
-      );
-      bounds.extend([center.lat, center.lng]);
-      map.fitBounds(bounds.pad(0.22), { maxZoom: 15 });
-    } else {
-      map.setView([center.lat, center.lng], 13);
+    const selectedMarker = markers.find((m) => m.id === activeId);
+    if (selectedMarker && selectedIdRef.current !== activeId) {
+      map.panTo([selectedMarker.position.lat, selectedMarker.position.lng]);
+    } else if (!hasFittedRef.current) {
+      if (markers.length > 0) {
+        const bounds = L.latLngBounds(
+          markers.map((m) => [m.position.lat, m.position.lng] as [number, number]),
+        );
+        bounds.extend([center.lat, center.lng]);
+        map.fitBounds(bounds.pad(0.22), { maxZoom: 15 });
+        hasFittedRef.current = true;
+      } else {
+        map.setView([center.lat, center.lng], 13);
+      }
     }
-  }, [mapReady, markers, center, userPosition]);
+    selectedIdRef.current = activeId;
+  }, [mapReady, markers, center, userPosition, selectedId]);
 
   return (
     <div

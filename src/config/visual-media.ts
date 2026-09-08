@@ -11,6 +11,8 @@ export const MEDIA = {
     "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1200&q=80",
   plumbers:
     "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=1200&q=80",
+  beauty:
+    "https://images.pexels.com/photos/965989/pexels-photo-965989.jpeg?auto=compress&cs=tinysrgb&w=1800",
   curry:
     "https://images.unsplash.com/photo-1742599361574-6fb156181466?auto=format&fit=crop&w=1800&q=88",
   biryani:
@@ -40,6 +42,7 @@ const CATEGORY_IMAGES: Record<string, string> = {
   barbers: MEDIA.barbers,
   plumbers: MEDIA.plumbers,
   services: MEDIA.plumbers,
+  "beauty-personal-care": MEDIA.beauty,
 };
 
 const ITEM_IMAGES: Record<string, string> = {
@@ -57,6 +60,17 @@ export function categoryCover(slug?: string | null, label?: string | null): stri
   const key = `${slug ?? ""} ${label ?? ""}`.toLowerCase();
   if (key.includes("cafe") || key.includes("café") || key.includes("coffee")) {
     return MEDIA.cafes;
+  }
+  if (
+    key.includes("beauty") ||
+    key.includes("skincare") ||
+    key.includes("skin care") ||
+    key.includes("perfume") ||
+    key.includes("cosmetic") ||
+    key.includes("makeup") ||
+    key.includes("spa")
+  ) {
+    return MEDIA.beauty;
   }
   if (key.includes("barber") || key.includes("salon") || key.includes("groom")) {
     return MEDIA.barbers;

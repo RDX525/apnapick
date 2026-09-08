@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { BusinessResultCard } from "@/components/search/business-result-card";
+import { BackLink } from "@/components/navigation/back-link";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { EmptyState } from "@/components/states/empty-state";
 import type { SeoHubPage } from "@/domain/seo/types";
 import { hubStructuredData, jsonLdScript } from "@/lib/seo/json-ld";
@@ -15,27 +17,10 @@ export function SeoHubView({ hub }: { hub: SeoHubPage }) {
       />
 
       <section className="ap-media-gradient border-border relative overflow-hidden rounded-[2rem] border px-5 py-8 sm:px-9 sm:py-10">
-        <nav className="text-muted-foreground text-sm" aria-label="Breadcrumb">
-          <ol className="flex flex-wrap items-center gap-2">
-            {hub.breadcrumbs.map((crumb, i) => {
-              const last = i === hub.breadcrumbs.length - 1;
-              return (
-                <li key={crumb.path} className="flex items-center gap-2">
-                  {i > 0 ? <span aria-hidden>/</span> : null}
-                  {last ? (
-                    <span className="text-foreground" aria-current="page">
-                      {crumb.name}
-                    </span>
-                  ) : (
-                    <Link href={crumb.path} className="hover:text-foreground">
-                      {crumb.name}
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <BackLink href={hub.breadcrumbs.at(-2)?.path ?? "/"} />
+          <Breadcrumbs items={hub.breadcrumbs} />
+        </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.8fr] lg:items-end">
           <div>

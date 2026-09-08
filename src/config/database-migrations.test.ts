@@ -94,6 +94,15 @@ describe("Phase 2 database migrations", () => {
     expect(sql).toContain("businesses_guard_trust_fields");
   });
 
+  it("defines transactional listing submission and admin moderation", () => {
+    expect(sql).toContain("submit_business_listing");
+    expect(sql).toContain("submit_business_claim");
+    expect(sql).toContain("admin_moderate_business");
+    expect(sql).toContain("admin_moderate_claim");
+    expect(sql).toContain("revoke all on function public.admin_moderate_business");
+    expect(sql).toContain("grant execute on function public.submit_business_listing");
+  });
+
   it("dev seed is explicitly non-production", () => {
     const seed = readFileSync(
       path.join(process.cwd(), "supabase", "seed", "pune_dev.sql"),

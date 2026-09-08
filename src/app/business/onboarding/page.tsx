@@ -3,6 +3,7 @@ import { buildPageMetadata } from "@/lib/seo/metadata";
 import { OnboardingWizard } from "@/features/onboarding/onboarding-wizard";
 import { Button } from "@/components/ui/button";
 import { isFeatureEnabled } from "@/config/feature-flags";
+import { getSessionUser } from "@/lib/auth/session";
 
 export const metadata = buildPageMetadata({
   title: "List your business",
@@ -11,7 +12,7 @@ export const metadata = buildPageMetadata({
   noIndex: true,
 });
 
-export default function OnboardingPage() {
+export default async function OnboardingPage() {
   if (!isFeatureEnabled("businessOnboardingEnabled")) {
     return (
       <main className="mx-auto max-w-lg flex-1 px-4 py-16 text-center">
@@ -22,6 +23,8 @@ export default function OnboardingPage() {
       </main>
     );
   }
+
+  const user = await getSessionUser();
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
@@ -37,7 +40,11 @@ export default function OnboardingPage() {
           </p>
         </div>
         <Button asChild variant="outline" className="min-h-10">
-          <Link href="/login?next=/business/onboarding">Log in to sync</Link>
+          {user ? (
+            <Link href="/business/dashboard">Open dashboard</Link>
+          ) : (
+            <Link href="/login?next=/business/onboarding">Log in to sync</Link>
+          )}
         </Button>
       </div>
       <OnboardingWizard />

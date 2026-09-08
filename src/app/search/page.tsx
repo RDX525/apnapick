@@ -4,6 +4,7 @@ import { getPublicEnv } from "@/config/env";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
 import { searchWithPlacements } from "@/services/search/get-search-service";
 import { SearchBox } from "@/components/search/search-box";
+import { BackLink } from "@/components/navigation/back-link";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { CURRENT_LOCATION_LABEL } from "@/lib/geo/device-location";
 import { enrichWithCoordinates, locationFromAreaSlug } from "@/services/geo/geo-service";
@@ -46,6 +47,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (!q) {
     return (
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-16 sm:px-6">
+        <BackLink href="/" />
         <h1 className="font-display text-ink text-3xl">Search Pune</h1>
         <SearchBox />
       </main>
@@ -111,20 +113,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const initialCoords = await enrichWithCoordinates(
     response.results.map((r) => r.businessId),
   );
-  const viewKey = JSON.stringify({
-    q,
-    sort,
-    lat,
-    lng,
-    area: params.area ?? null,
-    page,
-    filters,
-  });
 
   return (
     <main className="flex-1">
       <SearchResultsView
-        key={viewKey}
         query={q}
         area={params.area}
         sort={sort}

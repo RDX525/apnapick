@@ -67,7 +67,7 @@ export class SearchService {
     const latencyMs = Date.now() - started;
     const coarse = geoSearchService.coarsenForAnalytics(location);
 
-    const { searchEventId } = await this.analytics.record({
+    void this.analytics.record({
       query: parsed,
       resultCount: ranked.length,
       latencyMs,
@@ -87,7 +87,7 @@ export class SearchService {
       page,
       pageSize,
       latencyMs,
-      searchEventId,
+      searchEventId: null,
     };
   }
 }

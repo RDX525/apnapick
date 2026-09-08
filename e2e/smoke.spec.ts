@@ -49,6 +49,14 @@ test("dashboard save failure is truthful and retryable", async ({ page, isMobile
   test.skip(isMobile, "Covered on operational desktop layouts");
   let attempts = 0;
   await page.route("**/api/business/workspace", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ workspace: null, source: "anonymous" }),
+      });
+      return;
+    }
     attempts += 1;
     await route.fulfill({
       status: attempts === 1 ? 503 : 200,

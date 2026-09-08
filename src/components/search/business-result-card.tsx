@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Link from "next/link";
 import { MapPin, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import type { ConsumerBusinessCard } from "@/domain/consumer/types";
 import { BusinessImage } from "@/components/media/business-image";
 import { CoverPhoto } from "@/components/media/cover-photo";
 import { categoryCover } from "@/config/visual-media";
+import { pickImageSrc } from "@/lib/media/photo-url";
 
 type CardModel = {
   slug: string;
@@ -78,7 +80,7 @@ type Props = {
   onSelect?: () => void;
 };
 
-export function BusinessResultCard({
+export const BusinessResultCard = memo(function BusinessResultCard({
   result,
   business,
   className,
@@ -93,8 +95,10 @@ export function BusinessResultCard({
       : null;
   if (!model) return null;
 
-  const imageSrc =
-    model.coverImageUrl ?? categoryCover(model.categorySlugs?.[0], model.categoryLabel);
+  const imageSrc = pickImageSrc(
+    model.coverImageUrl,
+    categoryCover(model.categorySlugs?.[0], model.categoryLabel),
+  );
   const remoteImage = imageSrc.startsWith("http") || imageSrc.includes("/storage/v1/");
 
   return (
@@ -195,4 +199,4 @@ export function BusinessResultCard({
       </div>
     </article>
   );
-}
+});

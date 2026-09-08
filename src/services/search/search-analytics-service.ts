@@ -67,7 +67,7 @@ export class SearchAnalyticsService {
     };
 
     if (process.env.NODE_ENV === "development") {
-      console.info("[search_analytics]", coarse);
+      log.debug("search_event", coarse);
     }
 
     try {
@@ -123,7 +123,7 @@ export class SearchAnalyticsService {
 
   async recordAction(input: SearchActionInput): Promise<void> {
     if (process.env.NODE_ENV === "development") {
-      console.info("[search_action]", {
+      log.debug("search_action", {
         action: input.action,
         businessId: input.businessId,
         area: input.areaSlug ?? null,

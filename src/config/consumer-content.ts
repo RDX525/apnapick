@@ -34,6 +34,11 @@ export const DEFAULT_CATEGORIES = [
     description: "Fades, cuts, and grooming",
   },
   {
+    slug: "beauty-personal-care",
+    name: "Beauty & Personal Care",
+    description: "Perfume, skincare, and personal care",
+  },
+  {
     slug: "plumbers",
     name: "Plumbers",
     description: "Repairs and home services",

@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { completenessScore } from "@/services/onboarding/completeness";
 import type { OnboardingDraftPayload } from "@/domain/onboarding/types";
 import { isFeatureEnabled } from "@/config/feature-flags";
+import { hasSupabaseConfig } from "@/config/env";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,15 @@ export async function POST(request: NextRequest) {
     const user = await getSessionUser();
     const supabase = await createServerSupabaseClient();
 
+    if (!user && hasSupabaseConfig()) {
+      throw new AppError({
+        message: "Log in before submitting your business for approval.",
+        code: "UNAUTHORIZED",
+        status: 401,
+        expose: true,
+      });
+    }
+
     if (!user || !supabase) {
       return jsonOk({
         ok: true,
@@ -61,59 +71,51 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Persist draft + mark submission; full business insert is gated by ownership RLS
-    const { error: draftError } = await supabase.from("onboarding_drafts").insert({
-      user_id: user.id,
-      business_id: draft.claimBusinessId ?? null,
-      current_step: 8,
-      payload: {
-        ...draft,
-        submittedAt: new Date().toISOString(),
-        claimStatus: draft.mode === "claim" ? "UNDER_REVIEW" : draft.claimStatus,
-      },
-    });
-    assertDatabaseWrite(
-      draftError,
-      "ONBOARDING_SUBMIT_FAILED",
-      "Could not submit your listing. Your draft is still safe.",
-    );
+    // New listings are materialized transactionally by the database. Claims keep
+    // their business-linked draft and follow the ownership verification queue.
+    const submittedPayload = {
+      ...draft,
+      submittedAt: new Date().toISOString(),
+      claimStatus: draft.mode === "claim" ? "PENDING" : draft.claimStatus,
+    };
+    let submittedBusiness: {
+      businessId?: string;
+      slug?: string;
+      status?: string;
+    } | null = null;
 
     if (draft.mode === "claim" && draft.claimBusinessId) {
-      const { error: claimError } = await supabase
-        .from("business_claims")
-        .update({ status: "UNDER_REVIEW" })
-        .eq("business_id", draft.claimBusinessId)
-        .eq("claimant_id", user.id)
-        .in("status", ["PENDING", "UNDER_REVIEW"]);
+      const { error: claimError } = await supabase.rpc("submit_business_claim", {
+        p_business_id: draft.claimBusinessId,
+        p_payload: submittedPayload,
+      });
       assertDatabaseWrite(
         claimError,
-        "CLAIM_SUBMIT_FAILED",
+        "ONBOARDING_SUBMIT_FAILED",
         "Could not submit your claim. Your draft is still safe.",
       );
+    } else {
+      const { data, error: submissionError } = await supabase.rpc(
+        "submit_business_listing",
+        {
+          p_payload: submittedPayload,
+          p_completeness: score,
+        },
+      );
+      assertDatabaseWrite(
+        submissionError,
+        "ONBOARDING_SUBMIT_FAILED",
+        "Could not submit your listing. Your draft is still safe.",
+      );
+      submittedBusiness = data as typeof submittedBusiness;
     }
-
-    const { error: auditError } = await supabase.from("audit_logs").insert({
-      actor_id: user.id,
-      action: "onboarding_submitted",
-      entity_type: "onboarding_draft",
-      entity_id: user.id,
-      metadata: {
-        mode: draft.mode,
-        completeness: score,
-        claimBusinessId: draft.claimBusinessId ?? null,
-      },
-    });
-    assertDatabaseWrite(
-      auditError,
-      "ONBOARDING_AUDIT_FAILED",
-      "Submission could not be recorded. Please try again.",
-    );
 
     return jsonOk({
       ok: true,
       status: "PENDING_REVIEW",
       completeness: score,
       persisted: true,
+      business: submittedBusiness,
     });
   } catch (error) {
     return jsonError(error);

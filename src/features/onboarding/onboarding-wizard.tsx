@@ -473,9 +473,8 @@ export function OnboardingWizard() {
       const submittedDraft = {
         ...draft,
         submittedAt: new Date().toISOString(),
-        verificationStatus:
-          draft.mode === "claim" ? "UNDER_REVIEW" : draft.verificationStatus,
-        claimStatus: draft.mode === "claim" ? "UNDER_REVIEW" : draft.claimStatus,
+        verificationStatus: draft.mode === "claim" ? "PENDING" : draft.verificationStatus,
+        claimStatus: draft.mode === "claim" ? "PENDING" : draft.claimStatus,
       } satisfies OnboardingDraftPayload;
       setDraft(submittedDraft);
       saveLocalDraft(submittedDraft, step);

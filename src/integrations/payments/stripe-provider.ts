@@ -40,6 +40,21 @@ export class StripePaymentProvider implements PaymentProvider {
     input: CheckoutSessionInput,
   ): Promise<CheckoutSessionResult> {
     const stripe = requireStripe();
+    const price = await stripe.prices.retrieve(input.priceId);
+    if (
+      !price.active ||
+      price.unit_amount !== input.expectedAmountCents ||
+      price.currency.toLowerCase() !== input.expectedCurrency.toLowerCase() ||
+      price.recurring?.interval !== input.expectedInterval
+    ) {
+      throw new AppError({
+        message:
+          "The configured Stripe price does not match this plan. Update the Stripe Price ID before accepting payments.",
+        code: "BILLING_PRICE_MISMATCH",
+        status: 503,
+        expose: true,
+      });
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: input.externalCustomerId || undefined,

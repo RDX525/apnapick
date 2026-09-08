@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { BusinessResultCard } from "@/components/search/business-result-card";
@@ -77,11 +79,17 @@ export default async function AreaPage({ params }: Props) {
     itemCount: 0,
     businesses,
     catalogItems: [],
-    breadcrumbs: [
-      { name: "Home", path: "/" },
-      { name: "Areas", path: "/areas/pune" },
-      { name: label, path: `/areas/${slug}` },
-    ],
+    breadcrumbs:
+      slug === "pune"
+        ? [
+            { name: "Home", path: "/" },
+            { name: label, path: `/areas/${slug}` },
+          ]
+        : [
+            { name: "Home", path: "/" },
+            { name: "Areas", path: "/areas/pune" },
+            { name: label, path: `/areas/${slug}` },
+          ],
     relatedLinks: [],
     schemaKind: "mixed",
   };
@@ -101,25 +109,10 @@ export default async function AreaPage({ params }: Props) {
         dangerouslySetInnerHTML={jsonLdScript(structured)}
       />
 
-      <nav className="text-muted-foreground text-sm" aria-label="Breadcrumb">
-        <ol className="flex flex-wrap items-center gap-2">
-          <li>
-            <Link href="/" className="hover:text-foreground">
-              Home
-            </Link>
-          </li>
-          <li aria-hidden>/</li>
-          <li>
-            <Link href="/areas/pune" className="hover:text-foreground">
-              Areas
-            </Link>
-          </li>
-          <li aria-hidden>/</li>
-          <li className="text-foreground" aria-current="page">
-            {label}
-          </li>
-        </ol>
-      </nav>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <BackLink href={slug === "pune" ? "/" : "/areas/pune"} />
+        <Breadcrumbs items={hubStub.breadcrumbs} />
+      </div>
 
       <h1 className="font-display text-ink mt-4 text-3xl sm:text-4xl">Explore {label}</h1>
       <p className="text-muted-foreground mt-2 max-w-2xl">

@@ -6,6 +6,23 @@ function uid() {
 
 export const ADMIN_STORAGE_KEY = "apnapick.admin.workspace.v1";
 
+export function createEmptyAdminWorkspace(): AdminWorkspace {
+  return {
+    claims: [],
+    businesses: [],
+    users: [],
+    categories: [],
+    content: [],
+    reports: [],
+    searchAnalytics: [],
+    seoPages: [],
+    subscriptions: [],
+    payments: [],
+    auditLogs: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function createSeedAdminWorkspace(): AdminWorkspace {
   const claimId = uid();
   const businessId = "11111111-1111-1111-1111-111111111101";
@@ -124,6 +141,12 @@ export function createSeedAdminWorkspace(): AdminWorkspace {
       { id: uid(), slug: "restaurants", name: "Restaurants", active: true },
       { id: uid(), slug: "cafes", name: "Cafés", active: true },
       { id: uid(), slug: "barbers", name: "Barbers", active: true },
+      {
+        id: uid(),
+        slug: "beauty-personal-care",
+        name: "Beauty & Personal Care",
+        active: true,
+      },
       { id: uid(), slug: "plumbers", name: "Plumbers", active: true },
     ],
     content: [

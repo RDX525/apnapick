@@ -10,6 +10,9 @@ export type CheckoutSessionInput = {
   planCode: PaidPlanCode;
   /** Stripe Price id — from plans.external_price_id or env map */
   priceId: string;
+  expectedAmountCents: number;
+  expectedCurrency: string;
+  expectedInterval: "month" | "year";
   customerEmail?: string | null;
   externalCustomerId?: string | null;
   successUrl: string;

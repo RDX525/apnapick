@@ -4,6 +4,8 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { requireAdminSession } from "@/lib/auth/admin";
 import { writeAdminAudit } from "@/services/admin/audit";
+import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { hasSupabaseConfig } from "@/config/env";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,48 @@ export async function POST(request: NextRequest) {
     let entityType = "";
     let entityId: string | null = null;
     const newData: Record<string, unknown> = { ...body };
+    let persistedAuditId: string | null = null;
+
+    if (body.type === "business" && body.action === "merge_duplicate") {
+      await requireAdminSession("admin:merge");
+    }
+
+    if (hasSupabaseConfig() && (body.type === "business" || body.type === "claim")) {
+      const supabase = await createServerSupabaseClient();
+      if (!supabase) {
+        throw new AppError({
+          message: "Admin database is unavailable",
+          code: "ADMIN_DATABASE_UNAVAILABLE",
+          status: 503,
+          expose: true,
+        });
+      }
+
+      const mutation =
+        body.type === "business"
+          ? await supabase.rpc("admin_moderate_business", {
+              p_business_id: body.businessId,
+              p_action: body.action,
+              p_merge_into_id: body.mergeIntoId ?? null,
+            })
+          : await supabase.rpc("admin_moderate_claim", {
+              p_claim_id: body.claimId,
+              p_action: body.action,
+              p_note: body.note ?? null,
+            });
+
+      if (mutation.error) {
+        throw new AppError({
+          message: mutation.error.message,
+          code: "ADMIN_MUTATION_FAILED",
+          status: 400,
+          expose: true,
+          cause: mutation.error,
+        });
+      }
+      const result = mutation.data as { auditId?: string } | null;
+      persistedAuditId = result?.auditId ?? null;
+    }
 
     switch (body.type) {
       case "claim":
@@ -86,9 +130,6 @@ export async function POST(request: NextRequest) {
         action = `business_${body.action}`;
         entityType = "business";
         entityId = body.businessId;
-        if (body.action === "merge_duplicate") {
-          await requireAdminSession("admin:merge");
-        }
         break;
       case "user":
         action = `user_${body.action}`;
@@ -117,15 +158,26 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    const audit = await writeAdminAudit({
-      actor,
-      action,
-      entityType,
-      entityId,
-      newData,
-      ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
-      userAgent: request.headers.get("user-agent"),
-    });
+    const audit = persistedAuditId
+      ? {
+          id: persistedAuditId,
+          actorId: actor.id,
+          actorEmail: actor.email,
+          action,
+          entityType,
+          entityId,
+          newData,
+          createdAt: new Date().toISOString(),
+        }
+      : await writeAdminAudit({
+          actor,
+          action,
+          entityType,
+          entityId,
+          newData,
+          ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+          userAgent: request.headers.get("user-agent"),
+        });
 
     return jsonOk({ ok: true, audit });
   } catch (error) {

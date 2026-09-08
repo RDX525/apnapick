@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getPublicEnv } from "@/config/env";
+import { isUsableImageSrc } from "@/lib/media/photo-url";
 
 export type BuildPageMetadataInput = {
   title: string;
@@ -26,7 +27,9 @@ export function buildPageMetadata(input: BuildPageMetadataInput): Metadata {
 
   const noIndex = Boolean(input.noIndex);
   const follow = input.follow ?? true;
-  const image = input.imageUrl ? new URL(input.imageUrl, base).toString() : undefined;
+  const image = isUsableImageSrc(input.imageUrl)
+    ? new URL(input.imageUrl, base).toString()
+    : undefined;
 
   return {
     title: {

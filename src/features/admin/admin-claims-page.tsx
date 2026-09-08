@@ -62,9 +62,9 @@ export function AdminClaimsPage() {
         filterOptions={[
           { value: "PENDING", label: "Pending" },
           { value: "UNDER_REVIEW", label: "Under review" },
-          { value: "APPROVED", label: "Approved" },
+          { value: "VERIFIED", label: "Verified" },
           { value: "REJECTED", label: "Rejected" },
-          { value: "SUSPENDED", label: "Suspended" },
+          { value: "EXPIRED", label: "Expired" },
         ]}
         sortOptions={[
           { value: "newest", label: "Newest" },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navLinkIsActive, PRIMARY_NAV } from "@/config/site-nav";
+import { navLinkIsActive, PRIMARY_NAV, primaryNavForArea } from "@/config/site-nav";
 
 describe("primary navigation", () => {
   it("covers discover, restaurants, services, and areas", () => {
@@ -17,5 +17,17 @@ describe("primary navigation", () => {
     expect(navLinkIsActive("/areas/baner", "/areas/pune")).toBe(true);
     expect(navLinkIsActive("/services/pune", "/services/pune")).toBe(true);
     expect(navLinkIsActive("/", "/search")).toBe(false);
+  });
+
+  it("points hub links at the selected neighbourhood", () => {
+    expect(primaryNavForArea("baner").map((l) => l.href)).toEqual([
+      "/search",
+      "/restaurants/baner",
+      "/services/baner",
+      "/areas/baner",
+    ]);
+    expect(primaryNavForArea("current").map((l) => l.href)).toEqual(
+      PRIMARY_NAV.map((l) => l.href),
+    );
   });
 });

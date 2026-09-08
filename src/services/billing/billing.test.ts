@@ -13,6 +13,11 @@ describe("billing plan catalog", () => {
     expect(Object.keys(PLAN_CATALOG)).toEqual(["free", "premium", "business"]);
   });
 
+  it("uses the configured monthly INR prices", () => {
+    expect(PLAN_CATALOG.premium.priceCents).toBe(49_900);
+    expect(PLAN_CATALOG.business.priceCents).toBe(89_900);
+  });
+
   it("keeps free without sponsored eligibility", () => {
     expect(PLAN_CATALOG.free.features.sponsoredEligible).toBe(false);
     expect(PLAN_CATALOG.premium.features.teamMembers).toBe(true);
@@ -78,6 +83,9 @@ describe("StubPaymentProvider webhook", () => {
       businessId: "biz",
       planCode: "premium",
       priceId: "price_x",
+      expectedAmountCents: 49_900,
+      expectedCurrency: "INR",
+      expectedInterval: "month",
       successUrl: "http://localhost:3000/ok",
       cancelUrl: "http://localhost:3000/cancel",
     });

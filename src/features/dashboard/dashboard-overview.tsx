@@ -35,12 +35,17 @@ const METRIC_CARDS = [
 export function DashboardOverview({ submitted }: { submitted?: boolean }) {
   const { workspace, insights } = useDashboard();
   const m = workspace.metrics;
+  const locationLabel = [workspace.profile.suburb, workspace.profile.city]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <DashboardShell
       activePath="/business/dashboard"
       title="Dashboard"
-      description={`${m.periodLabel} · ${workspace.profile.suburb}, ${workspace.profile.city}`}
+      description={
+        locationLabel ? `${m.periodLabel} · ${locationLabel}` : m.periodLabel
+      }
     >
       {submitted ? (
         <div

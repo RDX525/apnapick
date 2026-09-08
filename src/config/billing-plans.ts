@@ -14,7 +14,7 @@ export const PLAN_CATALOG: Record<
   premium: {
     name: "Premium",
     description: "Enhanced profile, media, offers, advanced analytics, leads, and team",
-    priceCents: 199900,
+    priceCents: 49900,
     features: {
       ...DEFAULT_FREE_FEATURES,
       enhancedProfile: true,
@@ -33,7 +33,7 @@ export const PLAN_CATALOG: Record<
     name: "Business",
     description:
       "Everything in Premium plus eligibility for clearly labeled sponsored placement",
-    priceCents: 499900,
+    priceCents: 89900,
     features: {
       ...DEFAULT_FREE_FEATURES,
       enhancedProfile: true,

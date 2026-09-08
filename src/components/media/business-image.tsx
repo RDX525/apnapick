@@ -1,6 +1,7 @@
 "use client";
 
 import Image, { type ImageLoaderProps, type ImageProps } from "next/image";
+import { isUsableImageSrc } from "@/lib/media/photo-url";
 
 function isSupabaseStorageSrc(src: string) {
   try {
@@ -39,6 +40,8 @@ export function BusinessImage({
   src,
   ...props
 }: BusinessImageProps) {
+  if (typeof src === "string" && !isUsableImageSrc(src)) return null;
+
   const eager = Boolean(preload || priority || loading === "eager");
   const supabaseSrc = typeof src === "string" && isSupabaseStorageSrc(src);
   return (

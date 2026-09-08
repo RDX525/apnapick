@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
       },
     ],
     qualities: [75, 80, 85],
+    minimumCacheTTL: 60 * 60 * 24,
+  },
+  experimental: {
+    optimizePackageImports: ["radix-ui"],
   },
 };
 

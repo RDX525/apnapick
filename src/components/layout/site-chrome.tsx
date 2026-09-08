@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeMenu } from "@/components/theme/theme-menu";
@@ -18,12 +18,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { PRIMARY_NAV, navLinkIsActive } from "@/config/site-nav";
+import { navLinkIsActive, primaryNavForArea } from "@/config/site-nav";
 
 export function SiteHeader({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { area, setArea, locating } = useDiscoveryArea();
+  const links = useMemo(() => primaryNavForArea(area), [area]);
 
   function handleNavigation() {
     setOpen(false);
@@ -49,7 +50,7 @@ export function SiteHeader({ className }: { className?: string }) {
       <div className="sticky top-0 z-50 px-3 [padding-top:var(--ap-chrome-top)] sm:px-4">
         <header
           className={cn(
-            "ap-glass ap-sticky-chrome mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 rounded-2xl px-3 sm:h-16 sm:gap-3 sm:px-5",
+            "ap-sticky-chrome mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 rounded-2xl px-3 sm:h-16 sm:gap-3 sm:px-5",
             className,
           )}
         >
@@ -65,22 +66,25 @@ export function SiteHeader({ className }: { className?: string }) {
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
-            {PRIMARY_NAV.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                scroll
-                onClick={handleNavigation}
-                aria-current={navLinkIsActive(pathname, link.href) ? "page" : undefined}
-                className={
-                  navLinkIsActive(pathname, link.href)
-                    ? "bg-secondary text-foreground inline-flex min-h-11 items-center rounded-full px-3 text-sm"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground inline-flex min-h-11 items-center rounded-full px-3 text-sm transition-colors"
-                }
-              >
-                {link.label}
-              </Link>
-            ))}
+            {links.map((link) => {
+              const active = navLinkIsActive(pathname, link.href);
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  scroll
+                  onClick={handleNavigation}
+                  aria-current={active ? "page" : undefined}
+                  className={
+                    active
+                      ? "bg-secondary text-foreground inline-flex min-h-11 items-center rounded-full px-3 text-sm"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground inline-flex min-h-11 items-center rounded-full px-3 text-sm transition-colors"
+                  }
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
@@ -140,19 +144,26 @@ export function SiteHeader({ className }: { className?: string }) {
         </DialogHeader>
         <nav aria-label="Mobile">
           <ul className="space-y-1">
-            {PRIMARY_NAV.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  scroll
-                  className="text-foreground hover:bg-secondary flex min-h-11 items-center rounded-xl px-3 text-sm"
-                  onClick={handleNavigation}
-                  aria-current={navLinkIsActive(pathname, link.href) ? "page" : undefined}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
+            {links.map((link) => {
+              const active = navLinkIsActive(pathname, link.href);
+              return (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    scroll
+                    className={
+                      active
+                        ? "bg-secondary text-foreground flex min-h-11 items-center rounded-xl px-3 text-sm"
+                        : "text-foreground hover:bg-secondary flex min-h-11 items-center rounded-xl px-3 text-sm"
+                    }
+                    onClick={handleNavigation}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
             <li className="px-3 py-2 sm:hidden">
               <p className="text-muted-foreground mb-2 text-xs font-medium">Location</p>
               <AreaSelect
@@ -182,122 +193,5 @@ export function SiteHeader({ className }: { className?: string }) {
         </nav>
       </DialogContent>
     </Dialog>
-  );
-}
-
-export function SiteFooter() {
-  return (
-    <footer className="border-border/70 bg-background/80 relative z-10 mt-auto border-t">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-5">
-        <div className="sm:col-span-2 lg:col-span-2">
-          <p className="font-display text-ink text-2xl">
-            Apna<span className="ap-brand-pick">Pick</span>
-          </p>
-          <p className="text-muted-foreground mt-3 max-w-sm text-sm leading-relaxed">
-            Intent-first local discovery for Pune. Search what you need — we match
-            businesses that actually offer it.
-          </p>
-        </div>
-        <div>
-          <p className="text-foreground text-sm font-medium">Explore</p>
-          <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
-            {PRIMARY_NAV.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  scroll
-                  className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <p className="text-foreground text-sm font-medium">Business</p>
-          <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
-            <li>
-              <Link
-                href="/business/onboarding"
-                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-              >
-                List your business
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/business/dashboard"
-                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-              >
-                Dashboard
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <p className="text-foreground text-sm font-medium">Trust & support</p>
-          <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
-            <li>
-              <Link
-                href="/help"
-                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-              >
-                Help center
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/verification"
-                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-              >
-                Verification
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/ranking"
-                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-              >
-                How ranking works
-              </Link>
-            </li>
-            <li>
-              <a
-                href="mailto:support@apnapick.com"
-                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
-              >
-                Contact
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-border/60 text-muted-foreground border-t px-4 py-4 text-xs">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-          <span>© 2026 ApnaPick · Pune</span>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/privacy"
-              className="hover:text-foreground inline-flex min-h-11 items-center"
-            >
-              Privacy
-            </Link>
-            <Link
-              href="/terms"
-              className="hover:text-foreground inline-flex min-h-11 items-center"
-            >
-              Terms
-            </Link>
-            <Link
-              href="/accessibility"
-              className="hover:text-foreground inline-flex min-h-11 items-center"
-            >
-              Accessibility
-            </Link>
-          </div>
-        </div>
-      </div>
-    </footer>
   );
 }

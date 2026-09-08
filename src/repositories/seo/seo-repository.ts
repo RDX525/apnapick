@@ -33,7 +33,7 @@ const listBusinessesForSeoSupply = cache(async function listBusinessesForSeoSupp
     return { businesses: [], catalogItems: [], source: "empty" };
   }
 
-  const { items, source } = await listPublishedBusinesses(500);
+  const { items, source } = await listPublishedBusinesses(200, supplyKey);
   const supply = new Set(supplyCategorySlugs);
   const businesses = items.filter((b) => {
     const slugs = b.categorySlugs ?? [];

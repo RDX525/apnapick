@@ -26,6 +26,7 @@ export function DiscoveryMapPanel({
   center,
   userPosition,
   markers,
+  selectedId,
   mapsEnabled,
   onSelect,
   className,
@@ -33,6 +34,7 @@ export function DiscoveryMapPanel({
   center: LatLng;
   userPosition?: LatLng | null;
   markers: MapMarker[];
+  selectedId?: string | null;
   mapsEnabled: boolean;
   onSelect?: (id: string) => void;
   className?: string;
@@ -44,6 +46,7 @@ export function DiscoveryMapPanel({
       <FallbackDiscoveryMap
         center={center}
         markers={markers}
+        selectedId={selectedId}
         onSelect={onSelect}
         className={cn("aspect-[4/5] min-h-[320px]", className)}
       />
@@ -55,6 +58,7 @@ export function DiscoveryMapPanel({
       center={center}
       userPosition={userPosition}
       markers={markers}
+      selectedId={selectedId}
       onSelect={onSelect}
       onFatalError={() => setUseFallback(true)}
       className={cn("aspect-[4/5] min-h-[320px]", className)}

@@ -8,7 +8,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useTransition,
   type ReactNode,
 } from "react";
 import type { DashboardWorkspace } from "@/domain/dashboard/types";
@@ -33,6 +32,25 @@ type DashboardContextValue = {
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 
+const DEMO_BUSINESS_ID = "11111111-1111-1111-1111-111111111101";
+const DEMO_SLUG = "spice-route-kitchen";
+
+function isUsableLocalWorkspace(saved: DashboardWorkspace | null) {
+  if (!saved?.profile.businessId) return false;
+  if (saved.profile.businessId === DEMO_BUSINESS_ID) return false;
+  if (saved.profile.slug === DEMO_SLUG) return false;
+  return true;
+}
+
+function applyWorkspace(
+  next: DashboardWorkspace,
+  setWorkspace: (value: DashboardWorkspace) => void,
+  latestWorkspace: { current: DashboardWorkspace },
+) {
+  setWorkspace(next);
+  latestWorkspace.current = next;
+}
+
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<DashboardWorkspace>(() =>
     createEmptyWorkspace(),
@@ -41,29 +59,60 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [saveStatus, setSaveStatus] =
     useState<DashboardContextValue["saveStatus"]>("loading");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [, startHydrate] = useTransition();
   const skipInitialPersist = useRef(true);
   const requestSequence = useRef(0);
   const activeController = useRef<AbortController | null>(null);
   const latestWorkspace = useRef(workspace);
 
   useEffect(() => {
-    startHydrate(() => {
+    let cancelled = false;
+
+    async function hydrate() {
       const saved = loadWorkspaceFromStorage();
-      const looksLikeDemo =
-        saved?.profile.businessId === "11111111-1111-1111-1111-111111111101" ||
-        saved?.profile.slug === "spice-route-kitchen";
-      if (saved && !looksLikeDemo) {
-        setWorkspace(saved);
-        latestWorkspace.current = saved;
-      } else {
-        const empty = createEmptyWorkspace();
-        setWorkspace(empty);
-        latestWorkspace.current = empty;
+      const local = isUsableLocalWorkspace(saved) ? saved : null;
+
+      try {
+        const response = await fetch("/api/business/workspace", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error("Couldn’t load listing");
+        }
+        const body = (await response.json()) as {
+          workspace?: DashboardWorkspace | null;
+          source?: string;
+        };
+        if (cancelled) return;
+
+        if (body.workspace?.profile.businessId) {
+          saveWorkspaceToStorage(body.workspace);
+          applyWorkspace(body.workspace, setWorkspace, latestWorkspace);
+        } else if (body.source === "supabase") {
+          applyWorkspace(createEmptyWorkspace(), setWorkspace, latestWorkspace);
+        } else if (local) {
+          applyWorkspace(local, setWorkspace, latestWorkspace);
+        } else {
+          applyWorkspace(createEmptyWorkspace(), setWorkspace, latestWorkspace);
+        }
+      } catch {
+        if (cancelled) return;
+        if (local) {
+          applyWorkspace(local, setWorkspace, latestWorkspace);
+        }
       }
-      setHydrated(true);
-      setSaveStatus("saved");
-    });
+
+      if (!cancelled) {
+        setHydrated(true);
+        setSaveStatus("saved");
+      }
+    }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const prepare = useCallback((next: DashboardWorkspace) => {

@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { createEmptyDraft } from "@/domain/onboarding/types";
 import { isFeatureEnabled } from "@/config/feature-flags";
+import { saveActiveOnboardingDraft } from "@/services/onboarding/active-draft";
 
 export const dynamic = "force-dynamic";
 
@@ -76,32 +77,19 @@ export async function PUT(request: NextRequest) {
       return jsonOk({ ok: true, persisted: false });
     }
 
-    const { error } = await supabase.from("onboarding_drafts").upsert(
-      {
-        user_id: user.id,
-        business_id: null,
-        current_step: stepIndex,
-        payload: draft,
-      },
-      { onConflict: "user_id" },
-    );
-
+    const error = await saveActiveOnboardingDraft(supabase, {
+      userId: user.id,
+      currentStep: stepIndex,
+      payload: draft,
+    });
     if (error) {
-      // Unique index is partial — fallback insert
-      const { error: insertError } = await supabase.from("onboarding_drafts").insert({
-        user_id: user.id,
-        business_id: null,
-        current_step: stepIndex,
-        payload: draft,
+      throw new AppError({
+        message: "Couldn’t sync your draft. Please try again.",
+        code: "DRAFT_SAVE_FAILED",
+        status: 500,
+        expose: true,
+        cause: error,
       });
-      if (insertError) {
-        throw new AppError({
-          message: insertError.message,
-          code: "DRAFT_SAVE_FAILED",
-          status: 500,
-          expose: true,
-        });
-      }
     }
 
     return jsonOk({ ok: true, persisted: true });

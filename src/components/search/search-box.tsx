@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,8 @@ import { AreaSelect } from "@/features/geo/area-select";
 import {
   CURRENT_LOCATION_VALUE,
   isCurrentLocationValue,
-  locateDevicePosition,
 } from "@/lib/geo/device-location";
-import { openLocationAccess } from "@/lib/geo/location-access";
+import { isDiscoveryAreaSlug } from "@/config/geo-areas";
 import { useDiscoveryArea } from "@/lib/geo/use-discovery-area";
 import { cn } from "@/lib/utils";
 
@@ -32,49 +31,49 @@ export function SearchBox({
   autoFocus = false,
 }: SearchBoxProps) {
   const router = useRouter();
-  const { area, setArea, position, locating } = useDiscoveryArea(initialArea);
+  const { area, setArea, position, locating } = useDiscoveryArea();
   const [query, setQuery] = useState(initialQuery);
   const [pending, startTransition] = useTransition();
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const placeholder = useMemo(() => {
-    return (
-      POPULAR_SEARCHES[placeholderIndex % POPULAR_SEARCHES.length] ?? POPULAR_SEARCHES[0]
-    );
-  }, [placeholderIndex]);
+  useEffect(() => {
+    if (initialArea && isDiscoveryAreaSlug(initialArea)) {
+      setArea(initialArea);
+    }
+  }, [initialArea, setArea]);
 
   useEffect(() => {
     if (query) return;
+    const input = inputRef.current;
+    if (!input) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let index = 0;
     const id = window.setInterval(() => {
-      setPlaceholderIndex((i) => (i + 1) % POPULAR_SEARCHES.length);
+      index = (index + 1) % POPULAR_SEARCHES.length;
+      if (document.activeElement !== input) {
+        input.placeholder = POPULAR_SEARCHES[index] ?? POPULAR_SEARCHES[0];
+      }
     }, 3200);
     return () => window.clearInterval(id);
   }, [query]);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const q = query.trim() || placeholder;
-    void (async () => {
-      const params = new URLSearchParams({ q });
-      if (isCurrentLocationValue(area) || position) {
-        const result = position
-          ? { ok: true as const, position }
-          : await locateDevicePosition();
-        if (result.ok) {
-          params.set("lat", String(result.position.lat));
-          params.set("lng", String(result.position.lng));
-        } else if (isCurrentLocationValue(area)) {
-          openLocationAccess(result.reason, { force: true });
-        }
-      }
-      if (area && area !== "pune" && !isCurrentLocationValue(area)) {
-        params.set("area", area);
-      }
-      startTransition(() => {
-        router.push(`/search?${params.toString()}`);
-      });
-    })();
+    const q =
+      query.trim() ||
+      inputRef.current?.placeholder ||
+      POPULAR_SEARCHES[0];
+    const params = new URLSearchParams({ q });
+    if (position) {
+      params.set("lat", String(position.lat));
+      params.set("lng", String(position.lng));
+    }
+    if (area && area !== "pune" && !isCurrentLocationValue(area)) {
+      params.set("area", area);
+    }
+    startTransition(() => {
+      router.push(`/search?${params.toString()}`);
+    });
   }
 
   return (
@@ -94,10 +93,11 @@ export function SearchBox({
         <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
           <Search className="text-sea size-5 shrink-0" aria-hidden />
           <Input
+            ref={inputRef}
             id="apnapick-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={placeholder}
+            placeholder={POPULAR_SEARCHES[0]}
             autoFocus={autoFocus}
             autoComplete="off"
             className={cn(

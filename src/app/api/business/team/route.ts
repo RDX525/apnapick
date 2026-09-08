@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       action: events[0]?.action ?? "team_change",
       entity_type: "business",
       entity_id: parsed.data.businessId,
-      metadata: events[0] ?? {},
+      new_data: events[0] ?? {},
     });
 
     return jsonOk({ ok: true, persisted: true, audit: events[0] });

@@ -112,7 +112,7 @@ export type DashboardProfile = {
   priceLevel: number | null;
   completeness: number;
   verificationStatus: ClaimStatus | "UNCLAIMED";
-  status: "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED";
+  status: "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED" | "SUSPENDED";
 };
 
 export type DashboardWorkspace = {

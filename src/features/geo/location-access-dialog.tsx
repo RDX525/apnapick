@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useDismissOnBack } from "@/lib/navigation/use-dismiss-on-back";
 import { LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,11 +88,13 @@ export function LocationAccessDialog() {
     };
   }, [state.open]);
 
-  function fallbackToPune() {
+  const fallbackToPune = useCallback(() => {
     writeDiscoveryArea("pune");
     emitDiscoveryArea("pune");
     dismissLocationAccess();
-  }
+  }, []);
+
+  useDismissOnBack(state.open, fallbackToPune);
 
   const copy = COPY[state.reason];
 
@@ -122,11 +125,7 @@ export function LocationAccessDialog() {
             Not now
           </Button>
           {state.reason === "unsupported" ? null : (
-            <Button
-              type="button"
-              disabled={pending}
-              onClick={() => void onAllow()}
-            >
+            <Button type="button" disabled={pending} onClick={() => void onAllow()}>
               {pending ? "Waiting for permission…" : copy.action}
             </Button>
           )}
