@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildSearchHref } from "@/lib/search/search-url";
 
 const location = {
-  position: { lat: 18.559, lng: 73.7868 },
-  label: "Baner",
-  areaSlug: "baner",
+  position: { lat: 18.551, lng: 73.94 },
+  label: "Kharadi",
+  areaSlug: "kharadi",
   source: "search" as const,
 };
 
@@ -27,7 +27,7 @@ describe("buildSearchHref", () => {
     const params = new URL(href, "https://apnapick.test").searchParams;
 
     expect(params.get("page")).toBe("2");
-    expect(params.get("area")).toBe("baner");
+    expect(params.get("area")).toBe("kharadi");
     expect(params.get("radius_m")).toBe("5000");
     expect(params.get("min_rating")).toBe("4");
     expect(params.get("verified")).toBe("1");

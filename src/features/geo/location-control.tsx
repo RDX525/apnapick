@@ -16,6 +16,7 @@ import {
   saveSessionLocation,
 } from "@/lib/geo/session-location";
 import { AREA_CENTROIDS, DISCOVERY_AREA_SLUGS } from "@/config/geo-areas";
+import { defaultDiscoveryLocation } from "@/lib/geo/default-location";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -158,13 +159,7 @@ export function LocationControl({ value, onChange, className }: Props) {
             variant="ghost"
             onClick={() => {
               clearSessionLocation();
-              const pune = AREA_CENTROIDS.pune!;
-              apply({
-                position: pune.position,
-                label: pune.label,
-                areaSlug: "pune",
-                source: "default",
-              });
+              apply(defaultDiscoveryLocation());
             }}
           >
             Reset
@@ -184,7 +179,7 @@ export function LocationControl({ value, onChange, className }: Props) {
                 searchPlaces();
               }
             }}
-            placeholder="Search area (Baner, Hinjewadi…)"
+            placeholder="Search area (Kharadi, Wagholi, Lohegaon)"
             className="min-h-10 pl-9"
           />
         </div>

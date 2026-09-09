@@ -20,8 +20,11 @@ const ACTIONS: { action: BusinessAdminAction; label: string }[] = [
   { action: "reject", label: "Reject" },
   { action: "suspend", label: "Suspend" },
   { action: "merge_duplicate", label: "Merge duplicate" },
-  { action: "edit", label: "Edit note" },
+  { action: "edit", label: "Accept owner edits" },
 ];
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function AdminBusinessesPage() {
   const { workspace, runBusinessAction, pendingActions } = useAdmin();
@@ -113,9 +116,7 @@ export function AdminBusinessesPage() {
                 </div>
               </div>
 
-              {workspace.businesses.some(
-                (x) => x.id !== b.id && x.suburb === b.suburb,
-              ) ? (
+              {workspace.businesses.some((x) => x.id !== b.id) ? (
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     id={`merge-target-${b.id}`}
@@ -145,11 +146,15 @@ export function AdminBusinessesPage() {
                     action,
                   );
                   const pending = pendingActions.has(`business:${b.id}:${action}`);
+                  const invalidMergeTarget =
+                    action === "merge_duplicate" &&
+                    (!UUID_PATTERN.test(mergeTarget[b.id] ?? "") ||
+                      mergeTarget[b.id] === b.id);
 
                   return destructive ? (
                     <ConfirmationDialog
                       key={action}
-                      disabled={pending}
+                      disabled={pending || invalidMergeTarget}
                       title={`${label} ${b.name}?`}
                       description={
                         action === "merge_duplicate"

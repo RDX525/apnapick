@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "@/lib/api/response";
 import { requireAdminSession } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/db/supabase-admin";
 import { hasServiceRoleKey } from "@/config/env";
+import { isImportedCatalogListing } from "@/lib/business/imported-catalog";
 import type {
   AdminBusiness,
   AdminClaim,
@@ -57,68 +58,98 @@ export async function GET() {
       servicesResult,
       photosResult,
       reviewsResult,
+      searchesResult,
+      seoPagesResult,
+      subscriptionsResult,
+      paymentsResult,
     ] = await Promise.all([
-        supabase
-          .from("businesses")
-          .select(
-            "id, name, slug, description, status, is_claimed, verified_at, completeness, metadata, business_locations(suburb, city)",
-          )
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabase
-          .from("business_claims")
-          .select(
-            "id, business_id, claimant_id, status, evidence, notes, created_at, businesses(name), profiles!business_claims_claimant_id_fkey(display_name)",
-          )
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-        supabase.from("profiles").select("id, display_name, created_at").limit(1000),
-        supabase.from("user_roles").select("user_id, role").limit(5000),
-        supabase
-          .from("verification_events")
-          .select("claim_id, event_type, payload, created_at, created_by")
-          .order("created_at", { ascending: true })
-          .limit(2000),
-        supabase
-          .from("reports")
-          .select(
-            "id, reason, details, target_type, target_id, status, reporter_id, created_at",
-          )
-          .order("created_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("categories")
-          .select("id, slug, name, is_active")
-          .order("sort_order")
-          .limit(500),
-        supabase
-          .from("audit_logs")
-          .select("id, actor_id, action, entity_type, entity_id, created_at")
-          .order("created_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("products")
-          .select("id, name, description, businesses(name)")
-          .is("deleted_at", null)
-          .limit(1000),
-        supabase
-          .from("services")
-          .select("id, name, description, businesses(name)")
-          .is("deleted_at", null)
-          .limit(1000),
-        supabase
-          .from("photos")
-          .select("id, storage_path, alt_text, businesses(name)")
-          .is("deleted_at", null)
-          .limit(1000),
-        supabase
-          .from("reviews")
-          .select("id, title, body, status, businesses(name)")
-          .is("deleted_at", null)
-          .limit(1000),
-      ]);
+      supabase
+        .from("businesses")
+        .select(
+          "id, name, slug, description, status, is_claimed, verified_at, completeness, metadata, business_locations(suburb, city)",
+        )
+        .is("deleted_at", null)
+        .or("metadata->>source.is.null,metadata->>source.neq.openstreetmap")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase
+        .from("business_claims")
+        .select(
+          "id, business_id, claimant_id, status, evidence, notes, created_at, businesses(name), profiles!business_claims_claimant_id_fkey(display_name)",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      supabase.from("profiles").select("id, display_name, created_at").limit(1000),
+      supabase.from("user_roles").select("user_id, role").limit(5000),
+      supabase
+        .from("verification_events")
+        .select("claim_id, event_type, payload, created_at, created_by")
+        .order("created_at", { ascending: true })
+        .limit(2000),
+      supabase
+        .from("reports")
+        .select(
+          "id, reason, details, target_type, target_id, status, reporter_id, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      supabase
+        .from("categories")
+        .select("id, slug, name, is_active")
+        .order("sort_order")
+        .limit(500),
+      supabase
+        .from("audit_logs")
+        .select("id, actor_id, action, entity_type, entity_id, new_data, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      supabase
+        .from("products")
+        .select(
+          "id, name, description, is_available, metadata, businesses(id, name, metadata)",
+        )
+        .is("deleted_at", null)
+        .limit(1000),
+      supabase
+        .from("services")
+        .select(
+          "id, name, description, is_available, metadata, businesses(id, name, metadata)",
+        )
+        .is("deleted_at", null)
+        .limit(1000),
+      supabase
+        .from("photos")
+        .select("id, storage_path, alt_text, deleted_at, businesses(id, name, metadata)")
+        .limit(1000),
+      supabase
+        .from("reviews")
+        .select("id, title, body, status, businesses(id, name, metadata)")
+        .is("deleted_at", null)
+        .limit(1000),
+      supabase
+        .from("searches")
+        .select("normalized_query, hit_count, last_seen_at")
+        .order("hit_count", { ascending: false })
+        .limit(1000),
+      supabase
+        .from("seo_pages")
+        .select("id, path, title, indexable, business_count")
+        .order("updated_at", { ascending: false })
+        .limit(1000),
+      supabase
+        .from("subscriptions")
+        .select(
+          "id, status, current_period_end, plans(name, price_cents), businesses(id, name, metadata)",
+        )
+        .order("updated_at", { ascending: false })
+        .limit(1000),
+      supabase
+        .from("payments")
+        .select("id, amount_cents, status, created_at, businesses(id, name, metadata)")
+        .order("created_at", { ascending: false })
+        .limit(1000),
+    ]);
 
     const firstError =
       businessResult.error ??
@@ -133,7 +164,11 @@ export async function GET() {
       productsResult.error ??
       servicesResult.error ??
       photosResult.error ??
-      reviewsResult.error;
+      reviewsResult.error ??
+      searchesResult.error ??
+      seoPagesResult.error ??
+      subscriptionsResult.error ??
+      paymentsResult.error;
     if (firstError) {
       throw new AppError({
         message: firstError.message,
@@ -145,9 +180,7 @@ export async function GET() {
     }
 
     const authUsers = authUsersResult.data.users;
-    const emails = new Map(
-      authUsers.map((user) => [user.id, String(user.email ?? "")]),
-    );
+    const emails = new Map(authUsers.map((user) => [user.id, String(user.email ?? "")]));
     const profiles = new Map(
       (profilesResult.data ?? []).map((profile) => [
         String(profile.id),
@@ -164,12 +197,21 @@ export async function GET() {
     }
     const reportCounts = new Map<string, number>();
     for (const row of reportsResult.data ?? []) {
-      if (row.target_type !== "business") continue;
+      if (String(row.target_type).toUpperCase() !== "BUSINESS") continue;
       const id = String(row.target_id);
       reportCounts.set(id, (reportCounts.get(id) ?? 0) + 1);
     }
 
-    const businesses: AdminBusiness[] = (businessResult.data ?? []).map((row) => {
+    const businessRows = (businessResult.data ?? []).filter(
+      (row) =>
+        !isImportedCatalogListing(
+          String(row.id),
+          (row.metadata as Record<string, unknown> | null) ?? null,
+        ),
+    );
+    const businessIds = new Set(businessRows.map((row) => String(row.id)));
+
+    const businesses: AdminBusiness[] = businessRows.map((row) => {
       const locations = (row.business_locations ?? []) as unknown as Array<{
         suburb: string | null;
         city: string | null;
@@ -207,23 +249,25 @@ export async function GET() {
       eventsByClaim.set(claimId, history);
     }
 
-    const claims: AdminClaim[] = (claimResult.data ?? []).map((row) => {
-      const business = row.businesses as unknown as { name?: string } | null;
-      const profile = row.profiles as unknown as { display_name?: string } | null;
-      return {
-        id: String(row.id),
-        businessId: String(row.business_id),
-        businessName: business?.name ?? "Unknown business",
-        claimantId: String(row.claimant_id),
-        claimantName: profile?.display_name ?? "Unknown user",
-        claimantEmail: emails.get(String(row.claimant_id)) ?? "",
-        status: row.status as AdminClaim["status"],
-        submittedAt: String(row.created_at),
-        evidence: evidenceItems(row.evidence),
-        history: eventsByClaim.get(String(row.id)) ?? [],
-        notes: (row.notes as string | null) ?? null,
-      };
-    });
+    const claims: AdminClaim[] = (claimResult.data ?? [])
+      .filter((row) => businessIds.has(String(row.business_id)))
+      .map((row) => {
+        const business = row.businesses as unknown as { name?: string } | null;
+        const profile = row.profiles as unknown as { display_name?: string } | null;
+        return {
+          id: String(row.id),
+          businessId: String(row.business_id),
+          businessName: business?.name ?? "Unknown business",
+          claimantId: String(row.claimant_id),
+          claimantName: profile?.display_name ?? "Unknown user",
+          claimantEmail: emails.get(String(row.claimant_id)) ?? "",
+          status: row.status as AdminClaim["status"],
+          submittedAt: String(row.created_at),
+          evidence: evidenceItems(row.evidence),
+          history: eventsByClaim.get(String(row.id)) ?? [],
+          notes: (row.notes as string | null) ?? null,
+        };
+      });
 
     const users: AdminUser[] = authUsers.map((user) => {
       const profile = profiles.get(user.id);
@@ -231,77 +275,161 @@ export async function GET() {
         id: user.id,
         email: String(user.email ?? ""),
         displayName:
-          profile?.displayName || String(user.user_metadata?.display_name ?? user.email ?? ""),
+          profile?.displayName ||
+          String(user.user_metadata?.display_name ?? user.email ?? ""),
         roles: rolesByUser.get(user.id) ?? ["USER"],
         status: user.banned_until ? "suspended" : "active",
         createdAt: profile?.createdAt ?? user.created_at,
       };
     });
 
-    const reports: AdminReport[] = (reportsResult.data ?? []).map((row) => ({
-      id: String(row.id),
-      reason: row.reason as AdminReport["reason"],
-      details: (row.details as string | null) ?? null,
-      targetType: row.target_type as AdminReport["targetType"],
-      targetId: String(row.target_id),
-      targetLabel: String(row.target_id),
-      status: row.status as AdminReport["status"],
-      reporterEmail: row.reporter_id
-        ? (emails.get(String(row.reporter_id)) ?? null)
-        : null,
-      createdAt: String(row.created_at),
-    }));
+    const businessNames = new Map(
+      businessRows.map((row) => [String(row.id), String(row.name)]),
+    );
+    const reports: AdminReport[] = (reportsResult.data ?? [])
+      .filter(
+        (row) =>
+          String(row.target_type).toUpperCase() !== "BUSINESS" ||
+          businessIds.has(String(row.target_id)),
+      )
+      .map((row) => {
+        const targetType = String(row.target_type).toLowerCase();
+        const targetId = String(row.target_id);
+        return {
+          id: String(row.id),
+          reason: row.reason as AdminReport["reason"],
+          details: (row.details as string | null) ?? null,
+          targetType: targetType as AdminReport["targetType"],
+          targetId,
+          targetLabel:
+            targetType === "business"
+              ? (businessNames.get(targetId) ?? targetId)
+              : targetId,
+          status:
+            String(row.status) === "UNDER_REVIEW"
+              ? "IN_REVIEW"
+              : (row.status as AdminReport["status"]),
+          reporterEmail: row.reporter_id
+            ? (emails.get(String(row.reporter_id)) ?? null)
+            : null,
+          createdAt: String(row.created_at),
+        };
+      });
 
+    type BusinessRelation = {
+      id?: string;
+      name?: string;
+      metadata?: Record<string, unknown> | null;
+    };
+    const relatedBusiness = (relation: unknown) => relation as BusinessRelation | null;
+    const isRealBusinessRelation = (relation: unknown) => {
+      const business = relatedBusiness(relation);
+      return Boolean(
+        business?.id &&
+        !isImportedCatalogListing(String(business.id), business.metadata ?? null),
+      );
+    };
     const businessName = (relation: unknown) =>
-      (relation as { name?: string } | null)?.name ?? "Unknown business";
+      relatedBusiness(relation)?.name ?? "Unknown business";
+    const contentStatus = (
+      metadata: unknown,
+      fallback: "visible" | "hidden" | "flagged" = "visible",
+    ) => {
+      const value =
+        metadata && typeof metadata === "object" && !Array.isArray(metadata)
+          ? (metadata as Record<string, unknown>).adminModerationStatus
+          : null;
+      return value === "hidden" || value === "flagged" || value === "visible"
+        ? value
+        : fallback;
+    };
+    const auditedContentStatus = new Map<string, "visible" | "hidden" | "flagged">();
+    for (const row of auditResult.data ?? []) {
+      if (
+        row.entity_type !== "content" ||
+        !row.entity_id ||
+        auditedContentStatus.has(String(row.entity_id))
+      ) {
+        continue;
+      }
+      const status = String(row.action).replace("content_", "");
+      if (status === "visible" || status === "hidden" || status === "flagged") {
+        auditedContentStatus.set(String(row.entity_id), status);
+      }
+    }
     const content = [
-      ...(businessResult.data ?? [])
-        .filter((row) => Boolean(row.description))
+      ...businessRows
+        .map((row) => {
+          const metadata =
+            row.metadata &&
+            typeof row.metadata === "object" &&
+            !Array.isArray(row.metadata)
+              ? (row.metadata as Record<string, unknown>)
+              : {};
+          const backup =
+            typeof metadata.adminModeratedDescriptionBackup === "string"
+              ? metadata.adminModeratedDescriptionBackup
+              : null;
+          const description = (row.description as string | null) ?? backup;
+          return description
+            ? {
+                id: String(row.id),
+                kind: "description" as const,
+                businessName: String(row.name),
+                title: `${String(row.name)} description`,
+                body: description,
+                status: contentStatus(row.metadata),
+              }
+            : null;
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null),
+      ...(productsResult.data ?? [])
+        .filter((row) => isRealBusinessRelation(row.businesses))
         .map((row) => ({
-          id: `description:${String(row.id)}`,
-          kind: "description" as const,
-          businessName: String(row.name),
-          title: `${String(row.name)} description`,
-          body: String(row.description),
-          status: "visible" as const,
+          id: String(row.id),
+          kind: "product" as const,
+          businessName: businessName(row.businesses),
+          title: String(row.name),
+          body: (row.description as string | null) ?? null,
+          status: contentStatus(row.metadata),
         })),
-      ...(productsResult.data ?? []).map((row) => ({
-        id: String(row.id),
-        kind: "product" as const,
-        businessName: businessName(row.businesses),
-        title: String(row.name),
-        body: (row.description as string | null) ?? null,
-        status: "visible" as const,
-      })),
-      ...(servicesResult.data ?? []).map((row) => ({
-        id: String(row.id),
-        kind: "service" as const,
-        businessName: businessName(row.businesses),
-        title: String(row.name),
-        body: (row.description as string | null) ?? null,
-        status: "visible" as const,
-      })),
-      ...(photosResult.data ?? []).map((row) => ({
-        id: String(row.id),
-        kind: "photo" as const,
-        businessName: businessName(row.businesses),
-        title: String(row.alt_text ?? row.storage_path),
-        body: String(row.storage_path),
-        status: "visible" as const,
-      })),
-      ...(reviewsResult.data ?? []).map((row) => ({
-        id: String(row.id),
-        kind: "review" as const,
-        businessName: businessName(row.businesses),
-        title: String(row.title ?? "Review"),
-        body: (row.body as string | null) ?? null,
-        status:
-          row.status === "PENDING"
-            ? ("flagged" as const)
-            : row.status === "PUBLISHED"
-              ? ("visible" as const)
-              : ("hidden" as const),
-      })),
+      ...(servicesResult.data ?? [])
+        .filter((row) => isRealBusinessRelation(row.businesses))
+        .map((row) => ({
+          id: String(row.id),
+          kind: "service" as const,
+          businessName: businessName(row.businesses),
+          title: String(row.name),
+          body: (row.description as string | null) ?? null,
+          status: contentStatus(row.metadata),
+        })),
+      ...(photosResult.data ?? [])
+        .filter((row) => isRealBusinessRelation(row.businesses))
+        .map((row) => ({
+          id: String(row.id),
+          kind: "photo" as const,
+          businessName: businessName(row.businesses),
+          title: String(row.alt_text ?? row.storage_path),
+          body: String(row.storage_path),
+          status:
+            auditedContentStatus.get(String(row.id)) ??
+            (row.deleted_at ? ("hidden" as const) : ("visible" as const)),
+        })),
+      ...(reviewsResult.data ?? [])
+        .filter((row) => isRealBusinessRelation(row.businesses))
+        .map((row) => ({
+          id: String(row.id),
+          kind: "review" as const,
+          businessName: businessName(row.businesses),
+          title: String(row.title ?? "Review"),
+          body: (row.body as string | null) ?? null,
+          status:
+            row.status === "PENDING"
+              ? ("flagged" as const)
+              : row.status === "PUBLISHED"
+                ? ("visible" as const)
+                : ("hidden" as const),
+        })),
     ];
 
     return jsonOk({
@@ -324,10 +452,46 @@ export async function GET() {
         createdAt: String(row.created_at),
       })),
       content,
-      searchAnalytics: [],
-      seoPages: [],
-      subscriptions: [],
-      payments: [],
+      searchAnalytics: (searchesResult.data ?? []).map((row) => ({
+        query: String(row.normalized_query),
+        count: Number(row.hit_count ?? 0),
+        area: null,
+        lastSeen: String(row.last_seen_at),
+      })),
+      seoPages: (seoPagesResult.data ?? []).map((row) => ({
+        id: String(row.id),
+        path: String(row.path),
+        title: String(row.title),
+        indexable: Boolean(row.indexable),
+        businessCount: Number(row.business_count ?? 0),
+      })),
+      subscriptions: (subscriptionsResult.data ?? [])
+        .filter((row) => isRealBusinessRelation(row.businesses))
+        .map((row) => {
+          const plan = row.plans as unknown as {
+            name?: string;
+            price_cents?: number;
+          } | null;
+          return {
+            id: String(row.id),
+            businessName: businessName(row.businesses),
+            plan: plan?.name ?? "Unknown",
+            status: String(row.status).toLowerCase() as
+              "trialing" | "active" | "canceled" | "past_due" | "expired",
+            amountCents: Number(plan?.price_cents ?? 0),
+            renewsAt: (row.current_period_end as string | null) ?? null,
+          };
+        }),
+      payments: (paymentsResult.data ?? [])
+        .filter((row) => isRealBusinessRelation(row.businesses))
+        .map((row) => ({
+          id: String(row.id),
+          businessName: businessName(row.businesses),
+          amountCents: Number(row.amount_cents ?? 0),
+          status: String(row.status).toLowerCase() as
+            "pending" | "succeeded" | "failed" | "refunded",
+          createdAt: String(row.created_at),
+        })),
     });
   } catch (error) {
     return jsonError(error);

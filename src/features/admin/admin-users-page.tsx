@@ -65,7 +65,6 @@ export function AdminUsersPage() {
       ) : (
         <ul className="space-y-3">
           {queue.pageItems.map((user) => {
-            const viewing = pendingActions.has(`user:${user.id}:view`);
             const suspending = pendingActions.has(`user:${user.id}:suspend`);
             const restoring = pendingActions.has(`user:${user.id}:restore`);
             return (
@@ -84,18 +83,6 @@ export function AdminUsersPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={viewing}
-                    aria-busy={viewing}
-                    onClick={() =>
-                      void runUserAction(user.id, "view").catch(() => undefined)
-                    }
-                  >
-                    {viewing ? "Opening…" : "View"}
-                  </Button>
                   {user.status === "active" ? (
                     <ConfirmationDialog
                       disabled={suspending}

@@ -5,6 +5,10 @@ import {
   type SitemapBucket,
 } from "@/services/seo/sitemap-service";
 
+// Sitemap inventory comes from live Supabase data; do not make deployments
+// depend on database/network availability during static generation.
+export const dynamic = "force-dynamic";
+
 /**
  * Split sitemaps: /sitemap/core.xml, /sitemap/hubs.xml, /sitemap/businesses.xml
  * (Next.js generateSitemaps → /sitemap/[id].xml)

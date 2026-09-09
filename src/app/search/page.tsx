@@ -1,13 +1,15 @@
 import { SearchResultsView } from "@/features/consumer/search-results-view";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { getPublicEnv } from "@/config/env";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
 import { searchWithPlacements } from "@/services/search/get-search-service";
 import { SearchBox } from "@/components/search/search-box";
 import { BackLink } from "@/components/navigation/back-link";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { CURRENT_LOCATION_LABEL } from "@/lib/geo/device-location";
-import { enrichWithCoordinates, locationFromAreaSlug } from "@/services/geo/geo-service";
+import {
+  defaultDiscoveryLocation,
+  locationFromAreaSlug,
+} from "@/services/geo/geo-service";
 
 type SearchPageProps = {
   searchParams: Promise<{
@@ -41,7 +43,6 @@ export async function generateMetadata({ searchParams }: SearchPageProps) {
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
-  const env = getPublicEnv();
   const q = sanitizeSearchQuery(params.q ?? "");
 
   if (!q) {
@@ -63,13 +64,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       ? params.sort
       : "recommended";
 
+  const fallbackLoc = defaultDiscoveryLocation();
   const areaLoc = params.area ? locationFromAreaSlug(params.area) : null;
   const lat = params.lat
     ? Number(params.lat)
-    : (areaLoc?.position.lat ?? env.NEXT_PUBLIC_DEFAULT_LAT);
+    : (areaLoc?.position.lat ?? fallbackLoc.position.lat);
   const lng = params.lng
     ? Number(params.lng)
-    : (areaLoc?.position.lng ?? env.NEXT_PUBLIC_DEFAULT_LNG);
+    : (areaLoc?.position.lng ?? fallbackLoc.position.lng);
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const radiusM = Math.min(
     50000,
@@ -110,13 +112,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     pageSize: 20,
   });
 
-  const initialCoords = await enrichWithCoordinates(
-    response.results.map((r) => r.businessId),
-  );
-
   return (
     <main className="flex-1">
       <SearchResultsView
+        key={`${lat}:${lng}:${params.area ?? ""}`}
         query={q}
         area={params.area}
         sort={sort}
@@ -125,12 +124,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         filters={filters}
         initialLocation={{
           position: { lat, lng },
-          label: areaLoc?.label ?? (params.lat ? CURRENT_LOCATION_LABEL : "Pune"),
+          label:
+            areaLoc?.label ?? (params.lat ? CURRENT_LOCATION_LABEL : fallbackLoc.label),
           areaSlug: params.area ?? areaLoc?.areaSlug ?? null,
           source: params.area ? "manual" : params.lat ? "device" : "default",
         }}
         mapsEnabled={isFeatureEnabled("mapsEnabled")}
-        initialCoords={initialCoords}
       />
     </main>
   );

@@ -14,6 +14,19 @@ import { hasSupabaseConfig } from "@/config/env";
 
 const log = createLogger({ module: "business-repository" });
 
+function visibleBusinessDescription(row: {
+  description?: unknown;
+  metadata?: unknown;
+}): string | null {
+  const metadata =
+    row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+      ? (row.metadata as Record<string, unknown>)
+      : {};
+  return metadata.adminModerationStatus === "hidden"
+    ? null
+    : ((row.description as string | null) ?? null);
+}
+
 async function queryPublishedBusinesses(
   limit: number,
   categoryKey: string,
@@ -51,9 +64,7 @@ async function queryPublishedBusinesses(
       });
       return { items: [], source: "empty" };
     }
-    scopedIds = [
-      ...new Set((memberships ?? []).map((row) => row.business_id as string)),
-    ];
+    scopedIds = [...new Set((memberships ?? []).map((row) => row.business_id as string))];
     if (scopedIds.length === 0) return { items: [], source: "supabase" };
   }
 
@@ -61,7 +72,7 @@ async function queryPublishedBusinesses(
     .from("businesses")
     .select(
       `
-      id, name, slug, description, avg_rating, review_count, price_level,
+      id, name, slug, description, metadata, avg_rating, review_count, price_level,
       is_claimed, verified_at, completeness, phone,
       business_locations ( suburb, city ),
       business_categories ( categories ( name, slug ) ),
@@ -111,7 +122,7 @@ async function queryPublishedBusinesses(
       id: row.id as string,
       name: row.name as string,
       slug: row.slug as string,
-      description: (row.description as string | null) ?? null,
+      description: visibleBusinessDescription(row),
       avgRating: Number(row.avg_rating ?? 0),
       reviewCount: Number(row.review_count ?? 0),
       priceLevel: (row.price_level as number | null) ?? null,
@@ -149,7 +160,9 @@ export const listPublishedBusinesses = cache(async function listPublishedBusines
   return loadCachedPublishedBusinesses(limit, categoryKey);
 });
 
-async function queryBusinessBySlug(slug: string): Promise<ConsumerBusinessProfile | null> {
+async function queryBusinessBySlug(
+  slug: string,
+): Promise<ConsumerBusinessProfile | null> {
   if (!hasSupabaseConfig()) return null;
 
   const supabase = createPublicSupabaseClient();
@@ -159,7 +172,7 @@ async function queryBusinessBySlug(slug: string): Promise<ConsumerBusinessProfil
     .from("businesses")
     .select(
       `
-      id, name, slug, description, avg_rating, review_count, price_level,
+      id, name, slug, description, metadata, avg_rating, review_count, price_level,
       is_claimed, verified_at, completeness, phone, website, email,
       business_locations ( address_line1, suburb, city, postcode, geom, is_primary ),
       business_categories ( categories ( name, slug ) ),
@@ -375,8 +388,8 @@ async function queryBusinessBySlug(slug: string): Promise<ConsumerBusinessProfil
     id: data.id as string,
     name: data.name as string,
     slug: data.slug as string,
-    description: (data.description as string | null) ?? null,
-    about: (data.description as string | null) ?? null,
+    description: visibleBusinessDescription(data),
+    about: visibleBusinessDescription(data),
     avgRating: Number(data.avg_rating ?? 0),
     reviewCount: Number(data.review_count ?? 0),
     priceLevel: (data.price_level as number | null) ?? null,

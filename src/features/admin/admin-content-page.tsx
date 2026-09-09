@@ -42,22 +42,7 @@ export function AdminContentPage({
   ) {
     setError(null);
     try {
-      if (kind === "review" && status !== "flagged") {
-        const res = await fetch(`/api/reviews/${item.id}/moderate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: status === "visible" ? "PUBLISHED" : "HIDDEN",
-          }),
-        });
-        if (!res.ok) {
-          const json = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
-          throw new Error(json.error ?? "Moderation failed");
-        }
-      }
-      await moderateContent(item.id, status);
+      await moderateContent(item.id, kind, status);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Moderation failed");
       throw err;

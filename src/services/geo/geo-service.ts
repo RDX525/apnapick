@@ -12,8 +12,7 @@ import type {
   NearbyBusiness,
   ReverseGeocodeResult,
 } from "@/domain/geo/types";
-import { AREA_CENTROIDS } from "@/config/geo-areas";
-import { getPublicEnv } from "@/config/env";
+import { AREA_CENTROIDS, isPlatformAreaSlug } from "@/config/geo-areas";
 import { mapsDirectionsUrl } from "@/lib/geo/directions";
 
 export async function geocodeLocation(
@@ -54,19 +53,17 @@ export function directionsUrl(input: {
 }
 
 export function defaultDiscoveryLocation(): DiscoveryLocation {
-  const env = getPublicEnv();
+  const kharadi = AREA_CENTROIDS.kharadi!;
   return {
-    position: {
-      lat: env.NEXT_PUBLIC_DEFAULT_LAT,
-      lng: env.NEXT_PUBLIC_DEFAULT_LNG,
-    },
-    label: AREA_CENTROIDS.pune?.label ?? "Pune",
-    areaSlug: "pune",
+    position: kharadi.position,
+    label: kharadi.label,
+    areaSlug: "kharadi",
     source: "default",
   };
 }
 
 export function locationFromAreaSlug(slug: string): DiscoveryLocation | null {
+  if (!isPlatformAreaSlug(slug)) return null;
   const area = AREA_CENTROIDS[slug];
   if (!area) return null;
   return {

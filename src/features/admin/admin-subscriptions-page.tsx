@@ -47,9 +47,11 @@ export function AdminSubscriptionsPage() {
         sort={queue.sort}
         onSortChange={queue.setSort}
         filterOptions={[
+          { value: "trialing", label: "Trialing" },
           { value: "active", label: "Active" },
           { value: "past_due", label: "Past due" },
           { value: "canceled", label: "Canceled" },
+          { value: "expired", label: "Expired" },
         ]}
         sortOptions={[
           { value: "business", label: "Business" },

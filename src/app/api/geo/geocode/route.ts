@@ -4,7 +4,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { geocodeLocation } from "@/services/geo/geo-service";
-import { getPublicEnv } from "@/config/env";
+import { AREA_CENTROIDS } from "@/config/geo-areas";
 
 export const dynamic = "force-dynamic";
 
@@ -43,14 +43,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const env = getPublicEnv();
+    const kharadi = AREA_CENTROIDS.kharadi!;
     const bias =
       parsed.data.lat != null && parsed.data.lng != null
         ? { lat: parsed.data.lat, lng: parsed.data.lng }
-        : {
-            lat: env.NEXT_PUBLIC_DEFAULT_LAT,
-            lng: env.NEXT_PUBLIC_DEFAULT_LNG,
-          };
+        : kharadi.position;
 
     const results = await geocodeLocation(parsed.data.q, bias, {
       exact: parsed.data.exact,

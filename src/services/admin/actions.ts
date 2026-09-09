@@ -88,7 +88,6 @@ export function applyUserAction(
   userId: string,
   action: UserAdminAction,
 ): AdminWorkspace {
-  if (action === "view") return workspace;
   return {
     ...workspace,
     users: workspace.users.map((u) =>

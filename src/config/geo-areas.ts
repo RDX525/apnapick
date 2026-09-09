@@ -43,19 +43,8 @@ export const AREA_CENTROIDS: Record<string, { label: string; position: LatLng }>
   },
 };
 
-/** Neighbourhoods shown in the location dropdown */
-export const DISCOVERY_AREA_SLUGS = [
-  "pune",
-  "koregaon-park",
-  "baner",
-  "hinjewadi",
-  "kothrud",
-  "viman-nagar",
-  "fc-road",
-  "wagholi",
-  "kharadi",
-  "lohegaon",
-] as const;
+/** Neighbourhoods live on the platform right now */
+export const DISCOVERY_AREA_SLUGS = ["kharadi", "wagholi", "lohegaon"] as const;
 
 export type DiscoveryAreaSlug = (typeof DISCOVERY_AREA_SLUGS)[number];
 
@@ -63,14 +52,19 @@ export function isDiscoveryAreaSlug(value: string): value is DiscoveryAreaSlug {
   return (DISCOVERY_AREA_SLUGS as readonly string[]).includes(value);
 }
 
+/** City-wide Pune hubs plus the live neighbourhoods. */
+export function isPlatformAreaSlug(value: string): boolean {
+  return value === "pune" || isDiscoveryAreaSlug(value);
+}
+
 export function nearestAreaSlug(position: LatLng): string | null {
   return nearestAreaSlugAmong(position, Object.keys(AREA_CENTROIDS));
 }
 
-/** Dropdown neighbourhood for a GPS fix — city-wide Pune when nothing is nearby. */
-export function nearestDiscoveryArea(position: LatLng): DiscoveryAreaSlug {
+/** Dropdown neighbourhood for a GPS fix — null when the pin is outside the live areas. */
+export function nearestDiscoveryArea(position: LatLng): DiscoveryAreaSlug | null {
   const nearest = nearestAreaSlugAmong(position, DISCOVERY_AREA_SLUGS);
-  return nearest && isDiscoveryAreaSlug(nearest) ? nearest : "pune";
+  return nearest && isDiscoveryAreaSlug(nearest) ? nearest : null;
 }
 
 /** Nearest named area from `slugs`, or null when all candidates are too far. */

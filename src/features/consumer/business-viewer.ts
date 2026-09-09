@@ -20,11 +20,17 @@ export function loadBusinessViewer(businessId: string) {
 
   const request = (async () => {
     if (!hasBrowserAuthCookie()) return null;
-    const res = await fetch(`/api/reviews?businessId=${businessId}`);
-    if (!res.ok) return null;
-    const json = (await res.json()) as { data?: BusinessViewerPayload };
-    return json.data ?? null;
-  })();
+    try {
+      const res = await fetch(`/api/reviews?businessId=${businessId}`);
+      if (!res.ok) return null;
+      const json = (await res.json()) as { data?: BusinessViewerPayload };
+      return json.data ?? null;
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    inflight.delete(businessId);
+  });
 
   inflight.set(businessId, request);
   return request;

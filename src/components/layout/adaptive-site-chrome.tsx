@@ -6,32 +6,23 @@ import { Atmosphere } from "@/components/brand/atmosphere";
 import { SiteHeader } from "@/components/layout/site-chrome";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { WorkspaceTopbar } from "@/components/layout/workspace-topbar";
+import {
+  isBusinessOnboardingPath,
+  isFocusedPath,
+  isWorkspacePath,
+} from "@/components/layout/site-chrome-paths";
 import { InAppNavigationTracker } from "@/components/navigation/in-app-navigation-tracker";
 import { LocationAccessDialog } from "@/features/geo/location-access-dialog";
 import { DiscoveryAreaProvider } from "@/lib/geo/use-discovery-area";
 
-const focusedPrefixes = [
-  "/admin",
-  "/business",
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-];
-
 export function AdaptiveSiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const focused = focusedPrefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-  const workspace =
-    pathname === "/admin" ||
-    pathname.startsWith("/admin/") ||
-    pathname === "/business" ||
-    pathname.startsWith("/business/");
+  const focused = isFocusedPath(pathname);
+  const workspace = isWorkspacePath(pathname);
+  const onboarding = isBusinessOnboardingPath(pathname);
 
   return (
-    <DiscoveryAreaProvider enableLocate={!focused}>
+    <DiscoveryAreaProvider enableLocate={!focused && !onboarding}>
       <InAppNavigationTracker />
       {!focused ? (
         <>

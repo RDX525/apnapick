@@ -25,7 +25,7 @@ export type AdminActionInput = {
 
 /**
  * Every admin mutation must record an audit entry.
- * Persists to `audit_logs` when Supabase is available; always returns the record.
+ * Persists to `audit_logs` when Supabase is available and propagates write failures.
  */
 export async function writeAdminAudit(input: AdminActionInput): Promise<AuditRecord> {
   const record: AuditRecord = {
@@ -40,24 +40,21 @@ export async function writeAdminAudit(input: AdminActionInput): Promise<AuditRec
     createdAt: new Date().toISOString(),
   };
 
-  try {
-    const { createServerSupabaseClient } = await import("@/lib/db/supabase-server");
-    const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      await supabase.from("audit_logs").insert({
-        id: record.id,
-        actor_id: input.actor.id.startsWith("00000000") ? null : input.actor.id,
-        action: input.action,
-        entity_type: input.entityType,
-        entity_id: input.entityId ?? null,
-        old_data: input.oldData ?? null,
-        new_data: input.newData ?? null,
-        ip: input.ip ?? null,
-        user_agent: input.userAgent ?? null,
-      });
-    }
-  } catch {
-    // Persistence optional in local/dev — record still returned for UI trail
+  const { createServerSupabaseClient } = await import("@/lib/db/supabase-server");
+  const supabase = await createServerSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase.from("audit_logs").insert({
+      id: record.id,
+      actor_id: input.actor.id.startsWith("00000000") ? null : input.actor.id,
+      action: input.action,
+      entity_type: input.entityType,
+      entity_id: input.entityId ?? null,
+      old_data: input.oldData ?? null,
+      new_data: input.newData ?? null,
+      ip: input.ip ?? null,
+      user_agent: input.userAgent ?? null,
+    });
+    if (error) throw error;
   }
 
   if (process.env.NODE_ENV === "development") {

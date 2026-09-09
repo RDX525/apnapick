@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
-import { getPublicEnv } from "@/config/env";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
 import { searchQuerySchema } from "@/validations";
 import { searchWithPlacements } from "@/services/search/get-search-service";
+import { defaultDiscoveryLocation } from "@/services/geo/geo-service";
 import { createLogger } from "@/lib/logging/logger";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const env = getPublicEnv();
     const q = sanitizeSearchQuery(parsed.data.q);
     if (!q) {
       throw new AppError({
@@ -64,11 +63,12 @@ export async function GET(request: NextRequest) {
     log.info("search_request", { q, ip });
 
     const data = parsed.data;
+    const fallbackLoc = defaultDiscoveryLocation();
     const result = await searchWithPlacements({
       query: q,
       location: {
-        lat: data.lat ?? env.NEXT_PUBLIC_DEFAULT_LAT,
-        lng: data.lng ?? env.NEXT_PUBLIC_DEFAULT_LNG,
+        lat: data.lat ?? fallbackLoc.position.lat,
+        lng: data.lng ?? fallbackLoc.position.lng,
         areaSlug: data.area,
         radiusM: data.radius_m,
       },

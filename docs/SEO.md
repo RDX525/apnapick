@@ -32,7 +32,7 @@ Facet aliases (e.g. `north-indian` → `indian`) redirect to the preferred slug.
 | `/{category}/{area}`                | `category_area`            | `/restaurants/pune`                      |
 | `/{category}/{area}/{facet}`        | `category_area_facet`      | `/barbers/pune/fade`                     |
 | `/{category}/{area}/{facet}/{item}` | `category_area_facet_item` | `/restaurants/pune/indian/chicken-curry` |
-| `/areas/{slug}`                     | `area`                     | `/areas/koregaon-park`                   |
+| `/areas/{slug}`                     | `area`                     | `/areas/kharadi`                         |
 | `/b/{slug}`                         | `business`                 | `/b/spice-route-kitchen`                 |
 
 Registry table: `seo_pages` (`path`, `page_type`, `indexable`, `canonical_path`, density metrics).

@@ -1,4 +1,3 @@
-import { PUNE_DEMO_BUSINESSES } from "@/repositories/search/demo-catalog";
 import type { ExistingBusinessForDup } from "@/services/onboarding/duplicate-detection";
 
 export type ClaimableBusiness = {
@@ -17,23 +16,9 @@ export type ClaimableBusiness = {
   isClaimed: boolean;
 };
 
-/** Offline/demo claim directory — production uses published businesses via API. */
+/** Offline claim directory is empty — production uses published businesses via API. */
 export function getDemoClaimableBusinesses(): ClaimableBusiness[] {
-  return PUNE_DEMO_BUSINESSES.map((b) => ({
-    id: b.id,
-    name: b.name,
-    slug: b.slug,
-    phone: null,
-    website: null,
-    addressLine1: null,
-    suburb: b.suburb,
-    city: b.city,
-    lat: b.lat,
-    lng: b.lng,
-    categoryLabel: b.categories[0] ?? null,
-    categorySlug: b.categories[0] ?? null,
-    isClaimed: b.isClaimed,
-  }));
+  return [];
 }
 
 export function searchClaimableBusinesses(

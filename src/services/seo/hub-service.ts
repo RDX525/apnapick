@@ -152,12 +152,15 @@ export type ResolveSeoHubInput = {
   itemSlug?: string | null;
 };
 
+type SeoSupply = Awaited<ReturnType<typeof listBusinessesForSeoHub>>;
+
 /**
  * Resolve a programmatic SEO hub. Unknown taxonomy → null (caller should 404).
  * Thin supply → page still returned with indexable=false.
  */
 export async function resolveSeoHub(
   input: ResolveSeoHubInput,
+  preloadedSupply?: SeoSupply,
 ): Promise<SeoHubPage | null> {
   const category = getSeoCategory(input.categorySlug);
   if (!category) return null;
@@ -206,9 +209,8 @@ export async function resolveSeoHub(
     .filter(Boolean)
     .join("/")}`;
 
-  const { businesses: pool, catalogItems: catalogPool } = await listBusinessesForSeoHub(
-    category.supplyCategorySlugs,
-  );
+  const { businesses: pool, catalogItems: catalogPool } =
+    preloadedSupply ?? (await listBusinessesForSeoHub(category.supplyCategorySlugs));
 
   let businesses = pool;
   if (areaSlug) businesses = filterByArea(businesses, areaSlug);
@@ -324,18 +326,28 @@ export async function listIndexableSeoPaths(): Promise<
 > {
   const out: { path: string; pageType: SeoPageType; priority: number }[] = [];
   const categories = (await import("@/config/seo-taxonomy")).SEO_CATEGORIES;
-  const areas = ["pune", "koregaon-park", "baner", "hinjewadi", "kothrud"];
+  const areas = ["pune", "kharadi", "wagholi", "lohegaon"];
+  const supplies = new Map<string, SeoSupply>();
 
   for (const category of categories) {
-    const catHub = await resolveSeoHub({ categorySlug: category.slug });
+    const supplyKey = [...new Set(category.supplyCategorySlugs)].sort().join(",");
+    let supply = supplies.get(supplyKey);
+    if (!supply) {
+      supply = await listBusinessesForSeoHub(category.supplyCategorySlugs);
+      supplies.set(supplyKey, supply);
+    }
+    const catHub = await resolveSeoHub({ categorySlug: category.slug }, supply);
     if (catHub?.indexable) {
       out.push({ path: catHub.canonicalPath, pageType: "category", priority: 0.8 });
     }
     for (const area of areas) {
-      const areaHub = await resolveSeoHub({
-        categorySlug: category.slug,
-        areaSlug: area,
-      });
+      const areaHub = await resolveSeoHub(
+        {
+          categorySlug: category.slug,
+          areaSlug: area,
+        },
+        supply,
+      );
       if (areaHub?.indexable) {
         out.push({
           path: areaHub.canonicalPath,
@@ -344,11 +356,14 @@ export async function listIndexableSeoPaths(): Promise<
         });
       }
       for (const facet of category.facets) {
-        const facetHub = await resolveSeoHub({
-          categorySlug: category.slug,
-          areaSlug: area,
-          facetSlug: facet.slug,
-        });
+        const facetHub = await resolveSeoHub(
+          {
+            categorySlug: category.slug,
+            areaSlug: area,
+            facetSlug: facet.slug,
+          },
+          supply,
+        );
         if (facetHub?.indexable) {
           out.push({
             path: facetHub.canonicalPath,
@@ -357,12 +372,15 @@ export async function listIndexableSeoPaths(): Promise<
           });
         }
         for (const item of facet.items ?? []) {
-          const itemHub = await resolveSeoHub({
-            categorySlug: category.slug,
-            areaSlug: area,
-            facetSlug: facet.slug,
-            itemSlug: item.slug,
-          });
+          const itemHub = await resolveSeoHub(
+            {
+              categorySlug: category.slug,
+              areaSlug: area,
+              facetSlug: facet.slug,
+              itemSlug: item.slug,
+            },
+            supply,
+          );
           if (itemHub?.indexable) {
             out.push({
               path: itemHub.canonicalPath,

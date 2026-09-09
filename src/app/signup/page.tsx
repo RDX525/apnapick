@@ -18,7 +18,7 @@ export default function SignupPage() {
     <AuthShell
       eyebrow="Join ApnaPick"
       title="List your business"
-      description="Create an account to claim or add your Pune business on ApnaPick."
+      description="Create an account to claim or add your business in Kharadi, Wagholi, or Lohegaon."
     >
       <Suspense
         fallback={<div className="bg-mist mt-8 h-72 animate-pulse rounded-2xl" />}

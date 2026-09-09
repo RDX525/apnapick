@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
         pathname: "/storage/v1/**",
       },
     ],
-    qualities: [75, 80, 85],
+    qualities: [75, 78, 80, 82, 85],
     minimumCacheTTL: 60 * 60 * 24,
   },
   experimental: {

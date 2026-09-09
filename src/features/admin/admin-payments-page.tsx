@@ -45,6 +45,7 @@ export function AdminPaymentsPage() {
         sort={queue.sort}
         onSortChange={queue.setSort}
         filterOptions={[
+          { value: "pending", label: "Pending" },
           { value: "succeeded", label: "Succeeded" },
           { value: "failed", label: "Failed" },
           { value: "refunded", label: "Refunded" },

@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   hasInAppHistory,
+  isRoutePop,
   markInAppPop,
   readInAppNavCount,
   recordInAppPath,
@@ -37,9 +38,26 @@ describe("in-app history", () => {
     expect(hasInAppHistory()).toBe(false);
   });
 
+  it("restores the tracked hop when the browser moves forward", () => {
+    seedInAppPath("/");
+    recordInAppPath("/search");
+    markInAppPop();
+    recordInAppPath("/");
+    expect(hasInAppHistory()).toBe(false);
+
+    markInAppPop();
+    recordInAppPath("/search");
+    expect(hasInAppHistory()).toBe(true);
+  });
+
   it("does not treat same-path updates as a new hop", () => {
     seedInAppPath("/search");
     recordInAppPath("/search");
     expect(readInAppNavCount()).toBe(0);
+  });
+
+  it("ignores same-URL history entries used to dismiss overlays", () => {
+    expect(isRoutePop("/search", "/search")).toBe(false);
+    expect(isRoutePop("/search", "/")).toBe(true);
   });
 });

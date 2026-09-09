@@ -6,7 +6,9 @@ import {
 } from "@/domain/onboarding/types";
 import { completenessScore } from "@/services/onboarding/completeness";
 
-const STORAGE_KEY = "apnapick.onboarding.draft.v1";
+/** Pre-account drafts lived on a shared key — never restore these. */
+const LEGACY_STORAGE_KEY = "apnapick.onboarding.draft.v1";
+const STORAGE_PREFIX = "apnapick.onboarding.draft.v2:";
 
 export type PersistedOnboardingState = {
   draft: OnboardingDraftPayload;
@@ -18,11 +20,13 @@ export function stepIdAt(index: number): OnboardingStepId {
   return ONBOARDING_STEPS[Math.max(0, Math.min(index, ONBOARDING_STEPS.length - 1))]!.id;
 }
 
-export function loadLocalDraft(): PersistedOnboardingState | null {
-  if (typeof window === "undefined") return null;
+function storageKey(userId: string) {
+  return `${STORAGE_PREFIX}${userId}`;
+}
+
+function parseDraft(raw: string | null): PersistedOnboardingState | null {
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedOnboardingState;
     if (!parsed?.draft) return null;
     return {
@@ -35,7 +39,26 @@ export function loadLocalDraft(): PersistedOnboardingState | null {
   }
 }
 
+export function clearLegacyAnonymousDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function loadLocalDraft(userId: string | null | undefined): PersistedOnboardingState | null {
+  if (typeof window === "undefined" || !userId) return null;
+  try {
+    return parseDraft(window.localStorage.getItem(storageKey(userId)));
+  } catch {
+    return null;
+  }
+}
+
 export function saveLocalDraft(
+  userId: string | null | undefined,
   draft: OnboardingDraftPayload,
   stepIndex: number,
 ): PersistedOnboardingState {
@@ -44,15 +67,23 @@ export function saveLocalDraft(
     stepIndex,
     updatedAt: new Date().toISOString(),
   };
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (typeof window !== "undefined" && userId) {
+    try {
+      window.localStorage.setItem(storageKey(userId), JSON.stringify(state));
+    } catch {
+      /* ignore quota / private mode */
+    }
   }
   return state;
 }
 
-export function clearLocalDraft() {
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(STORAGE_KEY);
+export function clearLocalDraft(userId: string | null | undefined) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    if (userId) window.localStorage.removeItem(storageKey(userId));
+  } catch {
+    /* ignore quota / private mode */
   }
 }
 

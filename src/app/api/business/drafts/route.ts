@@ -61,7 +61,6 @@ export async function PUT(request: NextRequest) {
 
     const user = await getSessionUser();
     if (!user) {
-      // Anonymous clients rely on localStorage; acknowledge without error
       return jsonOk({ ok: true, persisted: false });
     }
 

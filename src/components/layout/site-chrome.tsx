@@ -103,7 +103,15 @@ export function SiteHeader({ className }: { className?: string }) {
               size="sm"
               className="hidden min-h-11 sm:inline-flex"
             >
-              <Link href="/login" scroll onClick={handleNavigation}>
+              <Link
+                href={
+                  pathname.startsWith("/business/onboarding")
+                    ? "/login?next=/business/onboarding"
+                    : "/login"
+                }
+                scroll
+                onClick={handleNavigation}
+              >
                 Log in
               </Link>
             </Button>
@@ -111,7 +119,14 @@ export function SiteHeader({ className }: { className?: string }) {
               <ThemeMenu />
             </div>
             <Button asChild size="sm" className="ap-cta-glow min-h-11 px-3">
-              <Link href="/business/onboarding" scroll onClick={handleNavigation}>
+              <Link
+                href="/business/onboarding"
+                scroll
+                onClick={handleNavigation}
+                aria-current={
+                  pathname.startsWith("/business/onboarding") ? "page" : undefined
+                }
+              >
                 <span className="hidden min-[380px]:inline">List your business</span>
                 <span className="min-[380px]:hidden">List</span>
               </Link>
@@ -177,7 +192,11 @@ export function SiteHeader({ className }: { className?: string }) {
             </li>
             <li>
               <Link
-                href="/login"
+                href={
+                  pathname.startsWith("/business/onboarding")
+                    ? "/login?next=/business/onboarding"
+                    : "/login"
+                }
                 scroll
                 className="text-foreground hover:bg-secondary flex min-h-11 items-center rounded-xl px-3 text-sm sm:hidden"
                 onClick={handleNavigation}

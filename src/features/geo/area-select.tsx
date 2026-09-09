@@ -40,7 +40,7 @@ export function AreaSelect({
   className,
 }: AreaSelectProps) {
   return (
-    <Select modal={false} value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={onChange}>
       <SelectTrigger
         id={id}
         size="default"
@@ -57,9 +57,7 @@ export function AreaSelect({
         </SelectValue>
       </SelectTrigger>
       <SelectContent position="popper" align="end">
-        <SelectItem value={CURRENT_LOCATION_VALUE}>
-          {CURRENT_LOCATION_LABEL}
-        </SelectItem>
+        <SelectItem value={CURRENT_LOCATION_VALUE}>{CURRENT_LOCATION_LABEL}</SelectItem>
         {DISCOVERY_AREA_SLUGS.map((slug) => (
           <SelectItem key={slug} value={slug}>
             {AREA_CENTROIDS[slug]?.label ?? slug}

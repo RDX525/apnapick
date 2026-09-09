@@ -160,7 +160,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
           </button>
         </div>
       </div>
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="ap-cta-glow w-full" disabled={pending}>
         {pending ? "Signing in…" : "Sign in securely"}
       </Button>
       <p className="text-muted-foreground flex items-center justify-center gap-2 text-xs">

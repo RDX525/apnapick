@@ -70,7 +70,7 @@ export type AdminSubscription = {
   id: string;
   businessName: string;
   plan: string;
-  status: "active" | "canceled" | "past_due";
+  status: "trialing" | "active" | "past_due" | "canceled" | "expired";
   amountCents: number;
   renewsAt: string | null;
 };
@@ -79,7 +79,7 @@ export type AdminPayment = {
   id: string;
   businessName: string;
   amountCents: number;
-  status: "succeeded" | "failed" | "refunded";
+  status: "pending" | "succeeded" | "failed" | "refunded";
   createdAt: string;
 };
 
@@ -116,4 +116,4 @@ export type ClaimAdminAction =
 export type BusinessAdminAction =
   "approve" | "reject" | "suspend" | "merge_duplicate" | "edit" | "verify";
 
-export type UserAdminAction = "view" | "suspend" | "restore";
+export type UserAdminAction = "suspend" | "restore";

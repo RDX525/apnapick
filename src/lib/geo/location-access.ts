@@ -1,6 +1,8 @@
 import { AREA_CENTROIDS, nearestDiscoveryArea } from "@/config/geo-areas";
 import { saveSessionLocation } from "@/lib/geo/session-location";
 import {
+  CURRENT_LOCATION_LABEL,
+  CURRENT_LOCATION_VALUE,
   locateDevicePosition,
   resetDeviceLocateCache,
   type LocateFailureReason,
@@ -17,7 +19,7 @@ type LocationAccessState = {
 const ACCESS_EVENT = "apnapick:location-access";
 const DISMISS_KEY = "apnapick.geo.access-dismissed.v1";
 export const DISCOVERY_AREA_EVENT = "apnapick:discovery-area";
-export const DISCOVERY_AREA_SESSION_KEY = "apnapick.discovery.area.v3";
+export const DISCOVERY_AREA_SESSION_KEY = "apnapick.discovery.area.v4";
 
 let state: LocationAccessState = { open: false, reason: "prompt" };
 
@@ -82,17 +84,33 @@ export function emitDiscoveryArea(slug: string) {
   window.dispatchEvent(new CustomEvent(DISCOVERY_AREA_EVENT, { detail: slug }));
 }
 
+export function keepCurrentLocationSelection() {
+  writeDiscoveryArea(CURRENT_LOCATION_VALUE);
+  emitDiscoveryArea(CURRENT_LOCATION_VALUE);
+}
+
 export function persistCurrentLocation(position: { lat: number; lng: number }) {
   const areaSlug = nearestDiscoveryArea(position);
-  const label = AREA_CENTROIDS[areaSlug]?.label ?? "Pune";
+  if (areaSlug) {
+    const label = AREA_CENTROIDS[areaSlug]?.label ?? areaSlug;
+    saveSessionLocation({
+      position,
+      label,
+      areaSlug,
+      source: "device",
+    });
+    writeDiscoveryArea(areaSlug);
+    emitDiscoveryArea(areaSlug);
+    return;
+  }
   saveSessionLocation({
     position,
-    label,
-    areaSlug,
+    label: CURRENT_LOCATION_LABEL,
+    areaSlug: CURRENT_LOCATION_VALUE,
     source: "device",
   });
-  writeDiscoveryArea(areaSlug);
-  emitDiscoveryArea(areaSlug);
+  writeDiscoveryArea(CURRENT_LOCATION_VALUE);
+  emitDiscoveryArea(CURRENT_LOCATION_VALUE);
 }
 
 export async function requestDeviceLocation(): Promise<LocateResult> {

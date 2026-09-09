@@ -36,8 +36,11 @@ export function OnboardingLocationPicker({
   const [pickedLabel, setPickedLabel] = useState<string | null>(null);
   const lastAutoQuery = useRef("");
   const appliedId = useRef<string | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
 
   function applyResult(result: GeocodeResult, options?: { keepList?: boolean }) {
+    activeRequest.current?.abort();
+    activeRequest.current = null;
     appliedId.current = result.id;
     setPickedLabel(result.label);
     onSelect(result);
@@ -58,12 +61,18 @@ export function OnboardingLocationPicker({
       setErrorMessage("Enter a complete address or set the pin on the map.");
       return;
     }
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setStatus("searching");
     setErrorMessage(null);
     try {
       const params = new URLSearchParams({ q });
       if (mode === "exact") params.set("exact", "1");
-      const response = await fetch(`/api/geo/geocode?${params.toString()}`);
+      const response = await fetch(`/api/geo/geocode?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       if (!response.ok) throw new Error("Location search failed");
       const matches = resultsFromGeocodeBody(await response.json());
       setResults(matches);
@@ -82,9 +91,12 @@ export function OnboardingLocationPicker({
         lastAutoQuery.current = q;
         applyResult(first, { keepList: matches.length > 1 });
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setStatus("error");
       setErrorMessage("Couldn’t find that address. Try again, or tap the map.");
+    } finally {
+      if (activeRequest.current === controller) activeRequest.current = null;
     }
   }
 
@@ -95,10 +107,20 @@ export function OnboardingLocationPicker({
     const timer = window.setTimeout(() => {
       void findAddress(query, "auto");
     }, 450);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      activeRequest.current?.abort();
+    };
     // Autopick when the composed address changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
+
+  useEffect(
+    () => () => {
+      activeRequest.current?.abort();
+    },
+    [],
+  );
 
   const pin: LatLng | null = lat != null && lng != null ? { lat, lng } : null;
 

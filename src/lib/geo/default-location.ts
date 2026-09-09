@@ -3,11 +3,11 @@ import { AREA_CENTROIDS } from "@/config/geo-areas";
 
 /** Client-safe default — no server env import. */
 export function defaultDiscoveryLocation(): DiscoveryLocation {
-  const pune = AREA_CENTROIDS.pune!;
+  const kharadi = AREA_CENTROIDS.kharadi!;
   return {
-    position: pune.position,
-    label: pune.label,
-    areaSlug: "pune",
+    position: kharadi.position,
+    label: kharadi.label,
+    areaSlug: "kharadi",
     source: "default",
   };
 }

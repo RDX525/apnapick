@@ -65,7 +65,6 @@ export function SearchResultsView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fetchedCoords, setFetchedCoords] = useState<CoordMap>({});
   const [location, setLocation] = useState(initialLocation);
-  const [locationSource, setLocationSource] = useState(initialLocation);
   const hoverSelectTimer = useRef<number | null>(null);
   const requestedCoordinateIds = useRef(new Set<string>());
   const pendingRevealResult = useRef<string | null>(null);
@@ -79,11 +78,6 @@ export function SearchResultsView({
     selectedId && results.some((result) => result.businessId === selectedId)
       ? selectedId
       : null;
-
-  if (initialLocation !== locationSource) {
-    setLocationSource(initialLocation);
-    setLocation(initialLocation);
-  }
 
   useEffect(() => {
     coordsRef.current = coords;
@@ -216,7 +210,7 @@ export function SearchResultsView({
 
   function navigate(next: Record<string, string | null | undefined>) {
     startNavigation(() =>
-      router.replace(hrefFor({ ...next, page: "1" }), { scroll: false }),
+      router.push(hrefFor({ ...next, page: "1" }), { scroll: false }),
     );
   }
 
@@ -276,16 +270,8 @@ export function SearchResultsView({
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           <ShareResultsButton
             query={query}
-            item={
-              response.query.itemTerms[0] ??
-              response.query.serviceTerms[0] ??
-              null
-            }
-            place={
-              response.query.location.label ??
-              location.label ??
-              "Pune"
-            }
+            item={response.query.itemTerms[0] ?? response.query.serviceTerms[0] ?? null}
+            place={response.query.location.label ?? location.label ?? "Pune"}
             results={results}
             searchEventId={response.searchEventId}
           />
@@ -324,7 +310,6 @@ export function SearchResultsView({
             <Link
               key={value}
               href={hrefFor({ sort: value, page: "1" })}
-              replace
               scroll={false}
               className={cn(
                 "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm",
@@ -360,7 +345,6 @@ export function SearchResultsView({
                   category: null,
                   page: "1",
                 })}
-                replace
                 scroll={false}
                 className="text-sea text-xs font-medium hover:underline"
               >
@@ -374,7 +358,6 @@ export function SearchResultsView({
                   open_now: openNowOnly ? null : "1",
                   page: "1",
                 })}
-                replace
                 scroll={false}
                 className={cn(
                   "flex min-h-10 items-center rounded-xl px-3 text-sm",
@@ -471,7 +454,6 @@ export function SearchResultsView({
                   verified: filters?.verifiedOnly ? null : "1",
                   page: "1",
                 })}
-                replace
                 scroll={false}
                 className={cn(
                   "flex min-h-10 items-center rounded-xl px-3 text-sm",
@@ -487,7 +469,6 @@ export function SearchResultsView({
                   has_offers: filters?.hasOffers ? null : "1",
                   page: "1",
                 })}
-                replace
                 scroll={false}
                 className={cn(
                   "flex min-h-10 items-center rounded-xl px-3 text-sm",
@@ -562,10 +543,7 @@ export function SearchResultsView({
                 onMouseEnter={() => selectBusinessSoon(result.businessId)}
                 onFocus={() => selectBusiness(result.businessId)}
               >
-                <BusinessResultCard
-                  result={result}
-                  priority={index === 0}
-                />
+                <BusinessResultCard result={result} priority={index === 0} />
               </div>
             ))
           )}

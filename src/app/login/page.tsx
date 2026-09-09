@@ -16,9 +16,9 @@ export const metadata = buildPageMetadata({
 export default function LoginPage() {
   return (
     <AuthShell
-      eyebrow="Business workspace"
+      eyebrow="Own a local business?"
       title="Welcome back"
-      description="Log in to manage your business, resume onboarding, or claim a listing."
+      description="Log in to manage your listing in Kharadi, Wagholi, or Lohegaon."
     >
       <Suspense
         fallback={<div className="bg-mist mt-8 h-64 animate-pulse rounded-2xl" />}

@@ -26,6 +26,12 @@ describe("resolveSeoHub", () => {
         areaSlug: "atlantis",
       }),
     ).toBeNull();
+    expect(
+      await resolveSeoHub({
+        categorySlug: "restaurants",
+        areaSlug: "baner",
+      }),
+    ).toBeNull();
   });
 
   it("builds a non-indexable empty category hub", async () => {

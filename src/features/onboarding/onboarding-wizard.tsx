@@ -26,7 +26,7 @@ import {
   type PhotoDraft,
 } from "@/domain/onboarding/types";
 import { computeCompleteness } from "@/services/onboarding/completeness";
-import { loadLocalDraft, saveLocalDraft } from "@/services/onboarding/draft-persistence";
+import { loadLocalDraft, saveLocalDraft, clearLegacyAnonymousDraft } from "@/services/onboarding/draft-persistence";
 import { findDuplicateCandidates } from "@/services/onboarding/duplicate-detection";
 import {
   photoErrorMessage,
@@ -38,8 +38,24 @@ import {
   type ClaimableBusiness,
 } from "@/repositories/onboarding/claimable-catalog";
 import { DEFAULT_CATEGORIES } from "@/config/consumer-content";
+import { AREA_CENTROIDS, DISCOVERY_AREA_SLUGS } from "@/config/geo-areas";
 import { cn } from "@/lib/utils";
 import { OnboardingLocationPicker } from "@/features/onboarding/location-picker";
+
+const LIVE_NEIGHBOURHOODS = DISCOVERY_AREA_SLUGS.map((slug) => ({
+  slug,
+  label: AREA_CENTROIDS[slug]!.label,
+  position: AREA_CENTROIDS[slug]!.position,
+}));
+
+function pinMatchesCentroid(lat: number | null, lng: number | null) {
+  if (lat == null || lng == null) return true;
+  return LIVE_NEIGHBOURHOODS.some(
+    (area) =>
+      Math.abs(area.position.lat - lat) < 0.0003 &&
+      Math.abs(area.position.lng - lng) < 0.0003,
+  );
+}
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -57,7 +73,7 @@ function uid() {
   return crypto.randomUUID();
 }
 
-export function OnboardingWizard() {
+export function OnboardingWizard({ userId = null }: { userId?: string | null }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [maxStepReached, setMaxStepReached] = useState(0);
@@ -105,12 +121,18 @@ export function OnboardingWizard() {
   );
 
   useEffect(() => {
+    const q = findQuery.trim();
+    if (q.length < 2) {
+      setMatches([]);
+      setClaimSearchStatus("idle");
+      return;
+    }
+
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setClaimSearchStatus("loading");
       try {
-        const params = new URLSearchParams();
-        if (findQuery.trim()) params.set("q", findQuery.trim());
+        const params = new URLSearchParams({ q });
         const res = await fetch(`/api/business/search?${params.toString()}`, {
           signal: controller.signal,
         });
@@ -164,16 +186,53 @@ export function OnboardingWizard() {
   }, [draft, step]);
 
   useEffect(() => {
-    startHydrate(() => {
-      const saved = loadLocalDraft();
-      if (saved) {
-        setDraft(saved.draft);
-        setStep(saved.stepIndex);
-        setMaxStepReached(saved.stepIndex);
+    let cancelled = false;
+
+    async function hydrate() {
+      clearLegacyAnonymousDraft();
+      if (!userId) {
+        if (!cancelled) setHydrated(true);
+        return;
       }
-      setHydrated(true);
-    });
-  }, []);
+
+      const local = loadLocalDraft(userId);
+      let restored = local;
+      try {
+        const res = await fetch("/api/business/drafts", { cache: "no-store" });
+        if (res.ok) {
+          const json = (await res.json()) as {
+            draft?: OnboardingDraftPayload | null;
+            stepIndex?: number;
+            updatedAt?: string | null;
+          };
+          if (json.draft) {
+            restored = {
+              draft: { ...createEmptyDraft(), ...json.draft },
+              stepIndex: json.stepIndex ?? 0,
+              updatedAt: json.updatedAt ?? new Date().toISOString(),
+            };
+          }
+        }
+      } catch {
+        /* keep the signed-in local cache if the server is unreachable */
+      }
+
+      if (cancelled) return;
+      startHydrate(() => {
+        if (restored) {
+          setDraft(restored.draft);
+          setStep(restored.stepIndex);
+          setMaxStepReached(restored.stepIndex);
+        }
+        setHydrated(true);
+      });
+    }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const saveServerDraft = useCallback(
     async (
@@ -223,16 +282,17 @@ export function OnboardingWizard() {
   );
 
   const retrySave = useCallback(() => {
+    if (!userId) return;
     saveController.current?.abort();
     const controller = new AbortController();
     saveController.current = controller;
     const sequence = ++saveSequence.current;
-    saveLocalDraft(latestDraft.current, latestStep.current);
+    saveLocalDraft(userId, latestDraft.current, latestStep.current);
     void saveServerDraft(latestDraft.current, latestStep.current, sequence, controller);
-  }, [saveServerDraft]);
+  }, [saveServerDraft, userId]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !userId) return;
     if (skipInitialPersist.current) {
       skipInitialPersist.current = false;
       return;
@@ -247,14 +307,14 @@ export function OnboardingWizard() {
       navigator.onLine ? null : "You’re offline. Your draft is safe on this device.",
     );
     saveTimer.current = window.setTimeout(() => {
-      saveLocalDraft(draft, step);
+      saveLocalDraft(userId, draft, step);
       void saveServerDraft(draft, step, sequence, controller);
     }, 500);
     return () => {
       if (saveTimer.current != null) window.clearTimeout(saveTimer.current);
       controller.abort();
     };
-  }, [draft, hydrated, saveServerDraft, step]);
+  }, [draft, hydrated, saveServerDraft, step, userId]);
 
   useEffect(() => {
     const offline = () => {
@@ -303,7 +363,7 @@ export function OnboardingWizard() {
     }
     if (step === 2) {
       if (draft.addressLine1.trim().length < 3) e.push("Address is required.");
-      if (!draft.suburb.trim()) e.push("Suburb / neighbourhood is required.");
+      if (!draft.suburb.trim()) e.push("Neighbourhood is required.");
       if (draft.lat == null || draft.lng == null) e.push("Set a map location.");
       else if (
         !Number.isFinite(draft.lat) ||
@@ -501,7 +561,7 @@ export function OnboardingWizard() {
         claimStatus: draft.mode === "claim" ? "PENDING" : draft.claimStatus,
       } satisfies OnboardingDraftPayload;
       setDraft(submittedDraft);
-      saveLocalDraft(submittedDraft, step);
+      saveLocalDraft(userId, submittedDraft, step);
       setSaveStatus("saved");
       router.push("/business/dashboard?submitted=1");
     } catch (err) {
@@ -543,17 +603,19 @@ export function OnboardingWizard() {
             <p className="text-muted-foreground mt-1 text-xs" aria-live="polite">
               {completeness.score}% complete
               {" · "}
-              {saveStatus === "idle"
-                ? "Waiting to sync"
-                : saveStatus === "saving"
-                  ? "Saving…"
-                  : saveStatus === "saved"
-                    ? "Draft saved"
-                    : saveStatus === "offline"
-                      ? "Offline · saved on this device"
-                      : "Sync failed"}
+              {!userId
+                ? "Log in to save your progress"
+                : saveStatus === "idle"
+                  ? "Waiting to sync"
+                  : saveStatus === "saving"
+                    ? "Saving…"
+                    : saveStatus === "saved"
+                      ? "Draft saved"
+                      : saveStatus === "offline"
+                        ? "Offline · saved on this device"
+                        : "Sync failed"}
             </p>
-            {(saveStatus === "error" || saveStatus === "offline") && saveError ? (
+            {userId && (saveStatus === "error" || saveStatus === "offline") && saveError ? (
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="text-destructive text-xs">{saveError}</span>
                 <Button
@@ -622,8 +684,8 @@ export function OnboardingWizard() {
                   Is your business already listed?
                 </h2>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  Search by name, phone, address, or area — then claim a match or create a
-                  new listing.
+                  Search by name, phone, or neighbourhood — then claim a match or create a
+                  new listing in Kharadi, Wagholi, or Lohegaon.
                 </p>
               </div>
               <div className="space-y-2">
@@ -632,10 +694,15 @@ export function OnboardingWizard() {
                   id="find"
                   value={findQuery}
                   onChange={(e) => setFindQuery(e.target.value)}
-                  placeholder="Name, phone, address, Koregaon Park…"
+                  placeholder="Name, phone, or Kharadi, Wagholi, Lohegaon"
                   className="min-h-11"
                 />
               </div>
+              {claimSearchStatus === "idle" ? (
+                <p className="text-muted-foreground text-sm">
+                  Type your business name to check for an existing listing.
+                </p>
+              ) : null}
               {claimSearchStatus === "loading" ? (
                 <p className="text-muted-foreground text-sm">
                   Searching published listings…
@@ -920,7 +987,7 @@ export function OnboardingWizard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="onboarding-state">State / province</Label>
+                  <Label htmlFor="onboarding-state">State</Label>
                   <Input
                     id="onboarding-state"
                     value={draft.state}
@@ -938,16 +1005,37 @@ export function OnboardingWizard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="onboarding-suburb">Suburb / neighbourhood</Label>
-                  <Input
-                    id="onboarding-suburb"
-                    value={draft.suburb}
-                    onChange={(e) => update({ suburb: e.target.value })}
-                    className="min-h-11"
-                  />
+                  <Label htmlFor="onboarding-suburb">Neighbourhood</Label>
+                  <Select
+                    value={draft.suburb || undefined}
+                    onValueChange={(value) => {
+                      const area = LIVE_NEIGHBOURHOODS.find((item) => item.label === value);
+                      update({
+                        suburb: value,
+                        ...(area && pinMatchesCentroid(latestDraft.current.lat, latestDraft.current.lng)
+                          ? { lat: area.position.lat, lng: area.position.lng }
+                          : {}),
+                      });
+                    }}
+                  >
+                    <SelectTrigger id="onboarding-suburb" className="w-full min-h-11">
+                      <SelectValue placeholder="Kharadi, Wagholi, or Lohegaon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LIVE_NEIGHBOURHOODS.map((area) => (
+                        <SelectItem key={area.slug} value={area.label}>
+                          {area.label}
+                        </SelectItem>
+                      ))}
+                      {draft.suburb &&
+                      !LIVE_NEIGHBOURHOODS.some((area) => area.label === draft.suburb) ? (
+                        <SelectItem value={draft.suburb}>{draft.suburb}</SelectItem>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="onboarding-postcode">Postcode</Label>
+                  <Label htmlFor="onboarding-postcode">PIN code</Label>
                   <Input
                     id="onboarding-postcode"
                     inputMode="numeric"
@@ -981,8 +1069,8 @@ export function OnboardingWizard() {
                     lng: result.position.lng,
                     suburb: current.suburb.trim()
                       ? current.suburb
-                      : result.areaSlug
-                        ? result.areaSlug.replace(/-/g, " ")
+                      : result.areaSlug && AREA_CENTROIDS[result.areaSlug]
+                        ? AREA_CENTROIDS[result.areaSlug]!.label
                         : current.suburb,
                     city: current.city.trim() ? current.city : "Pune",
                   });

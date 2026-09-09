@@ -2,10 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   AREA_CENTROIDS,
   DISCOVERY_AREA_SLUGS,
+  isDiscoveryAreaSlug,
+  isPlatformAreaSlug,
   nearestAreaSlug,
   nearestAreaSlugAmong,
   nearestDiscoveryArea,
 } from "@/config/geo-areas";
+
+describe("live neighbourhoods", () => {
+  it("limits the picker to Kharadi, Wagholi, and Lohegaon", () => {
+    expect([...DISCOVERY_AREA_SLUGS]).toEqual(["kharadi", "wagholi", "lohegaon"]);
+    expect(isDiscoveryAreaSlug("kharadi")).toBe(true);
+    expect(isDiscoveryAreaSlug("pune")).toBe(false);
+    expect(isDiscoveryAreaSlug("baner")).toBe(false);
+    expect(isPlatformAreaSlug("pune")).toBe(true);
+    expect(isPlatformAreaSlug("wagholi")).toBe(true);
+    expect(isPlatformAreaSlug("baner")).toBe(false);
+  });
+});
 
 describe("nearestAreaSlugAmong", () => {
   it("selects Wagholi, Kharadi, and Lohegaon from their centroids", () => {
@@ -33,8 +47,8 @@ describe("nearestDiscoveryArea", () => {
     expect(nearestDiscoveryArea(AREA_CENTROIDS.kharadi!.position)).toBe("kharadi");
   });
 
-  it("falls back to Pune when the point is far away", () => {
-    expect(nearestDiscoveryArea({ lat: 19.076, lng: 72.8777 })).toBe("pune");
+  it("returns null when the point is outside Kharadi, Wagholi, and Lohegaon", () => {
+    expect(nearestDiscoveryArea({ lat: 19.076, lng: 72.8777 })).toBeNull();
   });
 });
 

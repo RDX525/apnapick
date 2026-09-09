@@ -410,31 +410,7 @@ export const SEO_CATEGORIES: SeoCategoryDef[] = [
   },
 ];
 
-export const SEO_AREA_SLUGS = new Set([
-  "pune",
-  "koregaon-park",
-  "baner",
-  "hinjewadi",
-  "kothrud",
-  "viman-nagar",
-  "fc-road",
-  "aundh",
-  "wakad",
-  "kharadi",
-  "wagholi",
-  "lohegaon",
-  "hadapsar",
-  "shivajinagar",
-  "camp",
-  "deccan",
-  "jm-road",
-  "magarpatta",
-  "pimple-saudagar",
-  "kondhwa",
-  "bibwewadi",
-  "swargate",
-  "karve-nagar",
-]);
+export const SEO_AREA_SLUGS = new Set(["pune", "kharadi", "wagholi", "lohegaon"]);
 
 export function getSeoCategory(slug: string) {
   return SEO_CATEGORIES.find((c) => c.slug === slug) ?? null;

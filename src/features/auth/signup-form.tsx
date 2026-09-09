@@ -210,7 +210,7 @@ export function SignupForm({ configured }: { configured: boolean }) {
           Use at least 8 characters and avoid a password used elsewhere.
         </p>
       </div>
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="ap-cta-glow w-full" disabled={pending}>
         {pending ? "Creating…" : "Create account & list business"}
       </Button>
       <p className="border-border/70 text-muted-foreground border-t pt-5 text-center text-sm">

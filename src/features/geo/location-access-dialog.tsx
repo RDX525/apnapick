@@ -14,11 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   dismissLocationAccess,
-  emitDiscoveryArea,
   getLocationAccessState,
+  keepCurrentLocationSelection,
   requestDeviceLocation,
   subscribeLocationAccess,
-  writeDiscoveryArea,
   type LocationAccessReason,
 } from "@/lib/geo/location-access";
 
@@ -35,19 +34,19 @@ const COPY: Record<
   denied: {
     title: "Location is blocked",
     description:
-      "Enable location for this site in your browser settings, then tap Try again. Until then we can search Pune city-wide.",
+      "Enable location for this site in your browser settings, then tap Try again. The menu stays on Current location until you pick Kharadi, Wagholi, or Lohegaon.",
     action: "Try again",
   },
   unavailable: {
     title: "Couldn't read your location",
     description:
-      "Check that location is turned on, then try again — or continue with Pune and pick a neighbourhood.",
+      "Check that location is turned on, then try again. Until then the menu stays on Current location — or pick a neighbourhood.",
     action: "Try again",
   },
   unsupported: {
     title: "Location isn't available",
     description:
-      "This browser can't share your location. Pick a neighbourhood, or continue with Pune city-wide.",
+      "This browser can't share your location. The menu stays on Current location, or pick Kharadi, Wagholi, or Lohegaon.",
     action: "Try again",
   },
 };
@@ -88,13 +87,12 @@ export function LocationAccessDialog() {
     };
   }, [state.open]);
 
-  const fallbackToPune = useCallback(() => {
-    writeDiscoveryArea("pune");
-    emitDiscoveryArea("pune");
+  const keepCurrentLocation = useCallback(() => {
+    keepCurrentLocationSelection();
     dismissLocationAccess();
   }, []);
 
-  useDismissOnBack(state.open, fallbackToPune);
+  useDismissOnBack(state.open, keepCurrentLocation);
 
   const copy = COPY[state.reason];
 
@@ -104,7 +102,7 @@ export function LocationAccessDialog() {
       onOpenChange={(open) => {
         if (pending || open) return;
         if (!getLocationAccessState().open) return;
-        fallbackToPune();
+        keepCurrentLocation();
       }}
     >
       <DialogContent showCloseButton={!pending} className="sm:max-w-md">
@@ -120,7 +118,7 @@ export function LocationAccessDialog() {
             type="button"
             variant="outline"
             disabled={pending}
-            onClick={fallbackToPune}
+            onClick={keepCurrentLocation}
           >
             Not now
           </Button>

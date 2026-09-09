@@ -8,8 +8,8 @@ export const publicEnvSchema = z.object({
   NEXT_PUBLIC_APP_NAME: z.string().min(1).default("ApnaPick"),
   NEXT_PUBLIC_DEFAULT_CITY: z.string().min(1).default("Pune"),
   NEXT_PUBLIC_DEFAULT_COUNTRY: z.string().length(2).default("IN"),
-  NEXT_PUBLIC_DEFAULT_LAT: z.coerce.number().min(-90).max(90).default(18.5204),
-  NEXT_PUBLIC_DEFAULT_LNG: z.coerce.number().min(-180).max(180).default(73.8567),
+  NEXT_PUBLIC_DEFAULT_LAT: z.coerce.number().min(-90).max(90).default(18.551),
+  NEXT_PUBLIC_DEFAULT_LNG: z.coerce.number().min(-180).max(180).default(73.94),
   NEXT_PUBLIC_SUPABASE_URL: z.union([z.string().url(), z.literal("")]).optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   NEXT_PUBLIC_ENABLE_ANALYTICS: z

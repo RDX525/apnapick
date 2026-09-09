@@ -98,4 +98,9 @@ describe("SearchParser", () => {
       intent: "discovery",
     });
   });
+
+  it("does not snap search to neighbourhoods outside Kharadi, Wagholi, and Lohegaon", () => {
+    const q = parser.parse("Best chicken curry in Baner");
+    expect(q.location.areaSlug).not.toBe("baner");
+  });
 });

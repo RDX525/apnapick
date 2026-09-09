@@ -3,7 +3,7 @@ export const POPULAR_SEARCHES = [
   "Chicken curry under ₹300 near me",
   "Men's haircut under ₹500 open now",
   "Black shirt for office under ₹1500",
-  "Best chicken curry in Baner",
+  "Best chicken curry in Kharadi",
 ] as const;
 
 export const TRENDING_SEARCHES = [
@@ -66,14 +66,8 @@ export const DEFAULT_CATEGORIES = [
 ] as const;
 
 export const DEFAULT_AREAS = [
-  { slug: "koregaon-park", name: "Koregaon Park", type: "suburb" },
-  { slug: "baner", name: "Baner", type: "suburb" },
-  { slug: "hinjewadi", name: "Hinjewadi", type: "suburb" },
-  { slug: "kothrud", name: "Kothrud", type: "suburb" },
-  { slug: "viman-nagar", name: "Viman Nagar", type: "suburb" },
-  { slug: "fc-road", name: "FC Road", type: "suburb" },
-  { slug: "wagholi", name: "Wagholi", type: "suburb" },
   { slug: "kharadi", name: "Kharadi", type: "suburb" },
+  { slug: "wagholi", name: "Wagholi", type: "suburb" },
   { slug: "lohegaon", name: "Lohegaon", type: "suburb" },
 ] as const;
 

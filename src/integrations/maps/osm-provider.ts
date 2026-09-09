@@ -5,8 +5,9 @@ import type {
   ReverseGeocodeResult,
 } from "@/domain/geo/types";
 import { AREA_CENTROIDS, nearestAreaSlug } from "@/config/geo-areas";
-import { getPublicEnv } from "@/config/env";
 import { mapsDirectionsUrl } from "@/lib/geo/directions";
+
+const NOMINATIM_TIMEOUT_MS = 5_000;
 
 /** Neighbourhood matches for a typed query, including longer street addresses. */
 export function dictionaryGeocodeMatches(query: string): GeocodeResult[] {
@@ -88,7 +89,10 @@ export function nominatimStreetScore(hit: NominatimHit, query = ""): number {
   }
   if (query) {
     const hay = hit.display_name.toLowerCase();
-    for (const token of query.toLowerCase().split(/[\s,]+/).filter(Boolean)) {
+    for (const token of query
+      .toLowerCase()
+      .split(/[\s,]+/)
+      .filter(Boolean)) {
       if (token.length <= 1 && !/^\d+$/.test(token)) continue;
       if (hay.includes(token)) score += 8;
     }
@@ -112,7 +116,10 @@ export function exactGeocodeQueries(query: string): string[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean);
+  const parts = trimmed
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
   const core = parts.filter((part) => !POSTCODE.test(part) && !REGION_TAIL.test(part));
   const coreJoined = core.join(", ");
   const stripped = coreJoined.replace(UNIT_OR_HOUSE_PREFIX, "").trim();
@@ -165,11 +172,7 @@ export class OsmMapsProvider implements MapsProvider {
   readonly defaultZoom = 13;
 
   get defaultCenter(): LatLng {
-    const env = getPublicEnv();
-    return {
-      lat: env.NEXT_PUBLIC_DEFAULT_LAT,
-      lng: env.NEXT_PUBLIC_DEFAULT_LNG,
-    };
+    return AREA_CENTROIDS.kharadi!.position;
   }
 
   async geocode(
@@ -204,6 +207,7 @@ export class OsmMapsProvider implements MapsProvider {
         }
 
         const res = await fetch(url.toString(), {
+          signal: AbortSignal.timeout(NOMINATIM_TIMEOUT_MS),
           headers: {
             Accept: "application/json",
             "User-Agent": "ApnaPick/1.0 (local-discovery)",
@@ -239,6 +243,7 @@ export class OsmMapsProvider implements MapsProvider {
       url.searchParams.set("zoom", "14");
 
       const res = await fetch(url.toString(), {
+        signal: AbortSignal.timeout(NOMINATIM_TIMEOUT_MS),
         headers: {
           Accept: "application/json",
           "User-Agent": "ApnaPick/1.0 (local-discovery)",

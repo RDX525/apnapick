@@ -5,7 +5,8 @@ import { jsonError, jsonOk } from "@/lib/api/response";
 import { requireAdminSession } from "@/lib/auth/admin";
 import { writeAdminAudit } from "@/services/admin/audit";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
-import { hasSupabaseConfig } from "@/config/env";
+import { createAdminClient } from "@/lib/db/supabase-admin";
+import { hasServiceRoleKey, hasSupabaseConfig } from "@/config/env";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +22,16 @@ const schema = z.discriminatedUnion("type", [
     businessId: z.string().uuid(),
     action: z.enum(["approve", "reject", "suspend", "merge_duplicate", "edit", "verify"]),
     mergeIntoId: z.string().uuid().optional(),
-    patch: z.record(z.string(), z.unknown()).optional(),
   }),
   z.object({
     type: z.literal("user"),
     userId: z.string().uuid(),
-    action: z.enum(["view", "suspend", "restore"]),
+    action: z.enum(["suspend", "restore"]),
   }),
   z.object({
     type: z.literal("content"),
     contentId: z.string().uuid(),
+    contentKind: z.enum(["product", "service", "photo", "description", "review"]),
     status: z.enum(["visible", "hidden", "flagged"]),
   }),
   z.object({
@@ -78,12 +79,22 @@ export async function POST(request: NextRequest) {
     let entityId: string | null = null;
     const newData: Record<string, unknown> = { ...body };
     let persistedAuditId: string | null = null;
+    const databaseConfigured = hasSupabaseConfig();
+    if (databaseConfigured && !hasServiceRoleKey()) {
+      throw new AppError({
+        message: "Admin database credentials are unavailable",
+        code: "ADMIN_DATABASE_UNAVAILABLE",
+        status: 503,
+        expose: true,
+      });
+    }
+    const adminSupabase = databaseConfigured ? createAdminClient() : null;
 
     if (body.type === "business" && body.action === "merge_duplicate") {
       await requireAdminSession("admin:merge");
     }
 
-    if (hasSupabaseConfig() && (body.type === "business" || body.type === "claim")) {
+    if (databaseConfigured && (body.type === "business" || body.type === "claim")) {
       const supabase = await createServerSupabaseClient();
       if (!supabase) {
         throw new AppError({
@@ -118,6 +129,145 @@ export async function POST(request: NextRequest) {
       }
       const result = mutation.data as { auditId?: string } | null;
       persistedAuditId = result?.auditId ?? null;
+    }
+
+    if (adminSupabase) {
+      let mutationError: { message: string } | null = null;
+      if (body.type === "user") {
+        const result = await adminSupabase.auth.admin.updateUserById(body.userId, {
+          ban_duration: body.action === "suspend" ? "876000h" : "none",
+        });
+        mutationError = result.error;
+      } else if (body.type === "report") {
+        const result = await adminSupabase
+          .from("reports")
+          .update({
+            status: body.status === "IN_REVIEW" ? "UNDER_REVIEW" : body.status,
+            resolved_by:
+              body.status === "RESOLVED" || body.status === "DISMISSED" ? actor.id : null,
+            resolved_at:
+              body.status === "RESOLVED" || body.status === "DISMISSED"
+                ? new Date().toISOString()
+                : null,
+          })
+          .eq("id", body.reportId);
+        mutationError = result.error;
+      } else if (body.type === "category") {
+        const result = await adminSupabase
+          .from("categories")
+          .update({ is_active: body.active })
+          .eq("id", body.categoryId);
+        mutationError = result.error;
+      } else if (body.type === "seo") {
+        const result = await adminSupabase
+          .from("seo_pages")
+          .update({ indexable: body.indexable })
+          .eq("id", body.pageId);
+        mutationError = result.error;
+      } else if (body.type === "content") {
+        if (body.contentKind === "review") {
+          const reviewStatus =
+            body.status === "visible"
+              ? "PUBLISHED"
+              : body.status === "flagged"
+                ? "PENDING"
+                : "HIDDEN";
+          const result = await adminSupabase
+            .from("reviews")
+            .update({ status: reviewStatus })
+            .eq("id", body.contentId);
+          mutationError = result.error;
+        } else if (body.contentKind === "product" || body.contentKind === "service") {
+          const table = body.contentKind === "product" ? "products" : "services";
+          const existing = await adminSupabase
+            .from(table)
+            .select("metadata, is_available")
+            .eq("id", body.contentId)
+            .single();
+          mutationError = existing.error;
+          if (!mutationError) {
+            const metadata =
+              existing.data?.metadata &&
+              typeof existing.data.metadata === "object" &&
+              !Array.isArray(existing.data.metadata)
+                ? existing.data.metadata
+                : {};
+            const result = await adminSupabase
+              .from(table)
+              .update({
+                is_available:
+                  body.status === "flagged"
+                    ? Boolean(existing.data?.is_available)
+                    : body.status === "visible",
+                metadata: {
+                  ...metadata,
+                  adminModerationStatus: body.status,
+                },
+              })
+              .eq("id", body.contentId);
+            mutationError = result.error;
+          }
+        } else if (body.contentKind === "photo") {
+          if (body.status !== "flagged") {
+            const result = await adminSupabase
+              .from("photos")
+              .update({
+                deleted_at: body.status === "visible" ? null : new Date().toISOString(),
+              })
+              .eq("id", body.contentId);
+            mutationError = result.error;
+          }
+        } else {
+          const existing = await adminSupabase
+            .from("businesses")
+            .select("description, metadata")
+            .eq("id", body.contentId)
+            .single();
+          mutationError = existing.error;
+          if (!mutationError) {
+            const metadata =
+              existing.data?.metadata &&
+              typeof existing.data.metadata === "object" &&
+              !Array.isArray(existing.data.metadata)
+                ? existing.data.metadata
+                : {};
+            const descriptionBackup =
+              typeof metadata.adminModeratedDescriptionBackup === "string"
+                ? metadata.adminModeratedDescriptionBackup
+                : null;
+            const result = await adminSupabase
+              .from("businesses")
+              .update({
+                description:
+                  body.status === "hidden"
+                    ? null
+                    : body.status === "visible"
+                      ? (existing.data?.description ?? descriptionBackup)
+                      : existing.data?.description,
+                metadata: {
+                  ...metadata,
+                  adminModerationStatus: body.status,
+                  adminModeratedDescriptionBackup:
+                    body.status === "hidden"
+                      ? (existing.data?.description ?? descriptionBackup)
+                      : descriptionBackup,
+                },
+              })
+              .eq("id", body.contentId);
+            mutationError = result.error;
+          }
+        }
+      }
+
+      if (mutationError) {
+        throw new AppError({
+          message: mutationError.message,
+          code: "ADMIN_MUTATION_FAILED",
+          status: 400,
+          expose: true,
+          cause: mutationError,
+        });
+      }
     }
 
     switch (body.type) {

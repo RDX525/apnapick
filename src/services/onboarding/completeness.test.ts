@@ -20,7 +20,7 @@ describe("computeCompleteness (weighted)", () => {
     draft.categorySlug = "restaurants";
     draft.description =
       "A longer description for the business profile page with enough detail.";
-    draft.suburb = "Koregaon Park";
+    draft.suburb = "Kharadi";
     draft.city = "Pune";
     draft.addressLine1 = "Lane 5";
     draft.lat = 18.53;

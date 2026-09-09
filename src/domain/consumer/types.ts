@@ -88,7 +88,6 @@ export type HomepageContent = {
   trendingSearches: string[];
   categories: { slug: string; name: string; description: string | null }[];
   areas: { slug: string; name: string; type: string }[];
-  popularBusinesses: ConsumerBusinessCard[];
   popularItems: {
     name: string;
     businessCount: number;

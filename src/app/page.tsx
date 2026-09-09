@@ -9,8 +9,6 @@ import {
 import { COMMON_SERVICES } from "@/config/consumer-content";
 import { SearchBox } from "@/components/search/search-box";
 import { ScrollLink } from "@/components/navigation/scroll-link";
-import { BusinessResultCard } from "@/components/search/business-result-card";
-import { EmptyState } from "@/components/states/empty-state";
 import { Button } from "@/components/ui/button";
 import { CoverPhoto } from "@/components/media/cover-photo";
 import { CategoryIcon, IntentIcon } from "@/components/media/discovery-icon";
@@ -86,7 +84,7 @@ export default async function HomePage() {
             </div>
           </Reveal>
 
-          <HeroStage featured={content.popularBusinesses[0] ?? null} />
+          <HeroStage />
         </div>
       </section>
 
@@ -143,40 +141,6 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
-      <section className="ap-defer-paint" aria-labelledby="popular-businesses">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20">
-          <Reveal>
-            <h2
-              id="popular-businesses"
-              className="font-display text-ink text-3xl sm:text-4xl"
-            >
-              Best matches near you
-            </h2>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {content.dataSource === "supabase"
-                ? "Live Pune listings you can WhatsApp, call, or navigate to. Place data includes OpenStreetMap (ODbL)."
-                : "New local businesses will appear here as their profiles go live."}
-            </p>
-            <div className="mt-8">
-              {content.popularBusinesses.length === 0 ? (
-                <EmptyState
-                  title="No published businesses yet"
-                  description="New local businesses will appear here as their profiles go live. You can still explore with search."
-                  actionLabel="Try a search"
-                  actionHref="/search?q=chicken+curry+under+₹300+near+me"
-                />
-              ) : (
-                <div className="grid gap-4">
-                  {content.popularBusinesses.map((business) => (
-                    <BusinessResultCard key={business.id} business={business} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
       <section
         className="ap-defer-paint mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-24"
         aria-labelledby="popular-items"
@@ -193,44 +157,6 @@ export default async function HomePage() {
             The dishes, drinks, and jobs Pune looks for first — photographed, not listed.
           </p>
           <PopularItemsGallery items={content.popularItems} />
-        </Reveal>
-      </section>
-
-      <section
-        className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20"
-        aria-labelledby="common-services"
-      >
-        <Reveal>
-          <p className="ap-kicker">Home & local</p>
-          <h2
-            id="common-services"
-            className="font-display text-ink mt-3 text-3xl sm:text-4xl"
-          >
-            Common services
-          </h2>
-          <p className="text-muted-foreground mt-2 max-w-xl text-sm">
-            Everyday help around the house — search by the job, not the shop name.
-          </p>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {COMMON_SERVICES.map((service) => (
-              <ScrollLink
-                key={service.slug}
-                href={service.href}
-                className="ap-surface-interactive group flex min-h-[7.5rem] flex-col rounded-2xl p-5"
-              >
-                <span className="bg-sea/10 text-sea grid size-10 place-items-center rounded-2xl">
-                  <CategoryIcon slug={service.slug} className="size-5" />
-                </span>
-                <span className="mt-4 font-medium">{service.name}</span>
-                <span className="text-muted-foreground mt-1 text-xs">
-                  {service.blurb}
-                </span>
-                <span className="text-sea mt-3 inline-flex items-center gap-1 text-xs font-medium">
-                  Search nearby <ArrowRight className="size-3.5" aria-hidden />
-                </span>
-              </ScrollLink>
-            ))}
-          </div>
         </Reveal>
       </section>
 
@@ -304,6 +230,44 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section
+        className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20"
+        aria-labelledby="common-services"
+      >
+        <Reveal>
+          <p className="ap-kicker">Home & local</p>
+          <h2
+            id="common-services"
+            className="font-display text-ink mt-3 text-3xl sm:text-4xl"
+          >
+            Common services
+          </h2>
+          <p className="text-muted-foreground mt-2 max-w-xl text-sm">
+            Everyday help around the house — search by the job, not the shop name.
+          </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {COMMON_SERVICES.map((service) => (
+              <ScrollLink
+                key={service.slug}
+                href={service.href}
+                className="ap-surface-interactive group flex min-h-[7.5rem] flex-col rounded-2xl p-5"
+              >
+                <span className="bg-sea/10 text-sea grid size-10 place-items-center rounded-2xl">
+                  <CategoryIcon slug={service.slug} className="size-5" />
+                </span>
+                <span className="mt-4 font-medium">{service.name}</span>
+                <span className="text-muted-foreground mt-1 text-xs">
+                  {service.blurb}
+                </span>
+                <span className="text-sea mt-3 inline-flex items-center gap-1 text-xs font-medium">
+                  Search nearby <ArrowRight className="size-3.5" aria-hidden />
+                </span>
+              </ScrollLink>
+            ))}
+          </div>
+        </Reveal>
+      </section>
+
       <section className="ap-defer-paint" aria-labelledby="areas">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20">
           <Reveal>
@@ -320,7 +284,7 @@ export default async function HomePage() {
                 <div>
                   <p className="text-brand-on/70 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.14em] uppercase">
                     <MapPinned className="size-3.5" aria-hidden />
-                    Pune, neighborhood by neighborhood
+                    Kharadi, Wagholi, and Lohegaon
                   </p>
                   <h2
                     id="areas"

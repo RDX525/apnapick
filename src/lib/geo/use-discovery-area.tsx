@@ -21,6 +21,7 @@ import {
   DISCOVERY_AREA_EVENT,
   DISCOVERY_AREA_SESSION_KEY,
   emitDiscoveryArea,
+  keepCurrentLocationSelection,
   openLocationAccess,
   persistCurrentLocation,
   requestDeviceLocation,
@@ -159,12 +160,13 @@ function useDiscoveryAreaController(enableLocate: boolean) {
         return;
       }
       if (result.reason === "denied") {
+        keepCurrentLocationSelection();
+        setAreaState(CURRENT_LOCATION_VALUE);
         openLocationAccess("denied");
         return;
       }
-      writeDiscoveryArea("pune");
-      setAreaState("pune");
-      emitDiscoveryArea("pune");
+      keepCurrentLocationSelection();
+      setAreaState(CURRENT_LOCATION_VALUE);
     });
 
     return () => {
@@ -213,7 +215,8 @@ export function DiscoveryAreaProvider({
 
 /**
  * Shared dropdown area. On load, request GPS (browser permission prompt)
- * and snap the picker to the nearest neighbourhood (Wagholi, Kharadi, …).
+ * and snap the picker to the nearest neighbourhood when GPS lands in
+ * Kharadi, Wagholi, or Lohegaon. Otherwise the menu stays on Current location.
  */
 export function useDiscoveryArea() {
   const ctx = useContext(DiscoveryAreaContext);

@@ -23,6 +23,10 @@ type Props = { params: Promise<{ slug: string }> };
 
 export const revalidate = 120;
 
+function isLiveAreaPageSlug(slug: string) {
+  return slug === "pune" || DEFAULT_AREAS.some((area) => area.slug === slug);
+}
+
 const getAreaBusinesses = cache(async (slug: string) => {
   const { items } = await listPublishedBusinesses(80);
   if (slug === "pune") return items;
@@ -35,6 +39,7 @@ const getAreaBusinesses = cache(async (slug: string) => {
 export async function generateMetadata({ params }: Props) {
   const { slug: raw } = await params;
   const slug = raw.toLowerCase();
+  if (!isLiveAreaPageSlug(slug)) notFound();
   const label = PUNE_AREAS[slug]?.label ?? titleCaseSlug(slug);
   const businesses = await getAreaBusinesses(slug);
   const indexable = seoPageMeetsDensity("area", businesses.length);
@@ -51,8 +56,8 @@ export async function generateMetadata({ params }: Props) {
 export default async function AreaPage({ params }: Props) {
   const { slug: raw } = await params;
   const slug = raw.toLowerCase();
+  if (!isLiveAreaPageSlug(slug)) notFound();
   const known = DEFAULT_AREAS.find((a) => a.slug === slug);
-  if (slug !== "pune" && !known && !PUNE_AREAS[slug]) notFound();
   const label = PUNE_AREAS[slug]?.label ?? known?.name ?? titleCaseSlug(slug);
 
   const businesses = (await getAreaBusinesses(slug)).slice(0, 40);

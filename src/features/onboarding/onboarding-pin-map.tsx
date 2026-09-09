@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import type { LatLng } from "@/domain/geo/types";
+import { AREA_CENTROIDS } from "@/config/geo-areas";
 import { cn } from "@/lib/utils";
 
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_ATTR =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-const PUNE: LatLng = { lat: 18.5204, lng: 73.8567 };
+const DEFAULT_CENTER = AREA_CENTROIDS.kharadi!.position;
 
 export function OnboardingPinMap({
   position,
@@ -38,7 +39,7 @@ export function OnboardingPinMap({
         if (cancelled || !containerRef.current) return;
         leafletRef.current = L;
 
-        const start = position ?? PUNE;
+        const start = position ?? DEFAULT_CENTER;
         const map = L.map(containerRef.current, {
           scrollWheelZoom: false,
           zoomControl: true,

@@ -10,10 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AdminWorkspace } from "@/domain/admin/types";
-import {
-  createEmptyAdminWorkspace,
-  saveAdminWorkspace,
-} from "@/services/admin/workspace";
+import { createEmptyAdminWorkspace } from "@/services/admin/workspace";
 import {
   appendLocalAudit,
   applyBusinessAction,
@@ -46,6 +43,7 @@ type AdminContextValue = {
   runUserAction: (userId: string, action: UserAdminAction) => Promise<void>;
   moderateContent: (
     id: string,
+    kind: "product" | "service" | "photo" | "description" | "review",
     status: "visible" | "hidden" | "flagged",
   ) => Promise<void>;
   resolveReport: (
@@ -54,7 +52,6 @@ type AdminContextValue = {
   ) => Promise<void>;
   toggleCategory: (id: string) => Promise<void>;
   toggleSeoIndex: (id: string) => Promise<void>;
-  replace: (next: AdminWorkspace) => void;
 };
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -72,7 +69,7 @@ async function postAdminAction(body: Record<string, unknown>) {
     throw new Error(data.error ?? "Admin action failed");
   }
   return res.json() as Promise<{
-    data?: { audit?: { id: string; action: string; createdAt: string } };
+    audit?: { id: string; action: string; createdAt: string };
   }>;
 }
 
@@ -87,7 +84,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     void fetch("/api/admin/approvals", { signal: controller.signal })
       .then(async (response) => {
-        const body = (await response.json().catch(() => ({}))) as Partial<AdminWorkspace> & {
+        const body = (await response
+          .json()
+          .catch(() => ({}))) as Partial<AdminWorkspace> & {
           error?: string;
         };
         if (!response.ok) throw new Error(body.error ?? "Could not load approval queues");
@@ -107,11 +106,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       });
 
     return () => controller.abort();
-  }, []);
-
-  const persist = useCallback((next: AdminWorkspace) => {
-    saveAdminWorkspace(next);
-    setWorkspace(next);
   }, []);
 
   const runTracked = useCallback(async (key: string, work: () => Promise<void>) => {
@@ -165,14 +159,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             };
           }
           next = appendLocalAudit(next, {
-            id: result.data?.audit?.id ?? crypto.randomUUID(),
+            id: result.audit?.id ?? crypto.randomUUID(),
             action: `claim_${action}`,
             entityType: "business_claim",
             entityId: claimId,
             actorEmail: "admin",
-            createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
           });
-          saveAdminWorkspace(next);
           return next;
         });
       });
@@ -192,14 +185,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setWorkspace((prev) => {
           let next = applyBusinessAction(prev, businessId, action, mergeIntoId);
           next = appendLocalAudit(next, {
-            id: result.data?.audit?.id ?? crypto.randomUUID(),
+            id: result.audit?.id ?? crypto.randomUUID(),
             action: `business_${action}`,
             entityType: "business",
             entityId: businessId,
             actorEmail: "admin",
-            createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
           });
-          saveAdminWorkspace(next);
           return next;
         });
       });
@@ -216,16 +208,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           action,
         });
         setWorkspace((prev) => {
-          let next = action === "view" ? prev : applyUserAction(prev, userId, action);
+          let next = applyUserAction(prev, userId, action);
           next = appendLocalAudit(next, {
-            id: result.data?.audit?.id ?? crypto.randomUUID(),
+            id: result.audit?.id ?? crypto.randomUUID(),
             action: `user_${action}`,
             entityType: "user",
             entityId: userId,
             actorEmail: "admin",
-            createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
           });
-          saveAdminWorkspace(next);
           return next;
         });
       });
@@ -234,11 +225,16 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   );
 
   const moderateContent = useCallback(
-    async (id: string, status: "visible" | "hidden" | "flagged") => {
+    async (
+      id: string,
+      kind: "product" | "service" | "photo" | "description" | "review",
+      status: "visible" | "hidden" | "flagged",
+    ) => {
       await runTracked(`content:${id}:${status}`, async () => {
         const result = await postAdminAction({
           type: "content",
           contentId: id,
+          contentKind: kind,
           status,
         });
         setWorkspace((prev) => {
@@ -247,14 +243,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             content: prev.content.map((c) => (c.id === id ? { ...c, status } : c)),
           };
           next = appendLocalAudit(next, {
-            id: result.data?.audit?.id ?? crypto.randomUUID(),
+            id: result.audit?.id ?? crypto.randomUUID(),
             action: `content_${status}`,
             entityType: "content",
             entityId: id,
             actorEmail: "admin",
-            createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
           });
-          saveAdminWorkspace(next);
           return next;
         });
       });
@@ -276,14 +271,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             reports: prev.reports.map((r) => (r.id === id ? { ...r, status } : r)),
           };
           next = appendLocalAudit(next, {
-            id: result.data?.audit?.id ?? crypto.randomUUID(),
+            id: result.audit?.id ?? crypto.randomUUID(),
             action: `report_${status.toLowerCase()}`,
             entityType: "report",
             entityId: id,
             actorEmail: "admin",
-            createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
           });
-          saveAdminWorkspace(next);
           return next;
         });
       });
@@ -312,14 +306,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
               ),
             };
             next = appendLocalAudit(next, {
-              id: result.data?.audit?.id ?? crypto.randomUUID(),
+              id: result.audit?.id ?? crypto.randomUUID(),
               action: active ? "category_activate" : "category_deactivate",
               entityType: "category",
               entityId: id,
               actorEmail: "admin",
-              createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+              createdAt: result.audit?.createdAt ?? new Date().toISOString(),
             });
-            saveAdminWorkspace(next);
             return next;
           });
         },
@@ -345,14 +338,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             seoPages: prev.seoPages.map((p) => (p.id === id ? { ...p, indexable } : p)),
           };
           next = appendLocalAudit(next, {
-            id: result.data?.audit?.id ?? crypto.randomUUID(),
+            id: result.audit?.id ?? crypto.randomUUID(),
             action: indexable ? "seo_index" : "seo_noindex",
             entityType: "seo_page",
             entityId: id,
             actorEmail: "admin",
-            createdAt: result.data?.audit?.createdAt ?? new Date().toISOString(),
+            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
           });
-          saveAdminWorkspace(next);
           return next;
         });
       });
@@ -375,7 +367,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       resolveReport,
       toggleCategory,
       toggleSeoIndex,
-      replace: persist,
     }),
     [
       workspace,
@@ -390,7 +381,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       resolveReport,
       toggleCategory,
       toggleSeoIndex,
-      persist,
     ],
   );
 

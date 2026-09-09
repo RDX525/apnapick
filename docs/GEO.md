@@ -16,7 +16,7 @@ Swap providers via `createMapsProvider()` / `getMapsProvider()`.
 | Feature           | How                                                      |
 | ----------------- | -------------------------------------------------------- |
 | Current location  | `navigator.geolocation` → session only + reverse geocode |
-| Manual location   | Area chips (Baner, Hinjewadi, …)                         |
+| Manual location   | Area chips (Kharadi, Wagholi, Lohegaon)                  |
 | Location search   | `/api/geo/geocode`                                       |
 | Reverse geocoding | `/api/geo/reverse`                                       |
 | Map + markers     | Leaflet when `mapsEnabled`; projected fallback otherwise |

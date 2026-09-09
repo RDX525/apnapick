@@ -223,40 +223,15 @@ export const OPEN_NOW_PHRASES = ["open now", "open tonight", "currently open"] a
 
 export const NEAR_ME_PHRASES = ["near me", "nearby", "close by", "around me"] as const;
 
-/** Pune neighbourhoods & named areas — slug → display + aliases */
+/** Live neighbourhoods on ApnaPick — slug → display + aliases */
 export const PUNE_AREAS: Record<string, { label: string; aliases: string[] }> = {
   pune: { label: "Pune", aliases: ["pune", "poona"] },
-  "koregaon-park": {
-    label: "Koregaon Park",
-    aliases: ["koregaon park", "kp", "koregaon"],
-  },
-  baner: { label: "Baner", aliases: ["baner"] },
-  aundh: { label: "Aundh", aliases: ["aundh"] },
-  hinjewadi: { label: "Hinjewadi", aliases: ["hinjewadi", "hinjewadi it park"] },
-  kothrud: { label: "Kothrud", aliases: ["kothrud"] },
-  "viman-nagar": { label: "Viman Nagar", aliases: ["viman nagar", "vimannagar"] },
-  camp: { label: "Camp", aliases: ["camp", "pune camp"] },
-  deccan: { label: "Deccan", aliases: ["deccan", "deccan gymkhana"] },
-  hadapsar: { label: "Hadapsar", aliases: ["hadapsar"] },
-  wakad: { label: "Wakad", aliases: ["wakad"] },
   kharadi: { label: "Kharadi", aliases: ["kharadi"] },
   wagholi: { label: "Wagholi", aliases: ["wagholi"] },
   lohegaon: {
     label: "Lohegaon",
     aliases: ["lohegaon", "lohegoan", "lohegaon airport"],
   },
-  "fc-road": { label: "FC Road", aliases: ["fc road", "fergusson college road"] },
-  "jm-road": { label: "JM Road", aliases: ["jm road", "jangli maharaj road"] },
-  shivajinagar: { label: "Shivajinagar", aliases: ["shivajinagar", "shivaji nagar"] },
-  magarpatta: { label: "Magarpatta", aliases: ["magarpatta", "magarpatta city"] },
-  "pimple-saudagar": {
-    label: "Pimple Saudagar",
-    aliases: ["pimple saudagar"],
-  },
-  kondhwa: { label: "Kondhwa", aliases: ["kondhwa"] },
-  bibwewadi: { label: "Bibwewadi", aliases: ["bibwewadi"] },
-  swargate: { label: "Swargate", aliases: ["swargate"] },
-  "karve-nagar": { label: "Karve Nagar", aliases: ["karve nagar", "karvenagar"] },
 };
 
 /** @deprecated Use PUNE_AREAS — kept as alias for older imports */

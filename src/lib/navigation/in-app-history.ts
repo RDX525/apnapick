@@ -4,6 +4,10 @@ const MAX_STACK = 40;
 
 let pendingPop = false;
 
+export function isRoutePop(currentPath: string, nextPath: string) {
+  return currentPath !== nextPath;
+}
+
 function readStack(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -55,7 +59,9 @@ export function recordInAppPath(path: string) {
       stack.pop();
     }
     if (stack[stack.length - 1] !== path) {
-      stack[stack.length - 1] = path;
+      // The destination was not behind us in the tracked stack, so this is a
+      // browser-forward destination (or an old entry trimmed by MAX_STACK).
+      stack.push(path);
     }
     writeStack(stack);
     return;
