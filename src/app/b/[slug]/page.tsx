@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { ClaimedBadge, VerifiedBadge } from "@/components/trust/verified-badge";
 import { RatingStars } from "@/components/trust/rating-summary";
 import { BusinessReviewsSection } from "@/features/reviews/business-reviews-section";
+import { BusinessOwnerPanel } from "@/features/consumer/business-owner-panel";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import {
   breadcrumbListJsonLd,
@@ -17,13 +18,8 @@ import {
   serviceJsonLd,
 } from "@/lib/seo/json-ld";
 import { getBusinessBySlug } from "@/repositories/consumer/business-repository";
-import {
-  getBusinessRatingSummary,
-  getOwnReviewForBusiness,
-  isBusinessOwner,
-} from "@/repositories/reviews/review-repository";
-import { getSessionUser } from "@/lib/auth/session";
 import type { PublicReview } from "@/domain/reviews/types";
+import { aggregateRatings, emptyDistribution } from "@/services/reviews/aggregation";
 import { BusinessImage } from "@/components/media/business-image";
 import { CoverPhoto } from "@/components/media/cover-photo";
 import { BackLink } from "@/components/navigation/back-link";
@@ -33,6 +29,8 @@ import { isDiscoveryAreaSlug } from "@/config/geo-areas";
 import type { SeoBreadcrumb } from "@/domain/seo/types";
 
 type Props = { params: Promise<{ slug: string }> };
+
+export const revalidate = 120;
 
 const DAY_LABELS = [
   "Sunday",
@@ -81,20 +79,20 @@ function formatPrice(cents: number | null) {
 
 export default async function BusinessProfilePage({ params }: Props) {
   const { slug } = await params;
-  const [business, session] = await Promise.all([
-    getBusinessBySlug(slug),
-    getSessionUser(),
-  ]);
+  const business = await getBusinessBySlug(slug);
 
   if (!business) {
     notFound();
   }
 
-  const [ratingSummary, owner, ownReview] = await Promise.all([
-    getBusinessRatingSummary(business.id),
-    session ? isBusinessOwner(business.id, session.id) : Promise.resolve(false),
-    session ? getOwnReviewForBusiness(business.id, session.id) : Promise.resolve(null),
-  ]);
+  const ratingSummary =
+    business.reviews.length > 0
+      ? aggregateRatings(business.reviews.map((r) => r.rating))
+      : {
+          average: business.avgRating,
+          count: business.reviewCount,
+          distribution: emptyDistribution(),
+        };
 
   const initialReviews: PublicReview[] = business.reviews.map((r) => ({
     id: r.id,
@@ -109,7 +107,7 @@ export default async function BusinessProfilePage({ params }: Props) {
     updatedAt: r.createdAt,
     replyBody: r.replyBody,
     repliedAt: r.repliedAt,
-    isOwn: session?.id === r.userId,
+    isOwn: false,
   }));
 
   const areaLabel = business.suburb ?? business.city;
@@ -524,12 +522,8 @@ export default async function BusinessProfilePage({ params }: Props) {
             businessSlug={business.slug}
             initialSummary={ratingSummary}
             initialReviews={initialReviews}
-            initialOwnReview={ownReview}
-            signedIn={Boolean(session)}
-            canReply={
-              owner ||
-              Boolean(session?.roles.some((r) => r === "ADMIN" || r === "SUPER_ADMIN"))
-            }
+            initialOwnReview={null}
+            signedIn={false}
           />
         </div>
 
@@ -608,32 +602,7 @@ export default async function BusinessProfilePage({ params }: Props) {
             )}
           </div>
 
-          <div className="border-border/70 bg-mist rounded-2xl border p-5">
-            <p className="text-muted-foreground text-sm">
-              {owner
-                ? "Keep this listing accurate for customers."
-                : business.isClaimed
-                  ? "See something that needs correcting?"
-                  : "Do you manage this business?"}
-            </p>
-            <Button asChild variant="outline" className="mt-3 min-h-10 w-full">
-              <Link
-                href={
-                  owner
-                    ? "/business/dashboard/profile"
-                    : business.isClaimed
-                      ? "/help"
-                      : "/business/onboarding"
-                }
-              >
-                {owner
-                  ? "Manage listing"
-                  : business.isClaimed
-                    ? "Suggest an edit"
-                    : "Claim this business"}
-              </Link>
-            </Button>
-          </div>
+          <BusinessOwnerPanel businessId={business.id} isClaimed={business.isClaimed} />
         </aside>
       </div>
 

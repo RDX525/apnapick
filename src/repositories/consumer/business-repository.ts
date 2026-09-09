@@ -63,7 +63,7 @@ async function queryPublishedBusinesses(
       `
       id, name, slug, description, avg_rating, review_count, price_level,
       is_claimed, verified_at, completeness,
-      business_locations ( suburb, city, geom ),
+      business_locations ( suburb, city ),
       business_categories ( categories ( name, slug ) ),
       photos ( storage_path, is_cover, deleted_at )
     `,

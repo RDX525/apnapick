@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { RatingSummaryPanel } from "@/components/trust/rating-summary";
 import { ReviewCard, ReviewComposer } from "@/features/reviews/review-composer";
+import { loadBusinessViewer } from "@/features/consumer/business-viewer";
 import type { PublicReview, RatingSummary } from "@/domain/reviews/types";
-import { emptyDistribution } from "@/services/reviews/aggregation";
 
 type Bundle = {
   summary: RatingSummary;
@@ -34,6 +34,8 @@ export function BusinessReviewsSection({
     reviews: initialReviews,
     ownReview: initialOwnReview,
   });
+  const [viewerSignedIn, setViewerSignedIn] = useState(signedIn);
+  const [viewerCanReply, setViewerCanReply] = useState(canReply);
   const [, startTransition] = useTransition();
 
   const refresh = useCallback(
@@ -42,8 +44,21 @@ export function BusinessReviewsSection({
         try {
           const res = await fetch(`/api/reviews?businessId=${businessId}`, { signal });
           if (!res.ok) return;
-          const json = (await res.json()) as { data: Bundle };
-          setBundle(json.data);
+          const json = (await res.json()) as {
+            data: Bundle & { signedIn?: boolean; canReply?: boolean };
+          };
+          if (!json.data) return;
+          setBundle({
+            summary: json.data.summary,
+            reviews: json.data.reviews,
+            ownReview: json.data.ownReview,
+          });
+          if (typeof json.data.signedIn === "boolean") {
+            setViewerSignedIn(json.data.signedIn);
+          }
+          if (typeof json.data.canReply === "boolean") {
+            setViewerCanReply(json.data.canReply);
+          }
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
         }
@@ -51,6 +66,23 @@ export function BusinessReviewsSection({
     },
     [businessId],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    loadBusinessViewer(businessId).then((viewer) => {
+      if (cancelled || !viewer) return;
+      setBundle({
+        summary: viewer.summary,
+        reviews: viewer.reviews,
+        ownReview: viewer.ownReview,
+      });
+      setViewerSignedIn(viewer.signedIn);
+      setViewerCanReply(viewer.canReply);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
 
   return (
     <section aria-labelledby="reviews-heading" className="space-y-6">
@@ -70,7 +102,7 @@ export function BusinessReviewsSection({
         businessId={businessId}
         loginNext={`/b/${businessSlug}`}
         existing={bundle.ownReview}
-        signedIn={signedIn}
+        signedIn={viewerSignedIn}
         onSaved={({ review, summary }) => {
           setBundle((prev) => ({
             summary,
@@ -94,19 +126,11 @@ export function BusinessReviewsSection({
         ) : (
           bundle.reviews.map((review) => (
             <li key={review.id}>
-              <ReviewCard review={review} canReply={canReply} onChanged={refresh} />
+              <ReviewCard review={review} canReply={viewerCanReply} onChanged={refresh} />
             </li>
           ))
         )}
       </ul>
     </section>
   );
-}
-
-export function summaryFromDenorm(average: number, count: number): RatingSummary {
-  return {
-    average,
-    count,
-    distribution: emptyDistribution(),
-  };
 }

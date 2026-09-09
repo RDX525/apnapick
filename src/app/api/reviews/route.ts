@@ -3,12 +3,14 @@ import { z } from "zod";
 import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
+import { isAdminRole } from "@/domain/roles";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { createReviewSchema } from "@/validations/reviews";
 import {
   createReview,
   getBusinessReviewsBundle,
 } from "@/services/reviews/review-service";
+import { isBusinessOwner } from "@/repositories/reviews/review-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +38,21 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await getSessionUser();
-    const data = await getBusinessReviewsBundle({
-      businessId: parsed.data,
-      viewerId: user?.id ?? null,
+    const [data, owner] = await Promise.all([
+      getBusinessReviewsBundle({
+        businessId: parsed.data,
+        viewerId: user?.id ?? null,
+      }),
+      user ? isBusinessOwner(parsed.data, user.id) : Promise.resolve(false),
+    ]);
+    return jsonOk({
+      data: {
+        ...data,
+        signedIn: Boolean(user),
+        canReply: owner || Boolean(user?.roles.some(isAdminRole)),
+        isOwner: owner,
+      },
     });
-    return jsonOk({ data });
   } catch (error) {
     return jsonError(error);
   }
