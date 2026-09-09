@@ -31,7 +31,8 @@ export function AdminBusinessesPage() {
       [business.name, business.slug, business.suburb, business.city]
         .filter(Boolean)
         .join(" "),
-    filterValue: (business) => business.status,
+    filterValue: (business) =>
+      business.ownerEditPending ? "PENDING_REVIEW" : business.status,
     sorters: {
       name: (a, b) => a.name.localeCompare(b.name),
       completeness: (a, b) => a.completeness - b.completeness,
@@ -93,6 +94,9 @@ export function AdminBusinessesPage() {
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <StatusBadge status={b.status} />
+                    {b.ownerEditPending ? (
+                      <StatusBadge status="pending_review" label="Owner edits" />
+                    ) : null}
                     {b.isClaimed ? <StatusBadge status="claimed" /> : null}
                     {b.verifiedAt ? <StatusBadge status="verified" /> : null}
                     {b.reportCount > 0 ? (

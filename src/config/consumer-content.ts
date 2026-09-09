@@ -1,47 +1,67 @@
-/** Static discovery prompts — not business inventory. Safe in all environments. */
+/** Intent prompts — dish/service + budget, not category names. */
 export const POPULAR_SEARCHES = [
-  "Pav bhaji near me",
-  "Best Indian restaurant",
-  "Best barber near me",
-  "Best pizza open now",
+  "Chicken curry under ₹300 near me",
+  "Men's haircut under ₹500 open now",
+  "Black shirt for office under ₹1500",
+  "Best chicken curry in Baner",
 ] as const;
 
 export const TRENDING_SEARCHES = [
-  "misal pav near me",
-  "best biryani in Hinjewadi",
-  "best coffee near me",
-  "plumber for leaking tap",
-  "AC repair near me",
-  "electrician near me",
-  "south indian restaurant open now",
-  "fade haircut near me",
+  "Chicken curry under ₹300 in Kharadi",
+  "Best biryani in Wagholi",
+  "Men's haircut under ₹500 in Lohegaon",
+  "Plumber for leaking tap in Kharadi",
+  "South Indian restaurant open now in Wagholi",
+  "AC repair in Lohegaon",
+  "Black shirt for office under ₹1500 in Kharadi",
+  "Fade haircut in Wagholi",
 ] as const;
 
 export const DEFAULT_CATEGORIES = [
   {
-    slug: "restaurants",
-    name: "Restaurants",
-    description: "Dishes, cuisines, and dining",
-  },
-  {
-    slug: "cafes",
-    name: "Cafés",
-    description: "Coffee, chai, and bakeries",
-  },
-  {
-    slug: "barbers",
-    name: "Barbers",
-    description: "Fades, cuts, and grooming",
+    slug: "food-dining",
+    name: "Food & Dining",
+    description: "Restaurants, cafés, and local flavour",
   },
   {
     slug: "beauty-personal-care",
     name: "Beauty & Personal Care",
-    description: "Perfume, skincare, and personal care",
+    description: "Perfume, salons, spas, and skincare",
   },
   {
-    slug: "plumbers",
-    name: "Plumbers",
-    description: "Repairs and home services",
+    slug: "clothing-fashion",
+    name: "Clothing & Fashion",
+    description: "Boutiques, tailors, and style",
+  },
+  {
+    slug: "shopping-retail",
+    name: "Shopping & Retail",
+    description: "Markets, stores, and everyday buys",
+  },
+  {
+    slug: "home-repair",
+    name: "Home & Repair Services",
+    description: "Plumbers, electricians, and fixes",
+  },
+  {
+    slug: "fitness-sports",
+    name: "Fitness & Sports",
+    description: "Gyms, yoga, and training",
+  },
+  {
+    slug: "health-wellness",
+    name: "Health & Wellness",
+    description: "Clinics, dentists, and care",
+  },
+  {
+    slug: "automotive",
+    name: "Automotive",
+    description: "Service, repairs, and spares",
+  },
+  {
+    slug: "education-learning",
+    name: "Education & Learning",
+    description: "Classes, tutors, and coaching",
   },
 ] as const;
 

@@ -27,6 +27,7 @@ type DashboardContextValue = {
   replace: (next: DashboardWorkspace) => void;
   saveStatus: "loading" | "idle" | "saving" | "saved" | "error" | "offline";
   saveError: string | null;
+  saveQueuedForReview: boolean;
   retrySave: () => void;
 };
 
@@ -59,7 +60,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [saveStatus, setSaveStatus] =
     useState<DashboardContextValue["saveStatus"]>("loading");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveQueuedForReview, setSaveQueuedForReview] = useState(false);
   const skipInitialPersist = useRef(true);
+  const skipNextPersist = useRef(false);
   const requestSequence = useRef(0);
   const activeController = useRef<AbortController | null>(null);
   const latestWorkspace = useRef(workspace);
@@ -144,15 +147,43 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ workspace: next }),
           signal: controller.signal,
         });
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          persisted?: boolean;
+          queuedForReview?: boolean;
+          status?: DashboardWorkspace["profile"]["status"];
+          completeness?: number;
+        };
         if (!response.ok) {
-          const body = (await response.json().catch(() => ({}))) as {
-            error?: string;
-          };
           throw new Error(body.error ?? "Couldn’t save changes.");
         }
         if (sequence === requestSequence.current) {
           setSaveStatus("saved");
           setSaveError(null);
+          setSaveQueuedForReview(Boolean(body.queuedForReview));
+          const current = latestWorkspace.current;
+          const nextStatus = body.status ?? current.profile.status;
+          const nextCompleteness = body.completeness ?? current.profile.completeness;
+          const nextOwnerEditPending =
+            nextStatus === "PUBLISHED" && Boolean(body.queuedForReview);
+          if (
+            nextStatus !== current.profile.status ||
+            nextOwnerEditPending !== current.profile.ownerEditPending ||
+            nextCompleteness !== current.profile.completeness
+          ) {
+            skipNextPersist.current = true;
+            const patched = {
+              ...current,
+              profile: {
+                ...current.profile,
+                status: nextStatus,
+                completeness: nextCompleteness,
+                ownerEditPending: nextOwnerEditPending,
+              },
+            };
+            applyWorkspace(patched, setWorkspace, latestWorkspace);
+            saveWorkspaceToStorage(patched);
+          }
         }
       } catch (err) {
         if (controller.signal.aborted || sequence !== requestSequence.current) {
@@ -188,6 +219,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     if (skipInitialPersist.current) {
       skipInitialPersist.current = false;
+      return;
+    }
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
       return;
     }
 
@@ -258,9 +293,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       replace,
       saveStatus,
       saveError,
+      saveQueuedForReview,
       retrySave,
     }),
-    [workspace, insights, hydrated, update, replace, saveStatus, saveError, retrySave],
+    [
+      workspace,
+      insights,
+      hydrated,
+      update,
+      replace,
+      saveStatus,
+      saveError,
+      saveQueuedForReview,
+      retrySave,
+    ],
   );
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;

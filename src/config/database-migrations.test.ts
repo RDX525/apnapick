@@ -97,10 +97,15 @@ describe("Phase 2 database migrations", () => {
   it("defines transactional listing submission and admin moderation", () => {
     expect(sql).toContain("submit_business_listing");
     expect(sql).toContain("submit_business_claim");
+    expect(sql).toContain("save_owner_workspace");
     expect(sql).toContain("admin_moderate_business");
     expect(sql).toContain("admin_moderate_claim");
     expect(sql).toContain("revoke all on function public.admin_moderate_business");
     expect(sql).toContain("grant execute on function public.submit_business_listing");
+    expect(sql).toContain("grant execute on function public.save_owner_workspace");
+    expect(sql).toContain("onboarding_wizard");
+    expect(sql).toContain("clothing-fashion");
+    expect(sql).toContain("education-learning");
   });
 
   it("dev seed is explicitly non-production", () => {

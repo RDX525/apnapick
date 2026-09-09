@@ -40,6 +40,8 @@ describe("seo taxonomy", () => {
     expect(isSeoCategorySlug("restaurants")).toBe(true);
     expect(isSeoCategorySlug("barbers")).toBe(true);
     expect(isSeoCategorySlug("services")).toBe(true);
+    expect(isSeoCategorySlug("food-dining")).toBe(true);
+    expect(isSeoCategorySlug("home-repair")).toBe(true);
     expect(isSeoCategorySlug("admin")).toBe(false);
   });
 
@@ -53,5 +55,11 @@ describe("seo taxonomy", () => {
   it("supports plumber under services", () => {
     const services = getSeoCategory("services")!;
     expect(resolveFacetCanonical(services, "plumber")?.name).toBe("Plumber");
+  });
+
+  it("treats perfume as a beauty facet", () => {
+    const beauty = getSeoCategory("beauty-personal-care")!;
+    expect(resolveFacetCanonical(beauty, "perfume")?.name).toBe("Perfume");
+    expect(resolveFacetCanonical(beauty, "attar")?.slug).toBe("perfume");
   });
 });

@@ -73,6 +73,7 @@ describe("workspaceFromOwnerListing", () => {
     expect(workspace.profile.completeness).toBe(65);
     expect(workspace.profile.suburb).toBe("Koregaon Park");
     expect(workspace.profile.verificationStatus).toBe("UNCLAIMED");
+    expect(workspace.profile.ownerEditPending).toBe(false);
     expect(workspace.products[0]?.name).toBe("Chicken Curry");
     expect(workspace.hours[1]?.isClosed).toBe(false);
     expect(workspace.hours[1]?.opensAt).toBe("10:00");
@@ -83,6 +84,17 @@ describe("workspaceFromOwnerListing", () => {
       snapshot({ status: "PUBLISHED", isClaimed: false }),
     );
     expect(workspace.profile.status).toBe("PUBLISHED");
+  });
+
+  it("flags published listings with owner edits awaiting admin review", () => {
+    const workspace = workspaceFromOwnerListing(
+      snapshot({
+        status: "PUBLISHED",
+        metadata: { ownerEditPending: true },
+      }),
+    );
+    expect(workspace.profile.status).toBe("PUBLISHED");
+    expect(workspace.profile.ownerEditPending).toBe(true);
   });
 });
 

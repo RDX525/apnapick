@@ -113,6 +113,7 @@ export type DashboardProfile = {
   completeness: number;
   verificationStatus: ClaimStatus | "UNCLAIMED";
   status: "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED" | "SUSPENDED";
+  ownerEditPending: boolean;
 };
 
 export type DashboardWorkspace = {

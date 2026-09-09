@@ -93,6 +93,7 @@ export function createSeedAdminWorkspace(): AdminWorkspace {
         city: "Pune",
         completeness: 72,
         reportCount: 1,
+        ownerEditPending: false,
       },
       {
         id: uid(),
@@ -105,6 +106,7 @@ export function createSeedAdminWorkspace(): AdminWorkspace {
         city: "Pune",
         completeness: 88,
         reportCount: 0,
+        ownerEditPending: true,
       },
       {
         id: uid(),
@@ -117,6 +119,7 @@ export function createSeedAdminWorkspace(): AdminWorkspace {
         city: "Pune",
         completeness: 40,
         reportCount: 2,
+        ownerEditPending: false,
       },
     ],
     users: [

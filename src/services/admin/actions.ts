@@ -57,14 +57,21 @@ export function applyBusinessAction(
         status: "PUBLISHED" as const,
         isClaimed: true,
         verifiedAt: new Date().toISOString(),
+        ownerEditPending: false,
       };
     }
-    if (action === "edit") return b;
+    if (action === "edit") return { ...b, ownerEditPending: false };
     if (action === "merge_duplicate") {
       return { ...b, status: "MERGED" as const };
     }
     const nextStatus = statusMap[action];
-    return nextStatus ? { ...b, status: nextStatus } : b;
+    return nextStatus
+      ? {
+          ...b,
+          status: nextStatus,
+          ownerEditPending: action === "approve" ? false : b.ownerEditPending,
+        }
+      : b;
   });
 
   if (action === "merge_duplicate" && mergeIntoId) {

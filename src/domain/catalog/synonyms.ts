@@ -14,6 +14,9 @@ export const ITEM_SYNONYMS: Record<string, string[]> = {
   fade: ["skin fade", "taper fade"],
   "leaking tap": ["tap leak", "faucet leak", "dripping tap"],
   plumber: ["plumbing"],
+  perfume: ["fragrance", "attar", "scent", "oud", "cologne"],
+  fragrance: ["perfume", "attar", "scent"],
+  attar: ["perfume", "fragrance", "ittar"],
 };
 
 export const TAG_SYNONYMS: Record<string, string[]> = {

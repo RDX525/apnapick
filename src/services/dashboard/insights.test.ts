@@ -12,6 +12,7 @@ describe("dashboard insights", () => {
     ws.metrics.searchAppearances = 124;
 
     const insights = buildDashboardInsights(ws);
+    expect(insights.some((i) => i.id === "pending-review")).toBe(true);
     expect(insights.some((i) => i.title.includes("menu item"))).toBe(true);
     expect(insights.some((i) => i.title.includes("Add photos"))).toBe(true);
     expect(insights.some((i) => i.title.includes("124 searches"))).toBe(true);

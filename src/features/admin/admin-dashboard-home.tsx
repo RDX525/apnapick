@@ -12,8 +12,8 @@ export function AdminDashboardHome() {
   const openClaims = workspace.claims.filter((c) =>
     ["PENDING", "UNDER_REVIEW"].includes(c.status),
   ).length;
-  const pendingBiz = workspace.businesses.filter((b) =>
-    ["PENDING_REVIEW", "DRAFT"].includes(b.status),
+  const pendingBiz = workspace.businesses.filter(
+    (b) => ["PENDING_REVIEW", "DRAFT"].includes(b.status) || b.ownerEditPending,
   ).length;
   const openReports = workspace.reports.filter((r) => r.status === "OPEN").length;
   const flagged = workspace.content.filter((c) => c.status === "flagged").length;

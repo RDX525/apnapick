@@ -62,7 +62,7 @@ async function queryPublishedBusinesses(
     .select(
       `
       id, name, slug, description, avg_rating, review_count, price_level,
-      is_claimed, verified_at, completeness,
+      is_claimed, verified_at, completeness, phone,
       business_locations ( suburb, city ),
       business_categories ( categories ( name, slug ) ),
       photos ( storage_path, is_cover, deleted_at )
@@ -126,6 +126,7 @@ async function queryPublishedBusinesses(
         .map((c) => c.categories?.slug)
         .filter((s): s is string => Boolean(s)),
       matchedItem: null,
+      phone: (row.phone as string | null) ?? null,
       coverImageUrl,
       lat: null,
       lng: null,
@@ -137,7 +138,7 @@ async function queryPublishedBusinesses(
 
 const loadCachedPublishedBusinesses = unstable_cache(
   queryPublishedBusinesses,
-  ["published-businesses"],
+  ["published-businesses-v3"],
   { revalidate: PUBLIC_DATA_REVALIDATE_SECONDS, tags: ["published-businesses"] },
 );
 

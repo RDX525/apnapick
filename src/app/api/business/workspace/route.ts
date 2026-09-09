@@ -6,8 +6,16 @@ import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { canManageBusiness } from "@/services/business/ownership";
 import { fetchOwnerListingSnapshot } from "@/repositories/dashboard/owner-workspace-repository";
 import { workspaceFromOwnerListing } from "@/services/dashboard/owner-workspace";
+import {
+  ownerWorkspaceSavePayload,
+  workspaceSaveCompleteness,
+} from "@/services/dashboard/save-owner-workspace";
+import type { DashboardWorkspace } from "@/domain/dashboard/types";
 
 export const dynamic = "force-dynamic";
+
+const BUSINESS_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Load the signed-in owner's listing into the dashboard workspace.
@@ -51,17 +59,27 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await getSessionUser();
     const body = (await request.json()) as {
-      workspace?: { profile?: { businessId?: string } };
+      workspace?: DashboardWorkspace;
     };
-    const businessId = body.workspace?.profile?.businessId;
+    const workspace = body.workspace;
+    const businessId = workspace?.profile.businessId;
 
     if (!user) {
-      return jsonOk({ ok: true, persisted: false });
+      return jsonOk({ ok: true, persisted: false, queuedForReview: false });
     }
 
     const supabase = await createServerSupabaseClient();
-    if (!supabase || !businessId) {
-      return jsonOk({ ok: true, persisted: false });
+    if (!supabase || !businessId || !BUSINESS_ID_RE.test(businessId) || !workspace) {
+      return jsonOk({ ok: true, persisted: false, queuedForReview: false });
+    }
+
+    if (!workspace.profile.name.trim()) {
+      throw new AppError({
+        message: "Business name required",
+        code: "VALIDATION_ERROR",
+        status: 400,
+        expose: true,
+      });
     }
 
     const { data: membership } = await supabase
@@ -93,15 +111,35 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    await supabase.from("audit_logs").insert({
-      actor_id: user.id,
-      action: "dashboard_workspace_saved",
-      entity_type: "business",
-      entity_id: businessId,
-      new_data: { source: "dashboard" },
+    const { data, error } = await supabase.rpc("save_owner_workspace", {
+      p_business_id: businessId,
+      p_payload: ownerWorkspaceSavePayload(workspace),
+      p_completeness: workspaceSaveCompleteness(workspace),
     });
 
-    return jsonOk({ ok: true, persisted: true });
+    if (error) {
+      throw new AppError({
+        message: error.message || "Couldn’t save your listing.",
+        code: "OWNER_WORKSPACE_SAVE_FAILED",
+        status: 400,
+        expose: true,
+        cause: error,
+      });
+    }
+
+    const result = (data ?? {}) as {
+      status?: string;
+      queuedForReview?: boolean;
+      completeness?: number;
+    };
+
+    return jsonOk({
+      ok: true,
+      persisted: true,
+      queuedForReview: Boolean(result.queuedForReview),
+      status: result.status ?? workspace.profile.status,
+      completeness: result.completeness ?? workspace.profile.completeness,
+    });
   } catch (error) {
     return jsonError(error);
   }

@@ -1,3 +1,4 @@
+import { expandSupplyCategorySlugs } from "@/config/seo-taxonomy";
 import type {
   ParsedSearchQuery,
   PricePreference,
@@ -5,6 +6,7 @@ import type {
   SearchCandidate,
   SearchFilters,
 } from "@/domain/search/types";
+import { listingMatchesNamedArea } from "@/lib/search/named-area";
 
 function priceLevelsForPreference(
   pref: PricePreference | null | undefined,
@@ -35,9 +37,11 @@ export function applySearchFilters(
   ];
   const minRating = filters?.minRating;
   const priceLevels =
-    filters?.priceLevels && filters.priceLevels.length > 0
-      ? filters.priceLevels
-      : priceLevelsForPreference(parsed.pricePreference);
+    parsed.maxPriceCents != null
+      ? null
+      : filters?.priceLevels && filters.priceLevels.length > 0
+        ? filters.priceLevels
+        : priceLevelsForPreference(parsed.pricePreference);
   const services = filters?.services ?? [];
   const hasOffers = filters?.hasOffers;
   const verifiedOnly = filters?.verifiedOnly;
@@ -47,13 +51,25 @@ export function applySearchFilters(
     if (openNow === true && c.openNow === false) return false;
     if (minRating != null && c.avgRating < minRating) return false;
     if (maxDistance != null && c.distanceM != null && c.distanceM > maxDistance) {
-      return false;
+      const namedSlug =
+        parsed.location.mode === "named" ? parsed.location.areaSlug : undefined;
+      if (!listingMatchesNamedArea(c.suburb, c.city, namedSlug)) {
+        return false;
+      }
     }
     if (priceLevels && c.priceLevel != null) {
       if (!priceLevels.includes(c.priceLevel)) return false;
     }
+    if (
+      parsed.maxPriceCents != null &&
+      c.matchedItemPriceCents != null &&
+      c.matchedItemPriceCents > parsed.maxPriceCents
+    ) {
+      return false;
+    }
     if (categorySlugs.length > 0 && c.categories && c.categories.length > 0) {
-      if (!categorySlugs.some((slug) => c.categories!.includes(slug))) {
+      const allowed = expandSupplyCategorySlugs(categorySlugs);
+      if (!c.categories.some((slug) => allowed.includes(slug))) {
         return false;
       }
     }

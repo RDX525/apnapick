@@ -105,7 +105,7 @@ export function HeroStage({ featured }: { featured?: ConsumerBusinessCard | null
                   Example search
                 </p>
                 <p className="text-foreground mt-0.5 truncate text-sm font-medium">
-                  Best chicken curry open now
+                  Chicken curry under ₹300 near me
                 </p>
               </div>
               <span className="bg-sea text-primary-foreground grid size-8 shrink-0 place-items-center rounded-xl shadow-sm">
@@ -192,12 +192,12 @@ export function HeroStage({ featured }: { featured?: ConsumerBusinessCard | null
                     <p className="text-foreground text-xs font-semibold">
                       {featured?.matchedItem
                         ? "Exact dish match"
-                        : "Intent-first discovery"}
+                        : "Best matches near you"}
                     </p>
                     <p className="text-muted-foreground mt-0.5 text-[10px]">
                       {featured?.matchedItem
                         ? `${featured.matchedItem} is confirmed on the menu`
-                        : "Search by dish, service, or what you need."}
+                        : "WhatsApp, call, or get directions in one tap."}
                     </p>
                   </div>
                 </div>

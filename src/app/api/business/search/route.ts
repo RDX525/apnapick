@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             `
             id, name, slug, is_claimed, phone, website,
             business_locations ( suburb, city, address_line1, geom ),
-            business_categories ( categories ( name ) )
+            business_categories ( categories ( name, slug ) )
           `,
           )
           .eq("status", "PUBLISHED")
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
             const loc = locs[0];
             const coords = loc?.geom?.coordinates;
             const cats = (row.business_categories ?? []) as unknown as {
-              categories: { name: string } | null;
+              categories: { name: string; slug?: string } | null;
             }[];
             return {
               id: row.id as string,
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
               lat: coords?.[1] ?? null,
               lng: coords?.[0] ?? null,
               categoryLabel: cats[0]?.categories?.name ?? null,
+              categorySlug: cats[0]?.categories?.slug ?? null,
               isClaimed: Boolean(row.is_claimed),
             };
           });

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { Filter, Map as MapIcon, List, Navigation } from "lucide-react";
 import { BusinessResultCard } from "@/components/search/business-result-card";
 import { SponsoredResultCard } from "@/components/search/sponsored-result-card";
+import { ShareResultsButton } from "@/components/search/share-results-button";
 import { SearchBox } from "@/components/search/search-box";
 import { BackLink } from "@/components/navigation/back-link";
 import { EmptyState } from "@/components/states/empty-state";
@@ -29,6 +30,7 @@ import { isDiscoveryAreaSlug } from "@/config/geo-areas";
 import { CURRENT_LOCATION_VALUE } from "@/lib/geo/device-location";
 import { buildSearchHref } from "@/lib/search/search-url";
 import { mapsDirectionsUrl } from "@/lib/geo/directions";
+import { formatInrFromCents } from "@/lib/money/inr";
 
 type CoordMap = Record<string, { lat: number; lng: number; suburb: string | null }>;
 
@@ -250,7 +252,11 @@ export function SearchResultsView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-ink text-2xl text-pretty sm:text-3xl">
-            Results for “{query}”
+            {response.query.itemTerms[0]
+              ? `Best matches for “${response.query.itemTerms[0]}”`
+              : response.query.serviceTerms[0]
+                ? `Best matches for “${response.query.serviceTerms[0]}”`
+                : `Results for “${query}”`}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             {response.total === 0
@@ -259,15 +265,30 @@ export function SearchResultsView({
                   response.page * response.pageSize,
                   response.total,
                 )} of ${response.total}`}{" "}
-            near {location.label}
-            {response.query.itemTerms[0]
-              ? ` · looking for “${response.query.itemTerms[0]}”`
+            near {response.query.location.label ?? location.label}
+            {response.query.maxPriceCents != null
+              ? ` · under ${formatInrFromCents(response.query.maxPriceCents)}`
               : ""}
             {response.query.openNow ? " · open now" : ""}
           </p>
         </div>
 
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          <ShareResultsButton
+            query={query}
+            item={
+              response.query.itemTerms[0] ??
+              response.query.serviceTerms[0] ??
+              null
+            }
+            place={
+              response.query.location.label ??
+              location.label ??
+              "Pune"
+            }
+            results={results}
+            searchEventId={response.searchEventId}
+          />
           <Button
             type="button"
             variant="outline"

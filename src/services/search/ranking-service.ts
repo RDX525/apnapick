@@ -66,6 +66,12 @@ export class RankingService {
 
       // Quality preference gently boosts rating/trust without ignoring relevance
       const qualityBoost = parsed.qualityPreference === "best" ? 1.08 : 1;
+      const budgetBoost =
+        parsed.maxPriceCents != null &&
+        c.matchedItemPriceCents != null &&
+        c.matchedItemPriceCents <= parsed.maxPriceCents
+          ? 1.06
+          : 1;
 
       const scoreBreakdown = {
         queryRelevance,
@@ -91,7 +97,8 @@ export class RankingService {
           w.freshness * freshness +
           w.availability * availability +
           w.trust * trust) *
-        qualityBoost;
+        qualityBoost *
+        budgetBoost;
 
       return {
         ...c,

@@ -25,6 +25,8 @@ export type ParsedSearchQuery = {
   serviceTerms: string[];
   attributes: string[];
   pricePreference: PricePreference | null;
+  /** Hard rupee cap from phrases like "under ₹300". Stored in paise. */
+  maxPriceCents: number | null;
   qualityPreference: "best" | null;
   location: ParsedLocation;
   openNow: boolean;
@@ -42,6 +44,7 @@ export type SearchIntentSummary = {
   intent: SearchIntent;
   qualityPreference: "best" | null;
   pricePreference: PricePreference | null;
+  maxPriceCents: number | null;
   openNow: boolean;
   attributes: string[];
 };
@@ -91,6 +94,9 @@ export type SearchCandidate = {
   relevance: number;
   matchedVia: string;
   matchedItemName?: string | null;
+  /** Price of the matched dish/service in paise, when known. */
+  matchedItemPriceCents?: number | null;
+  phone?: string | null;
   priceLevel?: number | null;
   suburb?: string | null;
   city?: string | null;

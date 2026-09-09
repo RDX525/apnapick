@@ -92,6 +92,63 @@ describe("SearchService integration (demo catalog)", () => {
     expect(res.results.length).toBeGreaterThan(0);
     expect(res.results.every((result) => result.isVerified)).toBe(true);
   });
+
+  it("keeps chicken curry matches under ₹300 and drops priced-over listings", async () => {
+    const res = await service.search({
+      query: "best chicken curry under 300 near me",
+      location: { lat: 18.5204, lng: 73.8567, radiusM: 20000 },
+    });
+    expect(res.query.maxPriceCents).toBe(30000);
+    expect(res.results.length).toBeGreaterThan(0);
+    expect(
+      res.results.every(
+        (r) =>
+          r.matchedItemPriceCents == null || r.matchedItemPriceCents <= 30000,
+      ),
+    ).toBe(true);
+    expect(res.results.some((r) => r.slug === "spice-route-kitchen")).toBe(true);
+    expect(res.results.some((r) => r.slug === "maharaja-curry-house")).toBe(false);
+    expect(
+      res.results.some(
+        (r) => r.slug === "spice-route-kitchen" && r.matchedItemPriceCents === 24900,
+      ),
+    ).toBe(true);
+  });
+
+  it("finds an open men's haircut under ₹500", async () => {
+    const res = await service.search({
+      query: "Men's haircut under 500 open now",
+      location: { lat: 18.5204, lng: 73.8567, radiusM: 20000 },
+    });
+    expect(res.query.maxPriceCents).toBe(50000);
+    expect(res.query.openNow).toBe(true);
+    expect(res.results.some((r) => r.slug === "fade-room-barbers")).toBe(true);
+    const fade = res.results.find((r) => r.slug === "fade-room-barbers");
+    expect(fade?.matchedItemPriceCents).toBe(39900);
+    expect(fade?.openNow).toBe(true);
+  });
+
+  it("finds an office black shirt under ₹1500", async () => {
+    const res = await service.search({
+      query: "Black shirt for office under 1500",
+      location: { lat: 18.5204, lng: 73.8567, radiusM: 20000 },
+    });
+    expect(res.query.categorySlugs).toContain("clothing-fashion");
+    expect(res.results.some((r) => r.slug === "the-office-rack")).toBe(true);
+    const shop = res.results.find((r) => r.slug === "the-office-rack");
+    expect(shop?.matchedItemName?.toLowerCase()).toContain("shirt");
+    expect(shop?.matchedItemPriceCents).toBe(129900);
+  });
+
+  it("finds a Wagholi perfume shop even from Pune CBD coordinates", async () => {
+    const res = await service.search({
+      query: "Perfume in Wagholi",
+      location: { lat: 18.5204, lng: 73.8567, radiusM: 8000 },
+    });
+    expect(res.query.categorySlugs).toContain("beauty-personal-care");
+    expect(res.query.location.areaSlug).toBe("wagholi");
+    expect(res.results.some((r) => r.slug === "aromic-tales")).toBe(true);
+  });
 });
 
 describe("Ranking weights", () => {

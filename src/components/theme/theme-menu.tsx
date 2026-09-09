@@ -27,7 +27,7 @@ export function ThemeMenu() {
   const CurrentIcon = mounted && resolvedTheme === "dark" ? Moon : Sun;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -40,7 +40,7 @@ export function ThemeMenu() {
           <CurrentIcon className="size-4" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40">
+      <DropdownMenuContent align="end" className="z-[60] min-w-40">
         <DropdownMenuLabel>Color theme</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={selected} onValueChange={setTheme}>

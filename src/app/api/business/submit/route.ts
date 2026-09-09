@@ -3,10 +3,18 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { createAdminClient } from "@/lib/db/supabase-admin";
 import { completenessScore } from "@/services/onboarding/completeness";
 import type { OnboardingDraftPayload } from "@/domain/onboarding/types";
 import { isFeatureEnabled } from "@/config/feature-flags";
-import { hasSupabaseConfig } from "@/config/env";
+import { hasServiceRoleKey, hasSupabaseConfig } from "@/config/env";
+import {
+  friendlyOnboardingSubmitError,
+  ownerCategoryRows,
+  prepareOnboardingSubmitPayload,
+  resolveOnboardingCategorySlug,
+} from "@/services/onboarding/submit-payload";
+import { persistBusinessClaim } from "@/services/onboarding/submit-claim";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +25,48 @@ function assertDatabaseWrite(
 ) {
   if (!error) return;
   throw new AppError({
-    message,
+    message: friendlyOnboardingSubmitError(error.message) ?? message,
     code,
-    status: 500,
+    status: 400,
     expose: true,
-    cause: error,
+    details: error.message,
   });
+}
+
+async function loadActiveCategorySlugs(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("slug")
+    .eq("is_active", true)
+    .limit(200);
+  if (error) {
+    throw new AppError({
+      message: "Couldn’t load categories. Try again in a moment.",
+      code: "CATEGORY_LOAD_FAILED",
+      status: 500,
+      expose: true,
+      cause: error,
+    });
+  }
+  return (data ?? []).map((row) => String(row.slug));
+}
+
+async function ensureOwnerCategoriesExist(existing: string[]): Promise<string[]> {
+  const missing = ownerCategoryRows().some((row) => !existing.includes(row.slug));
+  if (!missing || !hasServiceRoleKey()) return existing;
+  const admin = createAdminClient();
+  const { error } = await admin.from("categories").upsert(ownerCategoryRows(), {
+    onConflict: "slug",
+  });
+  if (error) return existing;
+  const { data } = await admin
+    .from("categories")
+    .select("slug")
+    .eq("is_active", true)
+    .limit(200);
+  return (data ?? []).map((row) => String(row.slug));
 }
 
 export async function POST(request: NextRequest) {
@@ -71,10 +115,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // New listings are materialized transactionally by the database. Claims keep
-    // their business-linked draft and follow the ownership verification queue.
+    const categorySlugs = await ensureOwnerCategoriesExist(
+      await loadActiveCategorySlugs(supabase),
+    );
+    const categorySlug = resolveOnboardingCategorySlug(
+      draft.categorySlug,
+      categorySlugs,
+    );
+    if (!categorySlug) {
+      throw new AppError({
+        message: "Choose a valid category, then submit again.",
+        code: "VALIDATION_ERROR",
+        status: 400,
+        expose: true,
+      });
+    }
+
     const submittedPayload = {
-      ...draft,
+      ...prepareOnboardingSubmitPayload(draft, categorySlug),
       submittedAt: new Date().toISOString(),
       claimStatus: draft.mode === "claim" ? "PENDING" : draft.claimStatus,
     };
@@ -82,18 +140,31 @@ export async function POST(request: NextRequest) {
       businessId?: string;
       slug?: string;
       status?: string;
+      claimId?: string;
     } | null = null;
 
-    if (draft.mode === "claim" && draft.claimBusinessId) {
-      const { error: claimError } = await supabase.rpc("submit_business_claim", {
-        p_business_id: draft.claimBusinessId,
-        p_payload: submittedPayload,
+    if (draft.mode === "claim") {
+      if (!draft.claimBusinessId) {
+        throw new AppError({
+          message:
+            "Pick a listing on Find business, then tap Claim this business before submitting.",
+          code: "VALIDATION_ERROR",
+          status: 400,
+          expose: true,
+        });
+      }
+      const claim = await persistBusinessClaim({
+        userId: user.id,
+        displayName: user.displayName,
+        businessId: draft.claimBusinessId,
+        payload: submittedPayload,
+        userClient: supabase,
       });
-      assertDatabaseWrite(
-        claimError,
-        "ONBOARDING_SUBMIT_FAILED",
-        "Could not submit your claim. Your draft is still safe.",
-      );
+      submittedBusiness = {
+        businessId: claim.businessId,
+        status: claim.alreadyMember ? "VERIFIED" : claim.status,
+        claimId: claim.claimId,
+      };
     } else {
       const { data, error: submissionError } = await supabase.rpc(
         "submit_business_listing",

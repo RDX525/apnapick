@@ -25,6 +25,7 @@ export function createEmptyWorkspace(): DashboardWorkspace {
       completeness: 0,
       verificationStatus: "UNCLAIMED",
       status: "DRAFT",
+      ownerEditPending: false,
     },
     metrics: {
       profileViews: 0,
@@ -91,6 +92,7 @@ export function createSeedWorkspace(): DashboardWorkspace {
       completeness: 72,
       verificationStatus: "UNDER_REVIEW",
       status: "PENDING_REVIEW",
+      ownerEditPending: false,
     },
     metrics: {
       profileViews: 486,

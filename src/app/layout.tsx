@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s · ApnaPick",
   },
   description:
-    "Find the best local places in Pune — search by dish, service, or intent on ApnaPick.",
+    "Search Pune by dish, service, or budget on ApnaPick.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ??
       (process.env.NODE_ENV === "production"

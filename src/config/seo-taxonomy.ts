@@ -145,6 +145,12 @@ export const SEO_CATEGORIES: SeoCategoryDef[] = [
         name: "Skincare",
         matchTerms: ["skincare", "skin care", "facial", "beauty treatment"],
       },
+      {
+        slug: "perfume",
+        name: "Perfume",
+        aliases: ["fragrance", "attar"],
+        matchTerms: ["perfume", "fragrance", "attar", "oud", "scent", "cologne"],
+      },
     ],
   },
   {
@@ -230,6 +236,178 @@ export const SEO_CATEGORIES: SeoCategoryDef[] = [
       },
     ],
   },
+  {
+    slug: "food-dining",
+    name: "Food & Dining",
+    description: "Restaurants, cafés, and local flavour across Pune",
+    schemaKind: "restaurant",
+    supplyCategorySlugs: ["restaurants", "cafes", "bars", "food-dining"],
+    facets: [
+      {
+        slug: "indian",
+        name: "Indian",
+        aliases: ["north-indian"],
+        matchTerms: ["indian", "north indian", "punjabi", "mughlai", "tandoori"],
+      },
+      {
+        slug: "cafes",
+        name: "Cafés",
+        aliases: ["coffee"],
+        matchTerms: ["cafe", "café", "coffee", "bakery"],
+      },
+    ],
+  },
+  {
+    slug: "clothing-fashion",
+    name: "Clothing & Fashion",
+    description: "Boutiques, tailors, and fashion in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["clothing-fashion"],
+    facets: [
+      {
+        slug: "boutiques",
+        name: "Boutiques",
+        matchTerms: ["boutique", "fashion", "clothing", "apparel"],
+      },
+      {
+        slug: "tailors",
+        name: "Tailors",
+        matchTerms: ["tailor", "alteration", "stitching"],
+      },
+    ],
+  },
+  {
+    slug: "shopping-retail",
+    name: "Shopping & Retail",
+    description: "Markets, stores, and everyday retail in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["shopping-retail"],
+    facets: [
+      {
+        slug: "groceries",
+        name: "Groceries",
+        matchTerms: ["grocery", "supermarket", "kirana"],
+      },
+      {
+        slug: "electronics",
+        name: "Electronics",
+        matchTerms: ["electronics", "mobile", "appliance store"],
+      },
+    ],
+  },
+  {
+    slug: "home-repair",
+    name: "Home & Repair Services",
+    description: "Plumbers, electricians, and home fixes across Pune",
+    schemaKind: "service",
+    supplyCategorySlugs: [
+      "home-repair",
+      "plumbers",
+      "electricians",
+      "services",
+      "ac-repair",
+      "carpenters",
+      "cleaners",
+      "painters",
+      "pest-control",
+      "appliance-repair",
+    ],
+    facets: [
+      {
+        slug: "plumber",
+        name: "Plumber",
+        aliases: ["plumbing"],
+        matchTerms: ["plumber", "plumbing", "leaking tap", "blocked drain"],
+      },
+      {
+        slug: "electrician",
+        name: "Electrician",
+        matchTerms: ["electrician", "electrical", "wiring"],
+      },
+      {
+        slug: "ac-repair",
+        name: "AC repair",
+        aliases: ["ac", "hvac"],
+        matchTerms: ["ac repair", "ac service", "air conditioner", "hvac"],
+      },
+    ],
+  },
+  {
+    slug: "fitness-sports",
+    name: "Fitness & Sports",
+    description: "Gyms, yoga, and training in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["fitness-sports", "gyms"],
+    facets: [
+      {
+        slug: "gyms",
+        name: "Gyms",
+        matchTerms: ["gym", "fitness", "workout", "training"],
+      },
+      {
+        slug: "yoga",
+        name: "Yoga",
+        matchTerms: ["yoga", "pilates", "wellness studio"],
+      },
+    ],
+  },
+  {
+    slug: "health-wellness",
+    name: "Health & Wellness",
+    description: "Clinics, dentists, and care in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["health-wellness", "dentists"],
+    facets: [
+      {
+        slug: "clinics",
+        name: "Clinics",
+        matchTerms: ["clinic", "doctor", "hospital", "health"],
+      },
+      {
+        slug: "dentists",
+        name: "Dentists",
+        matchTerms: ["dentist", "dental", "teeth"],
+      },
+    ],
+  },
+  {
+    slug: "automotive",
+    name: "Automotive",
+    description: "Car service, repairs, and spares in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["automotive"],
+    facets: [
+      {
+        slug: "service",
+        name: "Service",
+        matchTerms: ["car service", "auto service", "garage", "mechanic"],
+      },
+      {
+        slug: "spares",
+        name: "Spares",
+        matchTerms: ["spare parts", "tyre", "battery"],
+      },
+    ],
+  },
+  {
+    slug: "education-learning",
+    name: "Education & Learning",
+    description: "Classes, tutors, and coaching in Pune",
+    schemaKind: "local_business",
+    supplyCategorySlugs: ["education-learning"],
+    facets: [
+      {
+        slug: "tutors",
+        name: "Tutors",
+        matchTerms: ["tutor", "tuition", "home tutor"],
+      },
+      {
+        slug: "coaching",
+        name: "Coaching",
+        matchTerms: ["coaching", "classes", "institute"],
+      },
+    ],
+  },
 ];
 
 export const SEO_AREA_SLUGS = new Set([
@@ -264,6 +442,18 @@ export function getSeoCategory(slug: string) {
 
 export function isSeoCategorySlug(slug: string) {
   return SEO_CATEGORIES.some((c) => c.slug === slug);
+}
+
+/** Expand a consumer hub slug to the listing slugs that belong in it. */
+export function expandSupplyCategorySlugs(slugs: readonly string[]): string[] {
+  const expanded = new Set<string>();
+  for (const slug of slugs) {
+    expanded.add(slug);
+    const category = getSeoCategory(slug);
+    if (!category) continue;
+    for (const supply of category.supplyCategorySlugs) expanded.add(supply);
+  }
+  return [...expanded];
 }
 
 export function resolveFacetCanonical(

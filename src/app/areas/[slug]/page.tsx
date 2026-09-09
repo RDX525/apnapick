@@ -12,8 +12,8 @@ import {
   organizationJsonLd,
   itemListJsonLd,
 } from "@/lib/seo/json-ld";
-import { DEFAULT_AREAS } from "@/config/consumer-content";
-import { SEO_CATEGORIES, titleCaseSlug } from "@/config/seo-taxonomy";
+import { DEFAULT_AREAS, DEFAULT_CATEGORIES } from "@/config/consumer-content";
+import { titleCaseSlug } from "@/config/seo-taxonomy";
 import { seoPageMeetsDensity } from "@/config/seo-density";
 import { PUNE_AREAS } from "@/domain/catalog/lexicon";
 import { listPublishedBusinesses } from "@/repositories/consumer/business-repository";
@@ -124,7 +124,7 @@ export default async function AreaPage({ params }: Props) {
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {SEO_CATEGORIES.filter((c) => c.slug !== "plumbers").map((c) => (
+        {DEFAULT_CATEGORIES.map((c) => (
           <Link
             key={c.slug}
             href={`/${c.slug}/${slug === "pune" ? "pune" : slug}`}

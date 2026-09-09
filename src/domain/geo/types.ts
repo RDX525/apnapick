@@ -64,7 +64,11 @@ export interface MapsProvider {
   readonly defaultCenter: LatLng;
   readonly defaultZoom: number;
 
-  geocode(query: string, bias?: LatLng): Promise<GeocodeResult[]>;
+  geocode(
+    query: string,
+    bias?: LatLng,
+    options?: { exact?: boolean },
+  ): Promise<GeocodeResult[]>;
 
   reverseGeocode(position: LatLng): Promise<ReverseGeocodeResult | null>;
 

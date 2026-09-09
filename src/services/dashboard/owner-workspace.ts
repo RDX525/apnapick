@@ -183,6 +183,7 @@ export function workspaceFromOwnerListing(
         verifiedAt: snapshot.business.verifiedAt,
       }),
       status: dashboardStatusFromBusiness(snapshot.business.status),
+      ownerEditPending: snapshot.business.metadata?.ownerEditPending === true,
     },
     metrics: {
       profileViews: snapshot.metrics.views,

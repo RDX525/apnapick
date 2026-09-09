@@ -50,6 +50,17 @@ export const CATEGORY_LEXICON: LexiconEntry[] = [
       "cosmetics",
       "nail salon",
       "grooming",
+      "perfume",
+      "perfumes",
+      "perfumery",
+      "fragrance",
+      "fragrances",
+      "attar",
+      "attars",
+      "oud",
+      "scent",
+      "scents",
+      "cologne",
     ],
     kind: "category",
   },
@@ -116,6 +127,55 @@ export const CATEGORY_LEXICON: LexiconEntry[] = [
     aliases: ["gym", "gyms", "fitness", "workout"],
     kind: "category",
   },
+  {
+    slug: "food-dining",
+    aliases: ["food and dining", "food & dining", "dining", "eat out"],
+    kind: "category",
+  },
+  {
+    slug: "clothing-fashion",
+    aliases: [
+      "clothing",
+      "fashion",
+      "boutique",
+      "clothes",
+      "apparel",
+      "tailor",
+      "menswear",
+      "womenswear",
+    ],
+    kind: "category",
+  },
+  {
+    slug: "shopping-retail",
+    aliases: ["shopping", "retail", "store", "market", "supermarket"],
+    kind: "category",
+  },
+  {
+    slug: "home-repair",
+    aliases: ["home repair", "home services", "handyman"],
+    kind: "service",
+  },
+  {
+    slug: "fitness-sports",
+    aliases: ["fitness and sports", "sports", "yoga studio"],
+    kind: "category",
+  },
+  {
+    slug: "health-wellness",
+    aliases: ["health", "wellness", "clinic", "doctor", "hospital"],
+    kind: "category",
+  },
+  {
+    slug: "automotive",
+    aliases: ["automotive", "car service", "mechanic", "garage", "auto"],
+    kind: "category",
+  },
+  {
+    slug: "education-learning",
+    aliases: ["education", "learning", "tutor", "tuition", "coaching", "classes"],
+    kind: "category",
+  },
 ];
 
 export const CUISINE_FACETS: Record<string, string[]> = {
@@ -144,7 +204,12 @@ export const ATTRIBUTE_ALIASES: Record<string, string[]> = {
   jain: ["jain"],
   "air-conditioned": ["ac", "air conditioned", "air-conditioned"],
   outdoor_seating: ["outdoor", "rooftop", "garden"],
+  office: ["office", "formal", "workwear", "work wear"],
+  mens: ["mens", "for men"],
 };
+
+export const CLOTHING_ITEM_PATTERN =
+  /\b(shirt|t-?shirts?|kurta|jeans|saree|sari|hoodie|dress|blazer)\b/i;
 
 export const PRICE_WORDS: Record<"cheap" | "moderate" | "premium", string[]> = {
   cheap: ["cheap", "budget", "affordable", "inexpensive", "sasta"],

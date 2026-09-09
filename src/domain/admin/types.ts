@@ -25,6 +25,7 @@ export type AdminBusiness = {
   city: string | null;
   completeness: number;
   reportCount: number;
+  ownerEditPending: boolean;
 };
 
 export type AdminUser = {

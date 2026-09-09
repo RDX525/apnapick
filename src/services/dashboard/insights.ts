@@ -10,7 +10,27 @@ export function buildDashboardInsights(
   const photoCount = workspace.photos.length;
   const hoursSet = workspace.hours.some((h) => !h.isClosed);
 
-  if (menuItemCount < 3 && workspace.profile.categorySlug === "restaurants") {
+  if (workspace.profile.status === "PENDING_REVIEW") {
+    insights.push({
+      id: "pending-review",
+      tone: "info",
+      title: "Your listing is waiting for admin approval.",
+      body: "Profile, hours, and catalog edits are saved. They go live after an admin publishes the listing.",
+    });
+  } else if (workspace.profile.ownerEditPending) {
+    insights.push({
+      id: "owner-edits-review",
+      tone: "info",
+      title: "Latest edits are with admin for review.",
+      body: "Your live listing stays published. An admin will confirm the new details from the businesses queue.",
+    });
+  }
+
+  if (
+    menuItemCount < 3 &&
+    (workspace.profile.categorySlug === "restaurants" ||
+      workspace.profile.categorySlug === "food-dining")
+  ) {
     const need = 3 - menuItemCount;
     insights.push({
       id: "menu-items",

@@ -15,6 +15,8 @@ export type ConsumerBusinessCard = {
   categoryLabel: string | null;
   categorySlugs?: string[];
   matchedItem: string | null;
+  matchedItemPriceCents?: number | null;
+  phone?: string | null;
   coverImageUrl: string | null;
   lat: number | null;
   lng: number | null;

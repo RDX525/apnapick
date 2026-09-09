@@ -2,6 +2,7 @@ import {
   ATTRIBUTE_ALIASES,
   PUNE_AREAS,
   CATEGORY_LEXICON,
+  CLOTHING_ITEM_PATTERN,
   CUISINE_FACETS,
   NEAR_ME_PHRASES,
   OPEN_NOW_PHRASES,
@@ -9,6 +10,7 @@ import {
   QUALITY_WORDS,
   STOPWORDS,
 } from "@/domain/catalog/lexicon";
+import { rupeesToCents } from "@/lib/money/inr";
 import { expandSynonyms } from "@/domain/catalog/synonyms";
 import type {
   ParsedSearchQuery,
@@ -22,9 +24,34 @@ function normalize(raw: string): string {
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .replace(/['’]/g, "")
     .replace(/[^a-z0-9\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+const MAX_PRICE_RE =
+  /\b(?:under|below|upto|up\s*to|less\s*than)\s*(?:₹|rs\.?|inr)?\s*(\d{1,3}(?:,\d{3})*|\d{2,6})\b/i;
+
+function extractMaxPrice(
+  raw: string,
+  text: string,
+): { text: string; maxPriceCents: number | null } {
+  const match = raw.match(MAX_PRICE_RE) ?? text.match(MAX_PRICE_RE);
+  const amount = match?.[1]?.replace(/,/g, "");
+  if (!amount) return { text, maxPriceCents: null };
+  const rupees = Number(amount);
+  if (!Number.isFinite(rupees) || rupees < 10 || rupees > 1_000_000) {
+    return { text, maxPriceCents: null };
+  }
+  const stripped = text
+    .replace(
+      /\b(?:under|below|upto|up\s+to|less\s+than)\s+(?:rs|inr)?\s*\d+(?:\s+\d{3})*\b/g,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  return { text: stripped, maxPriceCents: rupeesToCents(rupees) };
 }
 
 function takePhrase(
@@ -90,7 +117,11 @@ function extractCategories(text: string): {
         if (!categorySlugs.includes(entry.slug)) {
           categorySlugs.push(entry.slug);
         }
-        if (entry.kind === "service") {
+        if (
+          entry.kind === "service" ||
+          (entry.slug === "barbers" &&
+            ["haircut", "fade", "hair"].includes(alias))
+        ) {
           serviceTerms.push(alias);
         }
         next = next.replace(re, " ").replace(/\s+/g, " ").trim();
@@ -210,6 +241,10 @@ function categoryToSingular(slug: string | undefined): string | null {
     electricians: "electrician",
     dentists: "dentist",
     gyms: "gym",
+    "clothing-fashion": "clothing",
+    "food-dining": "food",
+    "beauty-personal-care": "beauty",
+    "shopping-retail": "shop",
   };
   return map[slug] ?? slug.replace(/s$/, "");
 }
@@ -227,6 +262,9 @@ export class SearchParser {
 
     const area = extractArea(text);
     text = area.text;
+
+    const budget = extractMaxPrice(raw, text);
+    text = budget.text;
 
     const quality = extractQuality(text);
     text = quality.text;
@@ -284,6 +322,13 @@ export class SearchParser {
       categorySlugs.push("barbers");
     }
 
+    if (
+      categorySlugs.length === 0 &&
+      CLOTHING_ITEM_PATTERN.test(raw.toLowerCase())
+    ) {
+      categorySlugs.push("clothing-fashion");
+    }
+
     const expandedTerms = [
       ...new Set([...itemTerms, ...cats.serviceTerms].flatMap((t) => expandSynonyms(t))),
     ];
@@ -298,6 +343,7 @@ export class SearchParser {
       serviceTerms: cats.serviceTerms,
       attributes: attrs.attributes,
       pricePreference: price.pricePreference,
+      maxPriceCents: budget.maxPriceCents,
       qualityPreference: quality.qualityPreference,
       location: near.matched
         ? { mode: "near_me" }
@@ -329,6 +375,7 @@ export class SearchParser {
       intent: parsed.intent,
       qualityPreference: parsed.qualityPreference,
       pricePreference: parsed.pricePreference,
+      maxPriceCents: parsed.maxPriceCents,
       openNow: parsed.openNow,
       attributes: parsed.attributes,
     };
@@ -336,3 +383,22 @@ export class SearchParser {
 }
 
 export const searchParser = new SearchParser();
+
+/**
+ * Text sent to FTS / trigram retrieval.
+ * Category, area, and other structured tokens are already stripped by the parser —
+ * do not fall back to the raw query or "perfume in wagholi" will require both
+ * words to appear on the listing.
+ */
+export function buildSearchRetrievalQuery(parsed: ParsedSearchQuery): string {
+  return [
+    ...parsed.itemTerms,
+    ...parsed.expandedTerms,
+    ...parsed.serviceTerms,
+    ...parsed.freeTextTokens,
+  ]
+    .map((term) => term.trim())
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}

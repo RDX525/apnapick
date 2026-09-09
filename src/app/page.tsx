@@ -5,7 +5,6 @@ import {
   MapPin,
   MapPinned,
   Sparkles,
-  TrendingUp,
 } from "lucide-react";
 import { COMMON_SERVICES } from "@/config/consumer-content";
 import { SearchBox } from "@/components/search/search-box";
@@ -25,9 +24,9 @@ import { categoryCover, MEDIA } from "@/config/visual-media";
 export const revalidate = 120;
 
 export const metadata = buildPageMetadata({
-  title: "Find the best local places",
+  title: "What are you looking for?",
   description:
-    "ApnaPick helps you discover Pune businesses by what you actually want — dishes, services, and more.",
+    "Search Pune by dish, service, and budget — chicken curry under ₹300, a haircut open now, a black shirt for office.",
   path: "/",
 });
 
@@ -39,172 +38,55 @@ export default async function HomePage() {
       <section className="relative overflow-hidden">
         <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 pt-14 pb-16 sm:px-6 lg:grid-cols-[1.04fr_0.96fr] lg:gap-20 lg:pt-24 lg:pb-24">
           <Reveal>
-            <p className="ap-kicker">Pune · Intent-first discovery</p>
+            <p className="ap-kicker">Pune · Nearby, under budget</p>
             <h1 className="font-display text-ink mt-5 max-w-2xl text-4xl leading-[1.08] tracking-[-0.035em] text-balance sm:text-6xl lg:text-7xl">
-              Find the best local places for{" "}
-              <em className="ap-text-shimmer not-italic">what you need</em>.
+              What are you{" "}
+              <em className="ap-text-shimmer not-italic">looking for</em>?
             </h1>
             <p className="text-muted-foreground mt-6 max-w-xl text-lg leading-relaxed sm:text-xl">
-              Search by dish, service, or intent — we match trusted Pune businesses that
-              actually offer it.
+              Type the thing, the budget, and where. We match places that actually sell it
+              — then WhatsApp, call, or go.
             </p>
             <div className="mt-9">
               <SearchBox />
             </div>
-            <p className="text-muted-foreground mt-4 text-sm text-pretty">
-              Try: Best chicken curry near me · Best Indian restaurant · Best barber near
-              me · Best pizza open now
-            </p>
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {content.popularSearches.map((q) => (
+                <li key={q}>
+                  <Link
+                    href={`/search?q=${encodeURIComponent(q)}`}
+                    className="border-border bg-card hover:border-sea/40 hover:text-sea inline-flex min-h-11 items-center rounded-full border px-3.5 text-sm"
+                  >
+                    {q}
+                  </Link>
+                </li>
+              ))}
+            </ul>
             <div className="border-border mt-8 grid max-w-xl grid-cols-3 gap-3 border-t pt-6 sm:gap-5">
               <div className="min-w-0">
                 <p className="text-foreground text-[0.95rem] font-semibold sm:text-lg">
                   Intent-first
                 </p>
-                <p className="text-muted-foreground mt-1 text-xs">Search what you mean</p>
+                <p className="text-muted-foreground mt-1 text-xs">Dish, job, budget</p>
               </div>
               <div className="min-w-0">
                 <p className="text-foreground text-[0.95rem] font-semibold sm:text-lg">
-                  Local proof
+                  Real rupees
                 </p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Trust and availability
-                </p>
+                <p className="text-muted-foreground mt-1 text-xs">Under ₹300, not ₹₹₹</p>
               </div>
               <div className="min-w-0">
                 <p className="text-foreground text-[0.95rem] font-semibold sm:text-lg">
-                  Fair ranking
+                  One tap
                 </p>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Organic stays organic
+                  WhatsApp, call, share
                 </p>
               </div>
             </div>
           </Reveal>
 
           <HeroStage featured={content.popularBusinesses[0] ?? null} />
-        </div>
-      </section>
-
-      <section
-        className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20"
-        aria-labelledby="popular-searches"
-      >
-        <Reveal>
-          <div className="ap-glass-premium relative overflow-hidden rounded-[2.25rem] p-5 sm:p-8 lg:p-10">
-            <div
-              className="bg-sea/10 pointer-events-none absolute -top-28 -right-24 size-72 rounded-full blur-3xl"
-              aria-hidden
-            />
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="ap-kicker">Popular starting points</p>
-                <h2
-                  id="popular-searches"
-                  className="font-display text-ink mt-3 scroll-mt-28 text-3xl sm:text-4xl"
-                >
-                  Popular searches
-                </h2>
-                <p className="text-muted-foreground mt-2 max-w-xl text-sm leading-relaxed">
-                  Start with a common local intent, then make it yours.
-                </p>
-              </div>
-              <span className="border-border bg-background/70 text-muted-foreground inline-flex w-fit items-center gap-2 rounded-full border px-3.5 py-2 text-xs shadow-sm backdrop-blur">
-                <TrendingUp className="text-sea size-3.5" aria-hidden />
-                Quick local intents
-              </span>
-            </div>
-            <div className="relative mt-8 grid gap-3 lg:grid-cols-2">
-              {content.popularSearches.map((q, index) => (
-                <Link
-                  key={q}
-                  href={`/search?q=${encodeURIComponent(q)}`}
-                  className="group border-border/80 bg-card/75 hover:border-sea/25 hover:bg-card flex min-h-[7rem] items-center gap-4 rounded-[1.4rem] border p-3.5 pr-4 shadow-[0_18px_48px_-36px_var(--surface-shadow)] transition duration-300 hover:shadow-[0_24px_55px_-34px_var(--surface-shadow)] sm:p-4 sm:pr-5 [@media(hover:hover)]:hover:-translate-y-0.5"
-                >
-                  <span className="from-sea/15 to-sea/5 text-sea grid size-14 shrink-0 place-items-center rounded-[1.15rem] bg-gradient-to-br ring-1 ring-current/10 ring-inset">
-                    <IntentIcon query={q} className="size-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="text-sea/75 text-[10px] font-bold tracking-[0.15em] uppercase">
-                      {String(index + 1).padStart(2, "0")} · Local favourite
-                    </span>
-                    <span className="text-foreground mt-1.5 block text-[0.95rem] font-semibold sm:text-base">
-                      {q}
-                    </span>
-                  </span>
-                  <span className="border-border bg-background/60 text-muted-foreground group-hover:bg-sea group-hover:text-primary-foreground grid size-9 shrink-0 place-items-center rounded-full border transition duration-300">
-                    <ArrowUpRight className="size-4" aria-hidden />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-      </section>
-
-      <section
-        className="border-border/60 bg-card/35 relative overflow-hidden border-y"
-        aria-labelledby="categories"
-      >
-        <div
-          className="ap-section-glow pointer-events-none absolute inset-0"
-          aria-hidden
-        />
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-24">
-          <Reveal>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="ap-kicker">Browse the city</p>
-                <h2
-                  id="categories"
-                  className="font-display text-ink mt-3 text-3xl sm:text-4xl"
-                >
-                  Categories
-                </h2>
-              </div>
-              <p className="text-muted-foreground max-w-sm text-sm leading-relaxed sm:text-right">
-                Start broad, then refine by area, specialty, and exactly what you need.
-              </p>
-            </div>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {content.categories.map((category, index) => (
-                <Link
-                  key={category.slug}
-                  href={`/${category.slug}/pune`}
-                  className="group relative flex min-h-[19rem] flex-col overflow-hidden rounded-[1.75rem] p-5 shadow-[0_28px_65px_-38px_rgb(6_16_28/0.75)] ring-1 ring-black/5 transition duration-500 sm:p-6 [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:shadow-[0_32px_70px_-34px_rgb(6_16_28/0.8)]"
-                >
-                  <CoverPhoto
-                    src={categoryCover(category.slug, category.name)}
-                    alt=""
-                    sizes="(max-width: 640px) 100vw, 25vw"
-                    className="transition duration-700 ease-out group-hover:scale-[1.07]"
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_16_28/12%)_0%,rgb(6_16_28/18%)_35%,rgb(6_16_28/88%)_100%)]" />
-                  <div className="relative z-10 flex items-center justify-between">
-                    <span className="grid size-11 place-items-center rounded-2xl bg-white/14 text-white ring-1 ring-white/20 backdrop-blur-md">
-                      <CategoryIcon slug={category.slug} className="size-5" />
-                    </span>
-                    <span className="font-display text-sm text-white/65">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                  </div>
-                  <div className="relative z-10 mt-auto">
-                    <p className="font-display text-2xl text-white sm:text-[1.7rem]">
-                      {category.name}
-                    </p>
-                    <div className="mt-2 flex items-end gap-3">
-                      <p className="min-w-0 flex-1 text-sm leading-relaxed text-white/72">
-                        {category.description ??
-                          `Explore ${category.name.toLowerCase()} in Pune`}
-                      </p>
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-slate-900 transition duration-300 group-hover:scale-105 group-hover:rotate-6">
-                        <ArrowUpRight className="size-4" aria-hidden />
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Reveal>
         </div>
       </section>
 
@@ -232,7 +114,7 @@ export default async function HomePage() {
                 </h2>
               </div>
               <p className="text-muted-foreground max-w-xs text-sm leading-relaxed sm:text-right">
-                What Pune is looking for right now, from local plates to urgent fixes.
+                What people in Kharadi, Wagholi, and Lohegaon are looking for right now.
               </p>
             </div>
             <div className="relative mt-9 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -268,11 +150,11 @@ export default async function HomePage() {
               id="popular-businesses"
               className="font-display text-ink text-3xl sm:text-4xl"
             >
-              Popular local businesses
+              Best matches near you
             </h2>
             <p className="text-muted-foreground mt-2 text-sm">
               {content.dataSource === "supabase"
-                ? "Live published listings in Pune. Place data includes OpenStreetMap (ODbL)."
+                ? "Live Pune listings you can WhatsApp, call, or navigate to. Place data includes OpenStreetMap (ODbL)."
                 : "New local businesses will appear here as their profiles go live."}
             </p>
             <div className="mt-8">
@@ -281,7 +163,7 @@ export default async function HomePage() {
                   title="No published businesses yet"
                   description="New local businesses will appear here as their profiles go live. You can still explore with search."
                   actionLabel="Try a search"
-                  actionHref="/search?q=best+chicken+curry+near+me"
+                  actionHref="/search?q=chicken+curry+under+₹300+near+me"
                 />
               ) : (
                 <div className="grid gap-4">
@@ -350,6 +232,76 @@ export default async function HomePage() {
             ))}
           </div>
         </Reveal>
+      </section>
+
+      <section
+        className="border-border/60 bg-card/35 relative overflow-hidden border-y"
+        aria-labelledby="categories"
+      >
+        <div
+          className="ap-section-glow pointer-events-none absolute inset-0"
+          aria-hidden
+        />
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-24">
+          <Reveal>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="ap-kicker">If you would rather browse</p>
+                <h2
+                  id="categories"
+                  className="font-display text-ink mt-3 text-3xl sm:text-4xl"
+                >
+                  Or browse a category
+                </h2>
+              </div>
+              <p className="text-muted-foreground max-w-sm text-sm leading-relaxed sm:text-right">
+                Fallback when you are not sure what to type. Search is still the faster
+                path.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {content.categories.map((category, index) => (
+                <Link
+                  key={category.slug}
+                  href={`/${category.slug}/pune`}
+                  className="group relative flex min-h-[19rem] flex-col overflow-hidden rounded-[1.75rem] p-5 shadow-[0_28px_65px_-38px_rgb(6_16_28/0.75)] ring-1 ring-black/5 transition duration-500 sm:p-6 [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:shadow-[0_32px_70px_-34px_rgb(6_16_28/0.8)]"
+                >
+                  <CoverPhoto
+                    src={categoryCover(category.slug, category.name)}
+                    alt=""
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    quality={80}
+                    loading="lazy"
+                    className="transition duration-700 ease-out group-hover:scale-[1.07]"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_16_28/12%)_0%,rgb(6_16_28/18%)_35%,rgb(6_16_28/88%)_100%)]" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <span className="grid size-11 place-items-center rounded-2xl bg-white/14 text-white ring-1 ring-white/20 backdrop-blur-md">
+                      <CategoryIcon slug={category.slug} className="size-5" />
+                    </span>
+                    <span className="font-display text-sm text-white/65">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <div className="relative z-10 mt-auto">
+                    <p className="font-display text-2xl text-white sm:text-[1.7rem]">
+                      {category.name}
+                    </p>
+                    <div className="mt-2 flex items-end gap-3">
+                      <p className="min-w-0 flex-1 text-sm leading-relaxed text-white/72">
+                        {category.description ??
+                          `Explore ${category.name.toLowerCase()} in Pune`}
+                      </p>
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-slate-900 transition duration-300 group-hover:scale-105 group-hover:rotate-6">
+                        <ArrowUpRight className="size-4" aria-hidden />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Reveal>
+        </div>
       </section>
 
       <section className="ap-defer-paint" aria-labelledby="areas">

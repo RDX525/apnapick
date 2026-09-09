@@ -8,6 +8,7 @@ import { geoSearchService } from "@/services/search/geo-search-service";
 import { rankingService } from "@/services/search/ranking-service";
 import { searchParser } from "@/services/search/search-parser";
 import { applySearchFilters, applySearchSort } from "@/services/search/search-filters";
+import { NAMED_AREA_RETRIEVE_RADIUS_M } from "@/lib/search/named-area";
 import { SearchAnalyticsService } from "@/services/search/search-analytics-service";
 
 /**
@@ -41,17 +42,25 @@ export class SearchService {
     };
 
     if (parsed.location.mode === "named" && parsed.location.areaSlug) {
-      location.areaSlug = parsed.location.areaSlug;
-      location.label = parsed.location.label;
+      Object.assign(
+        location,
+        geoSearchService.withNamedAreaOrigin(location, parsed.location.areaSlug),
+      );
     } else if (request.location?.areaSlug) {
       const named = geoSearchService.resolveNamedArea(request.location.areaSlug);
       location.areaSlug = named?.slug ?? request.location.areaSlug;
       location.label = named?.label ?? request.location.label;
     }
 
+    const retrieveFilters = { ...request.filters };
+    if (parsed.location.mode === "named" && parsed.location.areaSlug !== "pune") {
+      location.radiusM = Math.max(radiusM, NAMED_AREA_RETRIEVE_RADIUS_M);
+      delete retrieveFilters.distanceM;
+    }
+
     const candidates = await this.engine.retrieve(parsed, {
       location,
-      filters: request.filters,
+      filters: retrieveFilters,
       limit: 80,
     });
 

@@ -30,16 +30,8 @@ async function loadHomepageContent(): Promise<HomepageContent> {
   }));
 
   const supabase = hasSupabaseConfig() ? createPublicSupabaseClient() : null;
-  const [businessesResult, cats, geos] = await Promise.all([
+  const [businessesResult, geos] = await Promise.all([
     listPublishedBusinesses(8),
-    supabase
-      ? supabase
-          .from("categories")
-          .select("slug, name, description")
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .limit(8)
-      : Promise.resolve({ data: null }),
     supabase
       ? supabase
           .from("geographic_areas")
@@ -50,16 +42,8 @@ async function loadHomepageContent(): Promise<HomepageContent> {
       : Promise.resolve({ data: null }),
   ]);
 
-  let categories = fallbackCategories;
+  const categories = fallbackCategories;
   let areas = fallbackAreas;
-
-  if (cats.data && cats.data.length > 0) {
-    categories = cats.data.map((c) => ({
-      slug: c.slug as string,
-      name: c.name as string,
-      description: (c.description as string | null) ?? null,
-    }));
-  }
   if (geos.data && geos.data.length > 0) {
     areas = geos.data.map((g) => ({
       slug: g.slug as string,
@@ -97,7 +81,7 @@ async function loadHomepageContent(): Promise<HomepageContent> {
 
 const loadCachedHomepageContent = unstable_cache(
   loadHomepageContent,
-  ["homepage-content"],
+  ["homepage-content-v4"],
   { revalidate: PUBLIC_DATA_REVALIDATE_SECONDS, tags: ["homepage", "published-businesses"] },
 );
 

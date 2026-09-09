@@ -13,6 +13,7 @@ const parsed: ParsedSearchQuery = {
   serviceTerms: [],
   attributes: [],
   pricePreference: null,
+  maxPriceCents: null,
   qualityPreference: null,
   location: { mode: "near_me" },
   openNow: false,

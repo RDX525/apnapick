@@ -31,7 +31,7 @@ export default function OpenGraphImage() {
             letterSpacing: "-0.045em",
           }}
         >
-          Find the best local places for what you need.
+          What are you looking for?
         </div>
         <div style={{ display: "flex", fontSize: 28, color: "#a8b1c2" }}>
           Trusted, intent-first discovery across Pune.

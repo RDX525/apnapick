@@ -11,6 +11,7 @@ import {
   demoToCandidate,
   type DemoBusiness,
 } from "@/repositories/search/demo-catalog";
+import { listingMatchesNamedArea } from "@/lib/search/named-area";
 
 export type { SearchEngine, SearchRepository } from "@/domain/search/search-engine";
 
@@ -61,6 +62,7 @@ function scoreBusiness(
 
   let itemMatchScore = 0;
   let matchedItemName: string | null = null;
+  let matchedItemPriceCents: number | null = null;
 
   for (const term of [
     ...parsed.itemTerms,
@@ -72,6 +74,7 @@ function scoreBusiness(
       if (s > itemMatchScore) {
         itemMatchScore = s;
         matchedItemName = product;
+        matchedItemPriceCents = b.productPrices?.[product] ?? null;
       }
     }
     for (const service of b.services) {
@@ -79,6 +82,7 @@ function scoreBusiness(
       if (s > itemMatchScore) {
         itemMatchScore = s;
         matchedItemName = service;
+        matchedItemPriceCents = b.servicePrices?.[service] ?? null;
       }
     }
   }
@@ -156,16 +160,18 @@ function scoreBusiness(
   let distanceM: number | null = null;
   if (location?.lat != null && location?.lng != null) {
     distanceM = haversineMeters(location.lat, location.lng, b.lat, b.lng);
-    const radius = filters?.distanceM ?? location.radiusM ?? 12000;
-    if (distanceM > radius) return null;
   }
 
-  if (parsed.location.mode === "named" && parsed.location.areaSlug) {
-    const area = parsed.location.areaSlug.replace(/-/g, " ");
-    const inSuburb = `${b.suburb} ${b.city}`.toLowerCase().includes(area);
-    if (!inSuburb && parsed.location.areaSlug !== "pune") {
-      return null;
-    }
+  const radius = filters?.distanceM ?? location?.radiusM ?? 12000;
+  const namedSlug =
+    parsed.location.mode === "named" ? parsed.location.areaSlug : undefined;
+  const inNamedSuburb = listingMatchesNamedArea(b.suburb, b.city, namedSlug);
+
+  if (namedSlug && namedSlug !== "pune") {
+    const nearby = distanceM != null && distanceM <= radius;
+    if (!inNamedSuburb && !nearby) return null;
+  } else if (distanceM != null && distanceM > radius) {
+    return null;
   }
 
   const relevance =
@@ -182,6 +188,7 @@ function scoreBusiness(
     relevance,
     matchedVia: itemMatchScore > 0.3 ? "product" : ftsRank > trgmSim ? "fts" : "trgm",
     matchedItemName,
+    matchedItemPriceCents,
   });
 }
 

@@ -19,8 +19,9 @@ import { mapsDirectionsUrl } from "@/lib/geo/directions";
 export async function geocodeLocation(
   query: string,
   bias?: LatLng,
+  options?: { exact?: boolean },
 ): Promise<GeocodeResult[]> {
-  return getMapsProvider().geocode(query, bias);
+  return getMapsProvider().geocode(query, bias, options);
 }
 
 export async function reverseGeocodeLocation(

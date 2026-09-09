@@ -6,6 +6,8 @@ import type { SearchEngine, SearchRetrieveOptions } from "@/domain/search/search
 import { SEARCH_DATA_REVALIDATE_SECONDS } from "@/lib/cache/public-data";
 import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createLogger } from "@/lib/logging/logger";
+import { hydrateSearchCandidates } from "@/repositories/search/search-hydrate";
+import { buildSearchRetrievalQuery } from "@/services/search/search-parser";
 
 const log = createLogger({ module: "postgres-search-repository" });
 
@@ -41,7 +43,7 @@ function searchCacheKey(parsed: ParsedSearchQuery, options?: SearchRetrieveOptio
   const location = options?.location;
   const filters = options?.filters;
   return JSON.stringify({
-    q: parsed.normalized,
+    q: buildSearchRetrievalQuery(parsed),
     items: parsed.itemTerms,
     expanded: parsed.expandedTerms,
     services: parsed.serviceTerms,
@@ -52,6 +54,7 @@ function searchCacheKey(parsed: ParsedSearchQuery, options?: SearchRetrieveOptio
     open: parsed.openNow,
     lat: roundCoord(location?.lat),
     lng: roundCoord(location?.lng),
+    area: location?.areaSlug ?? null,
     radius: filters?.distanceM ?? location?.radiusM ?? 8000,
     filterCats: filters?.categorySlugs ?? null,
     filterAttrs: filters?.attributes ?? null,
@@ -70,10 +73,7 @@ async function retrieveUncached(cacheKey: string): Promise<SearchCandidate[]> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
-  const q =
-    [...parsedKey.items, ...parsedKey.expanded, ...parsedKey.services, ...parsedKey.free]
-      .join(" ")
-      .trim() || parsedKey.q;
+  const q = typeof parsedKey.q === "string" ? parsedKey.q.trim() : "";
 
   const categorySlugs =
     parsedKey.filterCats && parsedKey.filterCats.length > 0
@@ -145,7 +145,9 @@ export class PostgresSearchRepository implements SearchEngine {
     parsed: ParsedSearchQuery,
     options?: SearchRetrieveOptions,
   ): Promise<SearchCandidate[]> {
-    return loadCachedSearchCandidates(searchCacheKey(parsed, options));
+    return loadCachedSearchCandidates(searchCacheKey(parsed, options)).then(
+      (candidates) => hydrateSearchCandidates(candidates, parsed),
+    );
   }
 }
 

@@ -27,6 +27,9 @@ export function ProfileManagerPage() {
     >
       <div className="flex flex-wrap gap-2">
         <StatusBadge status={p.status} />
+        {p.ownerEditPending ? (
+          <StatusBadge status="pending_review" label="Edits pending approval" />
+        ) : null}
         <StatusBadge status={p.verificationStatus} />
         <StatusBadge
           status={p.completeness === 100 ? "complete" : "draft"}

@@ -40,7 +40,7 @@ export function AreaSelect({
   className,
 }: AreaSelectProps) {
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select modal={false} value={value} onValueChange={onChange}>
       <SelectTrigger
         id={id}
         size="default"

@@ -42,10 +42,16 @@ describe("admin business actions", () => {
   it("approves, suspends, and merges", () => {
     const ws = createSeedAdminWorkspace();
     const id = ws.businesses[0]!.id;
+    const curry = ws.businesses.find((b) => b.slug === "curry-leaf-co")!;
     const dup = ws.businesses.find((b) => b.slug === "spice-route-kp")!;
     expect(applyBusinessAction(ws, id, "approve").businesses[0]!.status).toBe(
       "PUBLISHED",
     );
+    expect(
+      applyBusinessAction(ws, curry.id, "approve").businesses.find(
+        (b) => b.id === curry.id,
+      )!.ownerEditPending,
+    ).toBe(false);
     expect(applyBusinessAction(ws, id, "suspend").businesses[0]!.status).toBe(
       "SUSPENDED",
     );

@@ -314,6 +314,14 @@ export function OnboardingWizard() {
         e.push("Coordinates are invalid.");
       }
     }
+    if (step === 4) {
+      const openWithoutTimes = draft.hours.some(
+        (day) => !day.isClosed && !(day.opensAt?.trim() && day.closesAt?.trim()),
+      );
+      if (openWithoutTimes) {
+        e.push("Set opening and closing times for each open day, or mark it closed.");
+      }
+    }
     return e;
   }
 
@@ -340,7 +348,7 @@ export function OnboardingWizard() {
       city: b.city ?? "Pune",
       lat: b.lat,
       lng: b.lng,
-      categorySlug: b.categoryLabel ?? "",
+      categorySlug: b.categorySlug ?? draft.categorySlug,
       verificationStatus: "PENDING",
     });
     setMaxStepReached((current) => Math.max(current, 1));
@@ -357,6 +365,13 @@ export function OnboardingWizard() {
     });
     setMaxStepReached((current) => Math.max(current, 1));
     setStep(1);
+  }
+
+  function openClaimSearch(query: string) {
+    const q = query.trim();
+    if (q) setFindQuery(q);
+    setStep(0);
+    setErrors([]);
   }
 
   async function onPhotosSelected(files: FileList | null, role: PhotoDraft["role"]) {
@@ -464,11 +479,20 @@ export function OnboardingWizard() {
         body: JSON.stringify({ draft }),
       });
       const body = (await res.json().catch(() => ({}))) as {
-        data?: { ok?: boolean };
+        ok?: boolean;
+        persisted?: boolean;
         error?: string;
+        message?: string;
       };
-      if (!res.ok || body.data?.ok === false) {
+      if (!res.ok) {
         throw new Error(body.error ?? "Submission failed. Please try again.");
+      }
+      if (body.persisted === false) {
+        throw new Error(
+          body.message ??
+            body.error ??
+            "Log in to submit this for admin review. Your draft is still safe on this device.",
+        );
       }
       const submittedDraft = {
         ...draft,
@@ -481,13 +505,18 @@ export function OnboardingWizard() {
       setSaveStatus("saved");
       router.push("/business/dashboard?submitted=1");
     } catch (err) {
-      setErrors([
+      const message =
         err instanceof Error
           ? err.message
-          : "Submission failed. Your draft is still safe.",
-      ]);
+          : "Submission failed. Your draft is still safe.";
+      setErrors([message]);
       setSaveStatus("error");
       setSaveError("Your draft is safe, but submission did not complete.");
+      if (/find business|claim this business|already exists in that area/i.test(message)) {
+        const q = [draft.name, draft.suburb].filter((part) => part.trim()).join(" ");
+        if (q.trim()) setFindQuery(q);
+        setStep(0);
+      }
     } finally {
       setPending(false);
     }
@@ -939,27 +968,25 @@ export function OnboardingWizard() {
                 </div>
               </div>
               <OnboardingLocationPicker
-                address={[
-                  draft.addressLine1,
-                  draft.suburb,
-                  draft.city,
-                  draft.state,
-                  draft.postcode,
-                  draft.country,
-                ]
+                street={draft.addressLine1}
+                address={[draft.addressLine1, draft.suburb, draft.city]
                   .filter(Boolean)
                   .join(", ")}
                 lat={draft.lat}
                 lng={draft.lng}
-                onSelect={(result) =>
+                onSelect={(result) => {
+                  const current = latestDraft.current;
                   update({
                     lat: result.position.lat,
                     lng: result.position.lng,
-                    suburb: result.areaSlug
-                      ? result.areaSlug.replace(/-/g, " ")
-                      : draft.suburb,
-                  })
-                }
+                    suburb: current.suburb.trim()
+                      ? current.suburb
+                      : result.areaSlug
+                        ? result.areaSlug.replace(/-/g, " ")
+                        : current.suburb,
+                    city: current.city.trim() ? current.city : "Pune",
+                  });
+                }}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -1487,7 +1514,9 @@ export function OnboardingWizard() {
                 <p className="font-medium">Verification status</p>
                 <p className="text-muted-foreground mt-1">
                   {draft.mode === "claim"
-                    ? `Claim: ${draft.claimStatus ?? "PENDING"} — admin / document verification`
+                    ? draft.submittedAt
+                      ? `Claim submitted (${draft.claimStatus ?? "PENDING"}) — waiting for admin review`
+                      : "Not sent yet. Submit for approval to put this claim in the admin queue."
                     : "New listing will enter PENDING_REVIEW after submit"}
                 </p>
               </div>
@@ -1500,6 +1529,25 @@ export function OnboardingWizard() {
               >
                 {pending ? "Submitting…" : "Submit for approval"}
               </Button>
+              {draft.mode === "create" ? (
+                <div className="border-border/70 rounded-xl border p-4">
+                  <p className="font-medium">Already listed?</p>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Claim lives on step 1 — Find business. Search your name and tap
+                    Claim this business. Don’t create a second listing.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3 min-h-10"
+                    onClick={() =>
+                      openClaimSearch([draft.name, draft.suburb].filter(Boolean).join(" "))
+                    }
+                  >
+                    Find and claim existing listing
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

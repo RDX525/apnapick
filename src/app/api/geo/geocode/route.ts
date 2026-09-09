@@ -9,9 +9,13 @@ import { getPublicEnv } from "@/config/env";
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
-  q: z.string().trim().min(1).max(120),
+  q: z.string().trim().min(1).max(200),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  exact: z
+    .enum(["1", "true", "0", "false"])
+    .optional()
+    .transform((value) => value === "1" || value === "true"),
 });
 
 export async function GET(request: NextRequest) {
@@ -48,7 +52,9 @@ export async function GET(request: NextRequest) {
             lng: env.NEXT_PUBLIC_DEFAULT_LNG,
           };
 
-    const results = await geocodeLocation(parsed.data.q, bias);
+    const results = await geocodeLocation(parsed.data.q, bias, {
+      exact: parsed.data.exact,
+    });
     return jsonOk({ data: { results } });
   } catch (error) {
     return jsonError(error);

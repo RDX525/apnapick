@@ -1,13 +1,19 @@
 import {
   Bug,
+  Car,
   Coffee,
+  Dumbbell,
   Fan,
+  GraduationCap,
   Hammer,
+  HeartPulse,
   PaintRoller,
   Pizza,
   Plug,
   Scissors,
   Search,
+  Shirt,
+  ShoppingBag,
   Sparkles,
   Store,
   UtensilsCrossed,
@@ -17,6 +23,7 @@ import {
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  "food-dining": UtensilsCrossed,
   restaurants: UtensilsCrossed,
   cafes: Coffee,
   bakeries: Coffee,
@@ -24,6 +31,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   plumbers: Wrench,
   plumber: Wrench,
   services: Wrench,
+  "home-repair": Wrench,
   electrician: Plug,
   electricians: Plug,
   "ac-repair": Fan,
@@ -36,6 +44,15 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "pest-control": Bug,
   appliance: WashingMachine,
   "appliance-repair": WashingMachine,
+  "beauty-personal-care": Sparkles,
+  "clothing-fashion": Shirt,
+  "shopping-retail": ShoppingBag,
+  "fitness-sports": Dumbbell,
+  gyms: Dumbbell,
+  "health-wellness": HeartPulse,
+  dentists: HeartPulse,
+  automotive: Car,
+  "education-learning": GraduationCap,
 };
 
 export function CategoryIcon({ slug, className }: { slug: string; className?: string }) {
@@ -54,8 +71,12 @@ function intentKind(
   | "ac"
   | "clean"
   | "food"
+  | "clothing"
   | "search" {
   const q = query.toLowerCase();
+  if (q.includes("shirt") || q.includes("kurta") || q.includes("clothing")) {
+    return "clothing";
+  }
   if (q.includes("pizza")) return "pizza";
   if (
     q.includes("coffee") ||
@@ -114,6 +135,8 @@ export function IntentIcon({ query, className }: { query: string; className?: st
       return <Wrench className={className} aria-hidden />;
     case "food":
       return <UtensilsCrossed className={className} aria-hidden />;
+    case "clothing":
+      return <Shirt className={className} aria-hidden />;
     default:
       return <Search className={className} aria-hidden />;
   }

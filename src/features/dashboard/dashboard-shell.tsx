@@ -71,7 +71,8 @@ export function DashboardShell({
   title: string;
   description?: string;
 }) {
-  const { workspace, hydrated, saveStatus, saveError, retrySave } = useDashboard();
+  const { workspace, hydrated, saveStatus, saveError, saveQueuedForReview, retrySave } =
+    useDashboard();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const activeItem = NAV.find((item) => item.href === activePath) ?? NAV[0]!;
   const ActiveIcon = activeItem.icon;
@@ -233,7 +234,9 @@ export function DashboardShell({
                     : saveStatus === "saving"
                       ? "Saving…"
                       : saveStatus === "saved"
-                        ? "All changes saved"
+                        ? saveQueuedForReview
+                          ? "Saved · sent for admin review"
+                          : "All changes saved"
                         : saveStatus === "offline"
                           ? "Offline · saved on this device"
                           : "Changes not saved to server"}

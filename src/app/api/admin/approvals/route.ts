@@ -61,7 +61,7 @@ export async function GET() {
         supabase
           .from("businesses")
           .select(
-            "id, name, slug, description, status, is_claimed, verified_at, completeness, business_locations(suburb, city)",
+            "id, name, slug, description, status, is_claimed, verified_at, completeness, metadata, business_locations(suburb, city)",
           )
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
@@ -174,6 +174,10 @@ export async function GET() {
         suburb: string | null;
         city: string | null;
       }>;
+      const metadata =
+        row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+          ? (row.metadata as Record<string, unknown>)
+          : {};
       return {
         id: String(row.id),
         name: String(row.name),
@@ -185,6 +189,7 @@ export async function GET() {
         city: locations[0]?.city ?? null,
         completeness: Number(row.completeness ?? 0),
         reportCount: reportCounts.get(String(row.id)) ?? 0,
+        ownerEditPending: metadata.ownerEditPending === true,
       };
     });
 

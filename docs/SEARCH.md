@@ -16,7 +16,8 @@ Parsed intent:
   "category": "restaurant",
   "location": "current",
   "intent": "discovery",
-  "qualityPreference": "best"
+  "qualityPreference": "best",
+  "maxPriceCents": 30000
 }
 ```
 
@@ -68,7 +69,7 @@ Swap engines by changing `createSearchEngine()` in `src/services/search/get-sear
 | Tags / attributes | Attribute keys on businesses                               |
 | Locations         | PostGIS `ST_DWithin` + named suburb dictionary             |
 | Open now          | `business_is_open_now()`                                   |
-| Price             | `price_level` + cheap/moderate/premium parse               |
+| Price             | Item `price_cents` cap (`under ₹300`) plus `price_level` cheap/moderate/premium |
 | Rating            | `min_rating` filter + Bayesian rating in rank              |
 
 ## Retrieval (PostgreSQL)

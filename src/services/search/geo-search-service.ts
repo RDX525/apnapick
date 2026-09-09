@@ -1,3 +1,4 @@
+import { AREA_CENTROIDS } from "@/config/geo-areas";
 import { PUNE_AREAS } from "@/domain/catalog/lexicon";
 import type { LocationContext } from "@/domain/search/types";
 import { haversineMeters } from "@/lib/geo/distance";
@@ -12,11 +13,38 @@ export class GeoSearchService {
   resolveNamedArea(areaSlug?: string | null): {
     slug: string;
     label: string;
+    lat?: number;
+    lng?: number;
   } | null {
     if (!areaSlug) return null;
     const meta = PUNE_AREAS[areaSlug];
-    if (!meta) return { slug: areaSlug, label: areaSlug };
-    return { slug: areaSlug, label: meta.label };
+    const centroid = AREA_CENTROIDS[areaSlug];
+    if (!meta && !centroid) return { slug: areaSlug, label: areaSlug };
+    return {
+      slug: areaSlug,
+      label: meta?.label ?? centroid?.label ?? areaSlug,
+      lat: centroid?.position.lat,
+      lng: centroid?.position.lng,
+    };
+  }
+
+  /**
+   * "in Wagholi" must search from Wagholi's centroid, not the homepage pin
+   * (often Pune CBD, which is outside the default radius).
+   */
+  withNamedAreaOrigin(
+    location: LocationContext,
+    areaSlug?: string | null,
+  ): LocationContext {
+    const named = this.resolveNamedArea(areaSlug);
+    if (!named) return location;
+    return {
+      ...location,
+      areaSlug: named.slug,
+      label: named.label,
+      lat: named.lat ?? location.lat,
+      lng: named.lng ?? location.lng,
+    };
   }
 
   withDistances<T extends { lat?: number | null; lng?: number | null }>(

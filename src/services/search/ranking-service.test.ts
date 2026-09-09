@@ -12,6 +12,7 @@ const baseParsed: ParsedSearchQuery = {
   serviceTerms: [],
   attributes: [],
   pricePreference: null,
+  maxPriceCents: null,
   qualityPreference: "best",
   location: { mode: "near_me" },
   openNow: false,

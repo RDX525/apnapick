@@ -47,12 +47,28 @@ export function DashboardOverview({ submitted }: { submitted?: boolean }) {
         locationLabel ? `${m.periodLabel} · ${locationLabel}` : m.periodLabel
       }
     >
-      {submitted ? (
+      {submitted && !workspace.profile.businessId ? (
+        <div
+          role="status"
+          className="border-accent/40 bg-accent/10 rounded-xl border px-4 py-3 text-sm"
+        >
+          Your claim is with the admin team. Dashboard editing unlocks after they
+          approve ownership.
+        </div>
+      ) : submitted ? (
         <div
           role="status"
           className="border-sea/30 bg-sea/10 rounded-xl border px-4 py-3 text-sm"
         >
           Submitted for approval. We’ll notify you when review completes.
+        </div>
+      ) : workspace.profile.ownerEditPending ? (
+        <div
+          role="status"
+          className="border-accent/40 bg-accent/10 rounded-xl border px-4 py-3 text-sm"
+        >
+          Latest profile edits are saved and waiting for admin approval. Your live
+          listing stays published until then.
         </div>
       ) : null}
 
@@ -65,7 +81,12 @@ export function DashboardOverview({ submitted }: { submitted?: boolean }) {
                 {workspace.profile.completeness}%
               </p>
             </div>
-            <StatusBadge status={workspace.profile.verificationStatus} />
+            <div className="flex flex-wrap justify-end gap-2">
+              <StatusBadge status={workspace.profile.verificationStatus} />
+              {workspace.profile.ownerEditPending ? (
+                <StatusBadge status="pending_review" label="Edits pending approval" />
+              ) : null}
+            </div>
           </div>
           <Progress
             value={workspace.profile.completeness}

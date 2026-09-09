@@ -13,6 +13,7 @@ export type ClaimableBusiness = {
   lat: number | null;
   lng: number | null;
   categoryLabel: string | null;
+  categorySlug?: string | null;
   isClaimed: boolean;
 };
 
@@ -30,6 +31,7 @@ export function getDemoClaimableBusinesses(): ClaimableBusiness[] {
     lat: b.lat,
     lng: b.lng,
     categoryLabel: b.categories[0] ?? null,
+    categorySlug: b.categories[0] ?? null,
     isClaimed: b.isClaimed,
   }));
 }
