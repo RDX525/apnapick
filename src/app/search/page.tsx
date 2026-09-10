@@ -6,6 +6,7 @@ import { SearchBox } from "@/components/search/search-box";
 import { BackLink } from "@/components/navigation/back-link";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { CURRENT_LOCATION_LABEL } from "@/lib/geo/device-location";
+import { resolveSearchLocation } from "@/lib/search/resolve-search-location";
 import {
   defaultDiscoveryLocation,
   locationFromAreaSlug,
@@ -65,13 +66,24 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       : "recommended";
 
   const fallbackLoc = defaultDiscoveryLocation();
-  const areaLoc = params.area ? locationFromAreaSlug(params.area) : null;
-  const lat = params.lat
-    ? Number(params.lat)
-    : (areaLoc?.position.lat ?? fallbackLoc.position.lat);
-  const lng = params.lng
-    ? Number(params.lng)
-    : (areaLoc?.position.lng ?? fallbackLoc.position.lng);
+  const queryOrigin = resolveSearchLocation({ query: q });
+  const namedFromQuery =
+    queryOrigin.source === "query" && queryOrigin.area ? queryOrigin : null;
+  const areaLoc = namedFromQuery?.area
+    ? locationFromAreaSlug(namedFromQuery.area)
+    : params.area
+      ? locationFromAreaSlug(params.area)
+      : null;
+  const lat = namedFromQuery?.position
+    ? namedFromQuery.position.lat
+    : params.lat
+      ? Number(params.lat)
+      : (areaLoc?.position.lat ?? fallbackLoc.position.lat);
+  const lng = namedFromQuery?.position
+    ? namedFromQuery.position.lng
+    : params.lng
+      ? Number(params.lng)
+      : (areaLoc?.position.lng ?? fallbackLoc.position.lng);
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const radiusM = Math.min(
     50000,
@@ -103,7 +115,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     location: {
       lat,
       lng,
-      areaSlug: params.area ?? areaLoc?.areaSlug ?? undefined,
+      areaSlug: namedFromQuery?.area ?? params.area ?? areaLoc?.areaSlug ?? undefined,
       radiusM,
     },
     filters,
@@ -115,9 +127,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <main className="flex-1">
       <SearchResultsView
-        key={`${lat}:${lng}:${params.area ?? ""}`}
+        key={`${lat}:${lng}:${namedFromQuery?.area ?? params.area ?? ""}`}
         query={q}
-        area={params.area}
+        area={namedFromQuery?.area ?? params.area}
         sort={sort}
         response={response}
         openNowOnly={params.open_now === "1" || response.query.openNow}
@@ -126,8 +138,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           position: { lat, lng },
           label:
             areaLoc?.label ?? (params.lat ? CURRENT_LOCATION_LABEL : fallbackLoc.label),
-          areaSlug: params.area ?? areaLoc?.areaSlug ?? null,
-          source: params.area ? "manual" : params.lat ? "device" : "default",
+          areaSlug: namedFromQuery?.area ?? params.area ?? areaLoc?.areaSlug ?? null,
+          source: namedFromQuery?.area || params.area ? "manual" : params.lat ? "device" : "default",
         }}
         mapsEnabled={isFeatureEnabled("mapsEnabled")}
       />

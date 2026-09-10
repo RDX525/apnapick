@@ -13,6 +13,7 @@ export function ThemeProvider({
       defaultTheme="light"
       enableSystem
       enableColorScheme
+      disableTransitionOnChange
       storageKey="apnapick-theme"
       {...props}
     >

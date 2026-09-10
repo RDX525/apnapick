@@ -26,8 +26,8 @@ function ItemCard({
     <ScrollLink
       href={item.href}
       className={cn(
-        "group relative flex min-h-[16rem] flex-col overflow-hidden rounded-[1.75rem] ring-1 ring-black/5",
-        featured ? "min-h-[22rem] lg:min-h-full" : "lg:min-h-[15.5rem]",
+        "group relative flex min-h-[11.5rem] flex-col overflow-hidden rounded-[1.45rem] ring-1 ring-black/5 sm:min-h-[15.5rem] sm:rounded-[1.75rem]",
+        featured ? "min-h-[18.5rem] sm:min-h-[21rem] lg:min-h-full" : "lg:min-h-[15.5rem]",
       )}
     >
       <CoverPhoto
@@ -51,9 +51,9 @@ function ItemCard({
         aria-hidden
       />
 
-      <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">
+      <div className="relative z-10 flex h-full flex-col p-4 sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <span className="rounded-full bg-white/14 px-3 py-1 text-[11px] font-medium tracking-[0.14em] text-white/90 uppercase ring-1 ring-white/20 backdrop-blur-md">
+          <span className="rounded-full bg-white/14 px-2.5 py-1 text-[10px] font-medium tracking-[0.14em] text-white/90 uppercase ring-1 ring-white/20 backdrop-blur-md sm:px-3 sm:text-[11px]">
             {item.kind ?? "Popular"}
           </span>
           <span className="font-display text-sm text-white/55">{rank}</span>
@@ -63,7 +63,7 @@ function ItemCard({
           <h3
             className={cn(
               "font-display tracking-tight text-white",
-              featured ? "text-3xl sm:text-5xl" : "text-2xl",
+              featured ? "text-[1.85rem] sm:text-5xl" : "text-xl sm:text-2xl",
             )}
           >
             {item.name}
@@ -71,14 +71,14 @@ function ItemCard({
           {item.blurb ? (
             <p
               className={cn(
-                "mt-2 leading-relaxed text-white/75",
-                featured ? "text-sm sm:text-base" : "text-xs",
+                "mt-1.5 leading-relaxed text-white/75 sm:mt-2",
+                featured ? "text-sm sm:text-base" : "hidden text-xs sm:block",
               )}
             >
               {item.blurb}
             </p>
           ) : null}
-          <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-white">
+          <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-white sm:mt-4">
             Explore
             <ArrowUpRight
               className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -99,8 +99,8 @@ export function PopularItemsGallery({ items }: { items: PopularItem[] }) {
   const row = rest.slice(2);
 
   return (
-    <div className="mt-10 grid gap-4 lg:grid-cols-12 lg:grid-rows-[minmax(16rem,1fr)_minmax(16rem,auto)]">
-      <div className="lg:col-span-7 lg:row-span-2">
+    <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 lg:grid-cols-12 lg:grid-rows-[minmax(16rem,1fr)_minmax(16rem,auto)]">
+      <div className="col-span-2 lg:col-span-7 lg:row-span-2">
         <ItemCard item={featured} index={0} featured />
       </div>
       {side.map((item, i) => (
@@ -111,8 +111,8 @@ export function PopularItemsGallery({ items }: { items: PopularItem[] }) {
       {row.length > 0 ? (
         <div
           className={cn(
-            "grid gap-4 lg:col-span-12",
-            row.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3",
+            "col-span-2 grid grid-cols-2 gap-3 sm:gap-4 lg:col-span-12",
+            row.length === 4 ? "lg:grid-cols-4" : "sm:grid-cols-3",
           )}
         >
           {row.map((item, i) => (

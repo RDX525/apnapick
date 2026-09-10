@@ -16,7 +16,7 @@ import {
 
 const subscribe = () => () => {};
 
-export function ThemeMenu() {
+export function ThemeMenu({ onThemeChange }: { onThemeChange?: () => void }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(
     subscribe,
@@ -25,6 +25,11 @@ export function ThemeMenu() {
   );
   const selected = mounted ? (theme ?? "light") : "light";
   const CurrentIcon = mounted && resolvedTheme === "dark" ? Moon : Sun;
+
+  function handleThemeChange(next: string) {
+    setTheme(next);
+    queueMicrotask(() => onThemeChange?.());
+  }
 
   return (
     <DropdownMenu modal={false}>
@@ -43,16 +48,28 @@ export function ThemeMenu() {
       <DropdownMenuContent align="end" className="z-[60] min-w-40">
         <DropdownMenuLabel>Color theme</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup value={selected} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light" aria-label="Light">
+        <DropdownMenuRadioGroup value={selected} onValueChange={handleThemeChange}>
+          <DropdownMenuRadioItem
+            value="light"
+            aria-label="Light"
+            onSelect={() => queueMicrotask(() => onThemeChange?.())}
+          >
             <Sun className="size-4" aria-hidden />
             Light
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark" aria-label="Dark">
+          <DropdownMenuRadioItem
+            value="dark"
+            aria-label="Dark"
+            onSelect={() => queueMicrotask(() => onThemeChange?.())}
+          >
             <Moon className="size-4" aria-hidden />
             Dark
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system" aria-label="System">
+          <DropdownMenuRadioItem
+            value="system"
+            aria-label="System"
+            onSelect={() => queueMicrotask(() => onThemeChange?.())}
+          >
             <Monitor className="size-4" aria-hidden />
             System
           </DropdownMenuRadioItem>

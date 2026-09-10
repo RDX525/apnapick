@@ -2,17 +2,15 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { POPULAR_SEARCHES } from "@/config/consumer-content";
 import { AreaSelect } from "@/features/geo/area-select";
-import {
-  CURRENT_LOCATION_VALUE,
-  isCurrentLocationValue,
-} from "@/lib/geo/device-location";
+import { CURRENT_LOCATION_VALUE } from "@/lib/geo/device-location";
 import { isDiscoveryAreaSlug } from "@/config/geo-areas";
 import { useDiscoveryArea } from "@/lib/geo/use-discovery-area";
+import { discoverySearchHref } from "@/lib/search/resolve-search-location";
 import { cn } from "@/lib/utils";
 
 type SearchBoxProps = {
@@ -63,16 +61,14 @@ export function SearchBox({
       query.trim() ||
       inputRef.current?.placeholder ||
       POPULAR_SEARCHES[0];
-    const params = new URLSearchParams({ q });
-    if (position) {
-      params.set("lat", String(position.lat));
-      params.set("lng", String(position.lng));
-    }
-    if (area && area !== "pune" && !isCurrentLocationValue(area)) {
-      params.set("area", area);
-    }
     startTransition(() => {
-      router.push(`/search?${params.toString()}`);
+      router.push(
+        discoverySearchHref({
+          query: q,
+          dropdownArea: area,
+          devicePosition: position,
+        }),
+      );
     });
   }
 
@@ -80,18 +76,18 @@ export function SearchBox({
     <form
       onSubmit={onSubmit}
       role="search"
-      className={cn(
-        "ap-glass w-full rounded-2xl p-2",
-        size === "compact" && "rounded-xl",
-        className,
-      )}
+        className={cn(
+          "ap-glass w-full min-w-0 rounded-[1.55rem] p-1.5 sm:rounded-[1.75rem] sm:p-2",
+          size === "compact" && "rounded-2xl",
+          className,
+        )}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <label className="sr-only" htmlFor="apnapick-search">
           Search for places, dishes, or services
         </label>
-        <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
-          <Search className="text-sea size-5 shrink-0" aria-hidden />
+        <div className="flex min-w-0 flex-1 items-center gap-2 px-2.5 sm:px-3">
+          <Search className="text-sea size-4 shrink-0 sm:size-5" aria-hidden />
           <Input
             ref={inputRef}
             id="apnapick-search"
@@ -101,13 +97,13 @@ export function SearchBox({
             autoFocus={autoFocus}
             autoComplete="off"
             className={cn(
-              "h-12 border-0 bg-transparent text-base shadow-none focus-visible:ring-0",
+              "h-11 border-0 bg-transparent text-base shadow-none focus-visible:ring-0 sm:h-12",
               size === "compact" && "h-11 text-sm",
             )}
           />
         </div>
 
-        <div className="flex items-center gap-2 px-1 sm:px-0">
+        <div className="flex items-center gap-1.5 px-0.5 sm:gap-2 sm:px-0">
           <label className="sr-only" htmlFor="apnapick-location">
             Location
           </label>
@@ -117,6 +113,7 @@ export function SearchBox({
               value={area}
               onChange={setArea}
               locating={locating}
+              className="h-11 rounded-full text-sm"
             />
           </div>
 
@@ -124,9 +121,11 @@ export function SearchBox({
             type="submit"
             size="lg"
             disabled={pending}
-            className="min-h-11 min-w-[7rem] flex-1 px-5 sm:flex-none"
+            aria-label={pending ? "Searching" : "Search"}
+            className="size-11 min-h-11 flex-none rounded-full p-0 sm:min-w-[6.5rem] sm:px-5"
           >
-            {pending ? "Searching…" : "Search"}
+            <ArrowRight className="size-4 sm:hidden" aria-hidden />
+            <span className="hidden sm:inline">{pending ? "Searching…" : "Search"}</span>
           </Button>
         </div>
       </div>

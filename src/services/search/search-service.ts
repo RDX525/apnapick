@@ -29,7 +29,6 @@ export class SearchService {
   async search(request: SearchRequest): Promise<SearchResponse> {
     const started = Date.now();
     const parsed = searchParser.parse(request.query);
-    const intent = searchParser.summarize(parsed);
 
     const radiusM = geoSearchService.effectiveRadiusM(
       request.location,
@@ -46,11 +45,25 @@ export class SearchService {
         location,
         geoSearchService.withNamedAreaOrigin(location, parsed.location.areaSlug),
       );
-    } else if (request.location?.areaSlug) {
-      const named = geoSearchService.resolveNamedArea(request.location.areaSlug);
-      location.areaSlug = named?.slug ?? request.location.areaSlug;
-      location.label = named?.label ?? request.location.label;
+    } else if (
+      parsed.location.mode !== "near_me" &&
+      request.location?.areaSlug &&
+      request.location.areaSlug !== "pune"
+    ) {
+      Object.assign(
+        location,
+        geoSearchService.withNamedAreaOrigin(location, request.location.areaSlug),
+      );
+      if (location.areaSlug && location.areaSlug !== "pune") {
+        parsed.location = {
+          mode: "named",
+          areaSlug: location.areaSlug,
+          label: location.label,
+        };
+      }
     }
+
+    const intent = searchParser.summarize(parsed);
 
     const retrieveFilters = { ...request.filters };
     if (parsed.location.mode === "named" && parsed.location.areaSlug !== "pune") {

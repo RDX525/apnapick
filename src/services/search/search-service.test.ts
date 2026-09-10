@@ -149,6 +149,38 @@ describe("SearchService integration (demo catalog)", () => {
     expect(res.query.location.areaSlug).toBe("wagholi");
     expect(res.results.some((r) => r.slug === "aromic-tales")).toBe(true);
   });
+
+  it("uses the dropdown neighbourhood when the query has no place name", async () => {
+    const res = await service.search({
+      query: "Perfume",
+      location: {
+        lat: 18.5204,
+        lng: 73.8567,
+        radiusM: 8000,
+        areaSlug: "wagholi",
+      },
+    });
+    expect(res.query.location).toMatchObject({
+      mode: "named",
+      areaSlug: "wagholi",
+    });
+    expect(res.intent.location).toBe("Wagholi");
+    expect(res.results.some((r) => r.slug === "aromic-tales")).toBe(true);
+  });
+
+  it("prefers a place named in the query over the dropdown area", async () => {
+    const res = await service.search({
+      query: "Perfume in Wagholi",
+      location: {
+        lat: 18.551,
+        lng: 73.94,
+        radiusM: 8000,
+        areaSlug: "kharadi",
+      },
+    });
+    expect(res.query.location.areaSlug).toBe("wagholi");
+    expect(res.results.some((r) => r.slug === "aromic-tales")).toBe(true);
+  });
 });
 
 describe("Ranking weights", () => {

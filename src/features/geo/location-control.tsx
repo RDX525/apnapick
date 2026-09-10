@@ -40,6 +40,7 @@ export function LocationControl({ value, onChange, className }: Props) {
   );
 
   useEffect(() => {
+    if (value.source === "manual" || value.source === "search") return;
     const saved = loadSessionLocation();
     if (!saved) return;
     const unchanged =

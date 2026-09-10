@@ -134,14 +134,14 @@ export const BusinessResultCard = memo(function BusinessResultCard({
   return (
     <article
       className={cn(
-        "ap-surface group hover:ring-sea/25 relative grid overflow-hidden rounded-2xl transition duration-300 hover:ring-1 sm:grid-cols-[140px_1fr] [@media(hover:hover)]:hover:-translate-y-0.5",
+        "ap-surface group hover:ring-sea/25 relative grid grid-cols-[6.75rem_minmax(0,1fr)] overflow-hidden rounded-[1.35rem] transition duration-300 hover:ring-1 sm:grid-cols-[140px_1fr] sm:rounded-2xl [@media(hover:hover)]:hover:-translate-y-0.5",
         selected && "ring-sea/40 ring-1",
         className,
       )}
       onMouseEnter={onSelect}
       onFocusCapture={onSelect}
     >
-      <div className="ap-media-gradient relative min-h-32 overflow-hidden sm:min-h-full">
+      <div className="ap-media-gradient relative min-h-full overflow-hidden">
         {remoteImage ? (
           <BusinessImage
             src={imageSrc}
@@ -162,10 +162,10 @@ export const BusinessResultCard = memo(function BusinessResultCard({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 p-4 sm:p-5">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-ink text-xl tracking-tight">
+      <div className="flex min-w-0 flex-col gap-2 p-3 sm:gap-3 sm:p-5">
+        <div className="min-w-0 space-y-1 sm:space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <h2 className="font-display text-ink text-lg tracking-tight sm:text-xl">
               <Link
                 href={`/b/${model.slug}`}
                 className="hover:text-sea focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2"
@@ -192,7 +192,7 @@ export const BusinessResultCard = memo(function BusinessResultCard({
           ) : null}
 
           {model.description ? (
-            <p className="text-muted-foreground line-clamp-2 text-sm">
+            <p className="text-muted-foreground line-clamp-1 text-sm sm:line-clamp-2">
               {model.description}
             </p>
           ) : null}
@@ -224,9 +224,9 @@ export const BusinessResultCard = memo(function BusinessResultCard({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {wa ? (
-            <Button asChild size="sm" className="min-h-11">
+            <Button asChild size="sm" className="min-h-10 sm:min-h-11">
               <a href={wa} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="size-4" aria-hidden />
                 WhatsApp
@@ -234,20 +234,20 @@ export const BusinessResultCard = memo(function BusinessResultCard({
             </Button>
           ) : null}
           {callHref ? (
-            <Button asChild size="sm" variant={wa ? "outline" : "default"} className="min-h-11">
+            <Button asChild size="sm" variant={wa ? "outline" : "default"} className="min-h-10 sm:min-h-11">
               <a href={callHref}>
                 <Phone className="size-4" aria-hidden />
                 Call
               </a>
             </Button>
           ) : null}
-          <Button asChild size="sm" variant="outline" className="min-h-11">
+          <Button asChild size="sm" variant="outline" className="min-h-10 sm:min-h-11">
             <a href={directionsHref(model)} target="_blank" rel="noopener noreferrer">
               <Navigation className="size-4" aria-hidden />
               Directions
             </a>
           </Button>
-          <Button asChild size="sm" variant="ghost" className="min-h-11">
+          <Button asChild size="sm" variant="ghost" className="hidden min-h-11 sm:inline-flex">
             <Link href={`/b/${model.slug}`}>View</Link>
           </Button>
         </div>

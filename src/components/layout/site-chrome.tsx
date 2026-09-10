@@ -50,7 +50,7 @@ export function SiteHeader({ className }: { className?: string }) {
       <div className="sticky top-0 z-50 px-3 [padding-top:var(--ap-chrome-top)] sm:px-4">
         <header
           className={cn(
-            "ap-sticky-chrome mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 rounded-2xl px-3 sm:h-16 sm:gap-3 sm:px-5",
+            "ap-sticky-chrome mx-auto flex h-12 max-w-6xl items-center justify-between gap-2 rounded-[1.35rem] px-2.5 sm:h-16 sm:gap-3 sm:rounded-2xl sm:px-5",
             className,
           )}
         >
@@ -60,7 +60,7 @@ export function SiteHeader({ className }: { className?: string }) {
             onClick={handleHomeClick}
             className="group focus-visible:ring-ring flex min-h-11 shrink-0 items-center rounded-sm outline-none focus-visible:ring-2"
           >
-            <span className="font-display text-ink text-2xl tracking-tight">
+            <span className="font-display text-ink text-[1.45rem] tracking-tight sm:text-2xl">
               Apna<span className="ap-brand-pick">Pick</span>
             </span>
           </Link>
@@ -118,7 +118,7 @@ export function SiteHeader({ className }: { className?: string }) {
             <div className="hidden lg:block">
               <ThemeMenu />
             </div>
-            <Button asChild size="sm" className="ap-cta-glow min-h-11 px-3">
+            <Button asChild size="sm" className="ap-cta-glow hidden min-h-11 px-3 sm:inline-flex">
               <Link
                 href="/business/onboarding"
                 scroll
@@ -136,7 +136,7 @@ export function SiteHeader({ className }: { className?: string }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-11 min-w-11 px-2 lg:hidden"
+                className="size-10 min-h-10 min-w-10 rounded-full px-0 lg:hidden"
                 aria-expanded={open}
               >
                 {open ? (
@@ -192,6 +192,19 @@ export function SiteHeader({ className }: { className?: string }) {
             </li>
             <li>
               <Link
+                href="/business/onboarding"
+                scroll
+                className="text-foreground hover:bg-secondary flex min-h-11 items-center rounded-xl px-3 text-sm sm:hidden"
+                onClick={handleNavigation}
+                aria-current={
+                  pathname.startsWith("/business/onboarding") ? "page" : undefined
+                }
+              >
+                List your business
+              </Link>
+            </li>
+            <li>
+              <Link
                 href={
                   pathname.startsWith("/business/onboarding")
                     ? "/login?next=/business/onboarding"
@@ -206,7 +219,7 @@ export function SiteHeader({ className }: { className?: string }) {
             </li>
             <li className="text-foreground flex min-h-11 items-center justify-between rounded-xl px-3 text-sm lg:hidden">
               <span>Color theme</span>
-              <ThemeMenu />
+              <ThemeMenu onThemeChange={handleNavigation} />
             </li>
           </ul>
         </nav>

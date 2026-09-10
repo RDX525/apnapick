@@ -1,7 +1,7 @@
 /** Intent prompts — dish/service + budget, not category names. */
 export const POPULAR_SEARCHES = [
   "Chicken curry under ₹300 near me",
-  "Men's haircut under ₹500 open now",
+  "Men's haircut under ₹250 open now",
   "Black shirt for office under ₹1500",
   "Best chicken curry in Kharadi",
 ] as const;

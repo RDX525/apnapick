@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { isDiscoveryAreaSlug } from "@/config/geo-areas";
+import { AREA_CENTROIDS, isDiscoveryAreaSlug } from "@/config/geo-areas";
 import type { LatLng } from "@/domain/geo/types";
 import {
   CURRENT_LOCATION_VALUE,
@@ -27,7 +27,10 @@ import {
   requestDeviceLocation,
   writeDiscoveryArea,
 } from "@/lib/geo/location-access";
-import { loadSessionLocation } from "@/lib/geo/session-location";
+import {
+  loadSessionLocation,
+  saveSessionLocation,
+} from "@/lib/geo/session-location";
 
 type DiscoveryAreaValue = {
   area: string;
@@ -108,18 +111,14 @@ function useDiscoveryAreaController(enableLocate: boolean) {
 
     const saved = readSavedArea();
     if (saved && isDiscoveryAreaSlug(saved)) {
+      const centroid = AREA_CENTROIDS[saved]?.position ?? null;
       queueMicrotask(() => {
         if (cancelled) return;
         setLocating(false);
         setAreaState(saved);
+        if (centroid) setPosition(centroid);
         emitDiscoveryArea(saved);
       });
-      const sessionLoc = loadSessionLocation();
-      if (sessionLoc?.source === "device") {
-        queueMicrotask(() => {
-          if (!cancelled) setPosition(sessionLoc.position);
-        });
-      }
       return () => {
         cancelled = true;
       };
@@ -148,8 +147,10 @@ function useDiscoveryAreaController(enableLocate: boolean) {
       if (cancelled) return;
       const chosen = readSavedArea();
       if (chosen && isDiscoveryAreaSlug(chosen)) {
+        const centroid = AREA_CENTROIDS[chosen]?.position;
         setLocating(false);
         setAreaState(chosen);
+        if (centroid) setPosition(centroid);
         emitDiscoveryArea(chosen);
         return;
       }
@@ -188,9 +189,19 @@ function useDiscoveryAreaController(enableLocate: boolean) {
       return;
     }
     if (!isDiscoveryAreaSlug(next)) return;
+    const centroid = AREA_CENTROIDS[next];
     writeDiscoveryArea(next);
     setAreaState(next);
     setLocating(false);
+    if (centroid) {
+      setPosition(centroid.position);
+      saveSessionLocation({
+        position: centroid.position,
+        label: centroid.label,
+        areaSlug: next,
+        source: "manual",
+      });
+    }
     emitDiscoveryArea(next);
   }, []);
 

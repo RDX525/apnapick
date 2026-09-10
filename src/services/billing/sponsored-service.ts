@@ -43,7 +43,11 @@ export async function listSponsoredResults(input: {
     .map((t) => t.toLowerCase())
     .filter(Boolean);
 
-  const area = (input.areaSlug ?? input.query.location.areaSlug ?? "").toLowerCase();
+  const area = (
+    input.query.location.areaSlug ??
+    input.areaSlug ??
+    ""
+  ).toLowerCase();
   const cats = input.query.categorySlugs.map((c) => c.toLowerCase());
 
   const matched = placements.filter((p) => {
