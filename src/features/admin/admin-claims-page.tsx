@@ -15,6 +15,15 @@ import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import type { ClaimAdminAction } from "@/domain/admin/types";
 
+function isHttpUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const ACTIONS: {
   action: ClaimAdminAction;
   label: string;
@@ -35,7 +44,12 @@ export function AdminClaimsPage() {
   );
   const queue = useOperationalQueue(workspace.claims, {
     searchText: (claim) =>
-      [claim.businessName, claim.claimantName, claim.claimantEmail].join(" "),
+      [
+        claim.businessName,
+        claim.claimantName,
+        claim.claimantEmail,
+        claim.fromCatalog ? "catalog" : "",
+      ].join(" "),
     filterValue: (claim) => claim.status,
     sorters: {
       newest: (a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt),
@@ -49,7 +63,7 @@ export function AdminClaimsPage() {
     <AdminShell
       activePath="/admin/claims"
       title="Claims"
-      description="Review ownership claims with evidence, history, and verification actions."
+      description="Review ownership claims on owner-created and catalog listings. Evidence, history, and verification actions are audited."
     >
       <QueueControls
         id="claims"
@@ -103,7 +117,12 @@ export function AdminClaimsPage() {
                   aria-controls={`claim-details-${claim.id}`}
                 >
                   <div>
-                    <p className="font-medium">{claim.businessName}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{claim.businessName}</p>
+                      {claim.fromCatalog ? (
+                        <StatusBadge status="catalog" label="Catalog listing" />
+                      ) : null}
+                    </div>
                     <p className="text-muted-foreground text-sm">
                       Claimant: {claim.claimantName} · {claim.claimantEmail}
                     </p>
@@ -128,7 +147,21 @@ export function AdminClaimsPage() {
                             className="bg-mist/60 rounded-xl px-3 py-2 text-sm"
                           >
                             <span className="font-medium capitalize">{e.type}</span>
-                            <span className="text-muted-foreground"> — {e.note}</span>
+                            {e.url && isHttpUrl(e.url) ? (
+                              <>
+                                <span className="text-muted-foreground"> — </span>
+                                <a
+                                  href={e.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-primary underline-offset-2 hover:underline"
+                                >
+                                  {e.note || e.url}
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground"> — {e.note}</span>
+                            )}
                           </li>
                         ))}
                       </ul>

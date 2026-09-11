@@ -32,6 +32,8 @@ function snapshot(
       suburb: "Koregaon Park",
       city: "Pune",
       addressLine1: "12 North Main Road",
+      lat: 18.5362,
+      lng: 73.8938,
     },
     categorySlug: "restaurants",
     hours: [{ dayOfWeek: 1, opensAt: "10:00:00", closesAt: "22:00:00", isClosed: false }],
@@ -72,6 +74,8 @@ describe("workspaceFromOwnerListing", () => {
     expect(workspace.profile.status).toBe("PENDING_REVIEW");
     expect(workspace.profile.completeness).toBe(65);
     expect(workspace.profile.suburb).toBe("Koregaon Park");
+    expect(workspace.profile.lat).toBe(18.5362);
+    expect(workspace.profile.lng).toBe(73.8938);
     expect(workspace.profile.verificationStatus).toBe("UNCLAIMED");
     expect(workspace.profile.ownerEditPending).toBe(false);
     expect(workspace.products[0]?.name).toBe("Chicken Curry");

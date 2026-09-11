@@ -89,9 +89,14 @@ export function hasSupabaseConfig(): boolean {
   );
 }
 
+export function readServiceRoleKey(): string | null {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim().replace(/^["']|["']$/g, "");
+  if (!key || key === "your-service-role-key") return null;
+  return key;
+}
+
 export function hasServiceRoleKey(): boolean {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return Boolean(key && key !== "your-service-role-key");
+  return Boolean(readServiceRoleKey());
 }
 
 /** Test-only auth bypass; production can never enable this path. */

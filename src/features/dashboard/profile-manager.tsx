@@ -14,10 +14,25 @@ import { StatusBadge } from "@/components/operations/status-badge";
 import { DEFAULT_CATEGORIES } from "@/config/consumer-content";
 import { useDashboard } from "@/features/dashboard/dashboard-provider";
 import { DashboardShell } from "@/features/dashboard/dashboard-shell";
+import { OnboardingLocationPicker } from "@/features/onboarding/location-picker";
 
 export function ProfileManagerPage() {
   const { workspace, update } = useDashboard();
   const p = workspace.profile;
+  const categoryOptions = DEFAULT_CATEGORIES.some((c) => c.slug === p.categorySlug)
+    ? DEFAULT_CATEGORIES
+    : p.categorySlug
+      ? [
+          {
+            slug: p.categorySlug,
+            name: p.categorySlug
+              .split("-")
+              .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(" "),
+          },
+          ...DEFAULT_CATEGORIES,
+        ]
+      : DEFAULT_CATEGORIES;
 
   return (
     <DashboardShell
@@ -81,7 +96,7 @@ export function ProfileManagerPage() {
               <SelectValue placeholder="Select a category" />
             </SelectTrigger>
             <SelectContent>
-              {DEFAULT_CATEGORIES.map((c) => (
+              {categoryOptions.map((c) => (
                 <SelectItem key={c.slug} value={c.slug}>
                   {c.name}
                 </SelectItem>
@@ -207,6 +222,25 @@ export function ProfileManagerPage() {
             className="min-h-11"
           />
         </div>
+      </div>
+
+      <div className="border-border/70 bg-card space-y-3 rounded-2xl border p-5">
+        <OnboardingLocationPicker
+          street={p.addressLine1}
+          address={[p.addressLine1, p.suburb, p.city].filter(Boolean).join(", ")}
+          lat={p.lat}
+          lng={p.lng}
+          onSelect={(result) =>
+            update((w) => ({
+              ...w,
+              profile: {
+                ...w.profile,
+                lat: result.position.lat,
+                lng: result.position.lng,
+              },
+            }))
+          }
+        />
       </div>
     </DashboardShell>
   );

@@ -60,6 +60,7 @@ export function createSeedAdminWorkspace(): AdminWorkspace {
           },
         ],
         notes: null,
+        fromCatalog: false,
       },
       {
         id: uid(),
@@ -79,6 +80,7 @@ export function createSeedAdminWorkspace(): AdminWorkspace {
           },
         ],
         notes: null,
+        fromCatalog: true,
       },
     ],
     businesses: [

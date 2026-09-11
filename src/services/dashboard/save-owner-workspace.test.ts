@@ -13,6 +13,13 @@ describe("ownerWorkspaceSavePayload", () => {
     workspace.profile.phone = " 9876543210 ";
     workspace.profile.categorySlug = "restaurants";
     workspace.profile.suburb = "Kharadi";
+    workspace.profile.lat = 18.551;
+    workspace.profile.lng = 73.94;
+    workspace.hours = workspace.hours.map((day) =>
+      day.dayOfWeek === 1
+        ? { ...day, isClosed: false, opensAt: "10:00", closesAt: "22:00" }
+        : day,
+    );
     workspace.products = [
       {
         id: "11111111-1111-1111-1111-111111111201",
@@ -41,6 +48,7 @@ describe("ownerWorkspaceSavePayload", () => {
         role: "cover",
         name: "Storefront",
         previewUrl: "blob:http://localhost/photo",
+        storagePath: null,
         sortOrder: 0,
         isCover: true,
       },
@@ -51,6 +59,14 @@ describe("ownerWorkspaceSavePayload", () => {
     expect(payload.name).toBe("Flow Kitchen");
     expect(payload.description).toBe("Neighbourhood meals");
     expect(payload.phone).toBe("9876543210");
+    expect(payload.lat).toBe(18.551);
+    expect(payload.lng).toBe(73.94);
+    expect(payload.hours[1]).toMatchObject({
+      dayOfWeek: 1,
+      isClosed: false,
+      opensAt: "10:00",
+      closesAt: "22:00",
+    });
     expect(payload.products).toEqual([
       {
         id: "11111111-1111-1111-1111-111111111201",
@@ -68,9 +84,29 @@ describe("ownerWorkspaceSavePayload", () => {
         isCover: true,
         role: "cover",
         sortOrder: 0,
+        storagePath: null,
       },
     ]);
     expect(payload.photos[0]).not.toHaveProperty("previewUrl");
+  });
+
+  it("sends persisted photo object keys", () => {
+    const workspace = createEmptyWorkspace();
+    workspace.profile.name = "Flow Kitchen";
+    workspace.photos = [
+      {
+        id: "11111111-1111-1111-1111-111111111301",
+        role: "cover",
+        name: "Storefront",
+        previewUrl: "https://example.supabase.co/storage/v1/object/public/business-photos/a.jpg",
+        storagePath: "11111111-1111-1111-1111-111111111101/cover.jpg",
+        sortOrder: 0,
+        isCover: true,
+      },
+    ];
+    expect(ownerWorkspaceSavePayload(workspace).photos[0]?.storagePath).toBe(
+      "11111111-1111-1111-1111-111111111101/cover.jpg",
+    );
   });
 });
 

@@ -35,6 +35,8 @@ export type OwnerListingSnapshot = {
     suburb: string | null;
     city: string | null;
     addressLine1: string | null;
+    lat: number | null;
+    lng: number | null;
   } | null;
   categorySlug: string;
   hours: Array<{
@@ -70,6 +72,7 @@ export type OwnerListingSnapshot = {
     id: string;
     name: string;
     previewUrl: string | null;
+    storagePath: string | null;
     sortOrder: number;
     isCover: boolean;
   }>;
@@ -142,6 +145,7 @@ function toPhoto(photo: OwnerListingSnapshot["photos"][number]): DashboardPhoto 
     role: photo.isCover ? "cover" : "gallery",
     name: photo.name,
     previewUrl: photo.previewUrl,
+    storagePath: photo.storagePath,
     sortOrder: photo.sortOrder,
     isCover: photo.isCover,
   };
@@ -176,6 +180,8 @@ export function workspaceFromOwnerListing(
       suburb: snapshot.location?.suburb ?? "",
       city: snapshot.location?.city ?? "Pune",
       addressLine1: snapshot.location?.addressLine1 ?? "",
+      lat: snapshot.location?.lat ?? null,
+      lng: snapshot.location?.lng ?? null,
       priceLevel: snapshot.business.priceLevel,
       completeness: snapshot.business.completeness,
       verificationStatus: verificationStatusFromListing({

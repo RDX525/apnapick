@@ -6,6 +6,7 @@ import type {
   UserAdminAction,
 } from "@/domain/admin/types";
 import type { BusinessStatus, ClaimStatus } from "@/domain/business/types";
+import { nextStatusForOwnerEditAction } from "@/services/admin/queue-visibility";
 
 export function applyClaimAction(
   claim: AdminClaim,
@@ -60,7 +61,13 @@ export function applyBusinessAction(
         ownerEditPending: false,
       };
     }
-    if (action === "edit") return { ...b, ownerEditPending: false };
+    if (action === "edit") {
+      return {
+        ...b,
+        ownerEditPending: false,
+        status: nextStatusForOwnerEditAction(b.status),
+      };
+    }
     if (action === "merge_duplicate") {
       return { ...b, status: "MERGED" as const };
     }

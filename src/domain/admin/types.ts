@@ -12,6 +12,7 @@ export type AdminClaim = {
   evidence: { type: string; note: string; url?: string }[];
   history: { at: string; action: string; by: string; note?: string }[];
   notes: string | null;
+  fromCatalog: boolean;
 };
 
 export type AdminBusiness = {

@@ -106,6 +106,13 @@ describe("Phase 2 database migrations", () => {
     expect(sql).toContain("onboarding_wizard");
     expect(sql).toContain("clothing-fashion");
     expect(sql).toContain("education-learning");
+    expect(sql).toContain("v_old.status in ('DRAFT', 'REJECTED', 'PUBLISHED')");
+    expect(sql).toContain("business-photos");
+    expect(sql).toContain("(b.metadata ->> 'temporarilyClosed')::boolean");
+    expect(sql).toContain("v_unusable");
+    expect(sql).toContain(
+      "when v_old.status = 'PENDING_REVIEW' then 'PUBLISHED'::public.business_status",
+    );
   });
 
   it("dev seed is explicitly non-production", () => {

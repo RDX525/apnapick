@@ -10,20 +10,24 @@ export type PhotoValidationError = "too_large" | "invalid_type" | "empty" | "too
 
 export function validatePhotoFile(
   file: { size: number; type: string },
-  options?: { galleryCount?: number },
+  options?: { galleryCount?: number; maxGallery?: number },
 ): PhotoValidationError | null {
   if (!file || file.size <= 0) return "empty";
   if (file.size > PHOTO_LIMITS.maxBytes) return "too_large";
   if (!(PHOTO_LIMITS.allowedMime as readonly string[]).includes(file.type)) {
     return "invalid_type";
   }
-  if (options?.galleryCount != null && options.galleryCount >= PHOTO_LIMITS.maxGallery) {
+  const maxGallery = options?.maxGallery ?? PHOTO_LIMITS.maxGallery;
+  if (options?.galleryCount != null && options.galleryCount >= maxGallery) {
     return "too_many";
   }
   return null;
 }
 
-export function photoErrorMessage(code: PhotoValidationError): string {
+export function photoErrorMessage(
+  code: PhotoValidationError,
+  maxGallery: number = PHOTO_LIMITS.maxGallery,
+): string {
   switch (code) {
     case "too_large":
       return "Image must be 5 MB or smaller.";
@@ -32,7 +36,7 @@ export function photoErrorMessage(code: PhotoValidationError): string {
     case "empty":
       return "Choose a valid image file.";
     case "too_many":
-      return `Gallery limit is ${PHOTO_LIMITS.maxGallery} photos.`;
+      return `Gallery limit is ${maxGallery} photos.`;
   }
 }
 

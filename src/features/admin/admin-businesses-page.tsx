@@ -48,7 +48,7 @@ export function AdminBusinessesPage() {
     <AdminShell
       activePath="/admin/businesses"
       title="Businesses"
-      description="Approve, reject, suspend, verify, edit, or merge duplicate listings."
+      description="Approve or accept owner edits to publish a listing. Reject, suspend, verify, or merge duplicates."
     >
       <QueueControls
         id="businesses"

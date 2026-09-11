@@ -10,8 +10,9 @@
 1. Supabase project with PostGIS enabled
 2. Apply migrations in `supabase/migrations` (CLI or SQL editor order)
 3. Run seed for non-production only
-4. Create Storage buckets: `business-photos`, `verification-docs`
-5. Configure Auth redirect URLs for Vercel domains
+4. Storage bucket `business-photos` is created by migration `0027_owner_listing_media_hours.sql`. Create `verification-docs` if you collect claim documents.
+5. Apply `0028_admin_accept_owner_edits.sql` so Accept owner edits publishes `PENDING_REVIEW` listings.
+6. Configure Auth redirect URLs for Vercel domains
 
 ## Vercel
 

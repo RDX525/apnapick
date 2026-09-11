@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { publicEnvSchema, serverEnvSchema } from "@/config/env";
 import { MemoryRateLimitStore } from "@/lib/security/rate-limit";
 import { AppError, toErrorResponse } from "@/lib/errors/app-error";
@@ -14,6 +14,19 @@ describe("env schemas", () => {
     const env = serverEnvSchema.parse({});
     expect(env.SEARCH_DEFAULT_RADIUS_M).toBe(8000);
     expect(env.LOG_LEVEL).toBe("info");
+  });
+});
+
+describe("hasServiceRoleKey", () => {
+  it("treats missing, placeholder, and quoted-empty keys as absent", async () => {
+    const { hasServiceRoleKey } = await import("@/config/env");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    expect(hasServiceRoleKey()).toBe(false);
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "your-service-role-key");
+    expect(hasServiceRoleKey()).toBe(false);
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", '  "eyJhbGciOiJIUzI1NiJ9.test"  ');
+    expect(hasServiceRoleKey()).toBe(true);
+    vi.unstubAllEnvs();
   });
 });
 

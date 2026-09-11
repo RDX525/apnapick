@@ -10,6 +10,8 @@ import {
   ownerWorkspaceSavePayload,
   workspaceSaveCompleteness,
 } from "@/services/dashboard/save-owner-workspace";
+import { resolveOwnerLocationForSave } from "@/services/dashboard/resolve-owner-location";
+import { geocodeLocation } from "@/services/geo/geo-service";
 import type { DashboardWorkspace } from "@/domain/dashboard/types";
 
 export const dynamic = "force-dynamic";
@@ -111,10 +113,22 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    const { data: primaryLocation } = await supabase
+      .from("business_locations")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("is_primary", true)
+      .maybeSingle();
+
+    const located = await resolveOwnerLocationForSave(workspace, {
+      hasPrimaryLocation: Boolean(primaryLocation),
+      geocode: geocodeLocation,
+    });
+
     const { data, error } = await supabase.rpc("save_owner_workspace", {
       p_business_id: businessId,
-      p_payload: ownerWorkspaceSavePayload(workspace),
-      p_completeness: workspaceSaveCompleteness(workspace),
+      p_payload: ownerWorkspaceSavePayload(located),
+      p_completeness: workspaceSaveCompleteness(located),
     });
 
     if (error) {

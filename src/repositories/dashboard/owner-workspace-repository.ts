@@ -45,6 +45,17 @@ function leadType(value: unknown): DashboardLead["type"] {
   return "enquiry";
 }
 
+function coordinatesFromGeom(geom: unknown): { lat: number | null; lng: number | null } {
+  const record = asRecord(geom);
+  const coords = record.coordinates;
+  if (Array.isArray(coords) && coords.length >= 2) {
+    const lng = Number(coords[0]);
+    const lat = Number(coords[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  return { lat: null, lng: null };
+}
+
 function memberPermissions(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.map((item) => String(item)).filter(Boolean);
@@ -100,7 +111,7 @@ export async function fetchOwnerListingSnapshot(
       `
       id, name, slug, description, status, phone, email, website, price_level,
       completeness, is_claimed, verified_at, metadata, updated_at, review_count,
-      business_locations ( suburb, city, address_line1, is_primary ),
+      business_locations ( suburb, city, address_line1, is_primary, geom ),
       business_categories ( is_primary, categories ( slug ) ),
       business_hours ( day_of_week, opens_at, closes_at, is_closed ),
       special_hours ( on_date, opens_at, closes_at, is_closed, note ),
@@ -221,6 +232,7 @@ export async function fetchOwnerListingSnapshot(
           suburb: asNullableString(primaryLocation.suburb),
           city: asNullableString(primaryLocation.city),
           addressLine1: asNullableString(primaryLocation.address_line1),
+          ...coordinatesFromGeom(primaryLocation.geom),
         }
       : null,
     categorySlug,
@@ -263,6 +275,7 @@ export async function fetchOwnerListingSnapshot(
         id: asString(photo.id),
         name: asString(photo.alt_text, asString(photo.storage_path, "Photo")),
         previewUrl: resolvePhotoUrl(asNullableString(photo.storage_path)),
+        storagePath: asNullableString(photo.storage_path),
         sortOrder: asNumber(photo.sort_order, index),
         isCover: Boolean(photo.is_cover),
       })),

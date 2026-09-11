@@ -5,6 +5,7 @@ export {
   assertEnv,
   hasSupabaseConfig,
   hasServiceRoleKey,
+  readServiceRoleKey,
   publicEnvSchema,
   serverEnvSchema,
   type PublicEnv,

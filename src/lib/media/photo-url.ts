@@ -1,4 +1,4 @@
-const BUSINESS_PHOTOS_BUCKET = "business-photos";
+export const BUSINESS_PHOTOS_BUCKET = "business-photos";
 
 function trimPath(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;

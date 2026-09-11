@@ -58,6 +58,27 @@ describe("admin business actions", () => {
     const merged = applyBusinessAction(ws, dup.id, "merge_duplicate", id);
     expect(merged.businesses.find((b) => b.id === dup.id)!.status).toBe("MERGED");
   });
+
+  it("accepts owner edits by publishing a pending listing", () => {
+    const ws = createSeedAdminWorkspace();
+    const pending = ws.businesses[0]!;
+    expect(pending.status).toBe("PENDING_REVIEW");
+    const next = applyBusinessAction(ws, pending.id, "edit");
+    const updated = next.businesses.find((b) => b.id === pending.id)!;
+    expect(updated.status).toBe("PUBLISHED");
+    expect(updated.ownerEditPending).toBe(false);
+  });
+
+  it("accepts owner edits on a live listing without changing status", () => {
+    const ws = createSeedAdminWorkspace();
+    const live = ws.businesses.find((b) => b.slug === "curry-leaf-co")!;
+    expect(live.status).toBe("PUBLISHED");
+    expect(live.ownerEditPending).toBe(true);
+    const next = applyBusinessAction(ws, live.id, "edit");
+    const updated = next.businesses.find((b) => b.id === live.id)!;
+    expect(updated.status).toBe("PUBLISHED");
+    expect(updated.ownerEditPending).toBe(false);
+  });
 });
 
 describe("admin user actions", () => {

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { SpecialHoursEntry } from "@/domain/onboarding/types";
+import { withOpeningTimes, type SpecialHoursEntry } from "@/domain/onboarding/types";
 import { useDashboard } from "@/features/dashboard/dashboard-provider";
 import { DashboardShell } from "@/features/dashboard/dashboard-shell";
 
@@ -62,7 +62,7 @@ export function HoursManagerPage() {
                       ...w,
                       hours: w.hours.map((x) =>
                         x.dayOfWeek === h.dayOfWeek
-                          ? { ...x, isClosed: checked === true }
+                          ? withOpeningTimes(x, checked !== true)
                           : x,
                       ),
                     }))
@@ -142,7 +142,7 @@ export function HoursManagerPage() {
           {workspace.specialHours.map((s, idx) => (
             <li
               key={`${s.date}-${idx}`}
-              className="border-border/70 bg-mist/40 grid gap-2 rounded-xl border p-3 sm:grid-cols-[1fr_1fr_auto]"
+              className="border-border/70 bg-mist/40 grid gap-2 rounded-xl border p-3 sm:grid-cols-[1fr_1fr_auto] lg:grid-cols-[1fr_1fr_1fr_1fr_auto]"
             >
               <div className="space-y-1">
                 <Label htmlFor={`special-date-${idx}`} className="text-xs">
@@ -181,6 +181,48 @@ export function HoursManagerPage() {
                   className="min-h-10"
                 />
               </div>
+              {!s.isClosed ? (
+                <>
+                  <div className="space-y-1">
+                    <Label htmlFor={`special-opens-${idx}`} className="text-xs">
+                      Opens
+                    </Label>
+                    <Input
+                      id={`special-opens-${idx}`}
+                      type="time"
+                      value={s.opensAt ?? ""}
+                      onChange={(e) =>
+                        update((w) => ({
+                          ...w,
+                          specialHours: w.specialHours.map((x, i) =>
+                            i === idx ? { ...x, opensAt: e.target.value } : x,
+                          ),
+                        }))
+                      }
+                      className="min-h-10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`special-closes-${idx}`} className="text-xs">
+                      Closes
+                    </Label>
+                    <Input
+                      id={`special-closes-${idx}`}
+                      type="time"
+                      value={s.closesAt ?? ""}
+                      onChange={(e) =>
+                        update((w) => ({
+                          ...w,
+                          specialHours: w.specialHours.map((x, i) =>
+                            i === idx ? { ...x, closesAt: e.target.value } : x,
+                          ),
+                        }))
+                      }
+                      className="min-h-10"
+                    />
+                  </div>
+                </>
+              ) : null}
               <div className="flex items-end gap-2">
                 <label className="flex items-center gap-2 pb-2 text-sm">
                   <Checkbox
@@ -189,7 +231,7 @@ export function HoursManagerPage() {
                       update((w) => ({
                         ...w,
                         specialHours: w.specialHours.map((x, i) =>
-                          i === idx ? { ...x, isClosed: checked === true } : x,
+                          i === idx ? withOpeningTimes(x, checked !== true) : x,
                         ),
                       }))
                     }

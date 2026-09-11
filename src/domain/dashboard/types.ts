@@ -56,6 +56,8 @@ export type DashboardPhoto = {
   role: "logo" | "cover" | "gallery";
   name: string;
   previewUrl: string | null;
+  /** Object key in the business-photos bucket. Null until upload succeeds. */
+  storagePath: string | null;
   sortOrder: number;
   isCover: boolean;
 };
@@ -109,6 +111,8 @@ export type DashboardProfile = {
   suburb: string;
   city: string;
   addressLine1: string;
+  lat: number | null;
+  lng: number | null;
   priceLevel: number | null;
   completeness: number;
   verificationStatus: ClaimStatus | "UNCLAIMED";

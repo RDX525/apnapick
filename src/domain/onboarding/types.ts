@@ -132,6 +132,11 @@ export type DuplicateCandidate = {
   reasons: string[];
 };
 
+export const DEFAULT_OPENING_HOURS = {
+  opensAt: "10:00",
+  closesAt: "22:00",
+} as const;
+
 export function emptyDayHours(): DayHours[] {
   return Array.from({ length: 7 }, (_, dayOfWeek) => ({
     dayOfWeek,
@@ -139,6 +144,21 @@ export function emptyDayHours(): DayHours[] {
     opensAt: null,
     closesAt: null,
   }));
+}
+
+/** Open a weekly or special-hours row, filling times when they were blank. */
+export function withOpeningTimes<
+  T extends { isClosed: boolean; opensAt?: string | null; closesAt?: string | null },
+>(entry: T, open: boolean): T {
+  if (!open) {
+    return { ...entry, isClosed: true };
+  }
+  return {
+    ...entry,
+    isClosed: false,
+    opensAt: entry.opensAt?.trim() ? entry.opensAt : DEFAULT_OPENING_HOURS.opensAt,
+    closesAt: entry.closesAt?.trim() ? entry.closesAt : DEFAULT_OPENING_HOURS.closesAt,
+  };
 }
 
 export function createEmptyDraft(): OnboardingDraftPayload {

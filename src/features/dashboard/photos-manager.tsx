@@ -3,7 +3,6 @@
 import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { EmptyState } from "@/components/states/empty-state";
 import type { DashboardPhoto } from "@/domain/dashboard/types";
@@ -12,23 +11,19 @@ import {
   validatePhotoFile,
 } from "@/services/onboarding/photo-validation";
 import { reorderById } from "@/services/dashboard/insights";
+import { uploadOwnerPhoto } from "@/services/dashboard/upload-owner-photo";
 import { useDashboard } from "@/features/dashboard/dashboard-provider";
 import { DashboardShell } from "@/features/dashboard/dashboard-shell";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+
+type PendingUpload = { id: string; name: string };
 
 export function PhotosManagerPage() {
   const { workspace, update } = useDashboard();
   const [error, setError] = useState<string | null>(null);
-  const objectUrls = useRef(new Set<string>());
+  const [pending, setPending] = useState<PendingUpload[]>([]);
   const photos = [...workspace.photos].sort((a, b) => a.sortOrder - b.sortOrder);
-
-  useEffect(
-    () => () => {
-      for (const url of objectUrls.current) URL.revokeObjectURL(url);
-      objectUrls.current.clear();
-    },
-    [],
-  );
+  const businessId = workspace.profile.businessId;
 
   function setPhotos(next: DashboardPhoto[]) {
     update((w) => ({ ...w, photos: next }));
@@ -37,25 +32,48 @@ export function PhotosManagerPage() {
   async function onUpload(files: FileList | null) {
     if (!files?.length) return;
     setError(null);
-    const next = [...photos];
+    if (!businessId) {
+      setError("Photos save after you sign in with an approved listing.");
+      return;
+    }
+
+    let galleryCount = photos.length + pending.length;
     for (const file of Array.from(files)) {
-      const err = validatePhotoFile(file, { galleryCount: next.length });
+      const err = validatePhotoFile(file, { galleryCount });
       if (err) {
         setError(photoErrorMessage(err));
         continue;
       }
-      const previewUrl = URL.createObjectURL(file);
-      objectUrls.current.add(previewUrl);
-      next.push({
-        id: crypto.randomUUID(),
-        role: next.length === 0 ? "cover" : "gallery",
-        name: file.name,
-        previewUrl,
-        sortOrder: next.length,
-        isCover: next.length === 0,
-      });
+      const photoId = crypto.randomUUID();
+      setPending((current) => [...current, { id: photoId, name: file.name }]);
+      try {
+        const uploaded = await uploadOwnerPhoto({
+          businessId,
+          file,
+          photoId,
+        });
+        galleryCount += 1;
+        update((w) => {
+          const next = [...w.photos];
+          next.push({
+            id: uploaded.id,
+            role: next.length === 0 ? "cover" : "gallery",
+            name: uploaded.name,
+            previewUrl: uploaded.previewUrl,
+            storagePath: uploaded.storagePath,
+            sortOrder: next.length,
+            isCover: next.length === 0,
+          });
+          return { ...w, photos: next };
+        });
+      } catch (uploadError) {
+        setError(
+          uploadError instanceof Error ? uploadError.message : "Couldn’t upload photo.",
+        );
+      } finally {
+        setPending((current) => current.filter((item) => item.id !== photoId));
+      }
     }
-    setPhotos(next);
   }
 
   function setCover(id: string) {
@@ -69,11 +87,11 @@ export function PhotosManagerPage() {
   }
 
   function deletePhoto(photo: DashboardPhoto) {
-    if (photo.previewUrl && objectUrls.current.has(photo.previewUrl)) {
-      URL.revokeObjectURL(photo.previewUrl);
-      objectUrls.current.delete(photo.previewUrl);
+    const remaining = photos.filter((item) => item.id !== photo.id);
+    if (photo.isCover && remaining[0] && !remaining.some((item) => item.isCover)) {
+      remaining[0] = { ...remaining[0], isCover: true, role: "cover" };
     }
-    setPhotos(photos.filter((item) => item.id !== photo.id));
+    setPhotos(remaining.map((item, index) => ({ ...item, sortOrder: index })));
   }
 
   return (
@@ -92,19 +110,35 @@ export function PhotosManagerPage() {
         <ImagePlus className="text-sea size-6" aria-hidden />
         Upload photos
         <span className="text-muted-foreground text-xs">
-          JPEG, PNG, WebP, GIF · max 5 MB
+          JPEG, PNG, WebP, GIF · max 5 MB · stored on your listing
         </span>
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
           className="sr-only"
-          onChange={(e) => onUpload(e.target.files)}
+          onChange={(e) => {
+            void onUpload(e.target.files);
+            e.target.value = "";
+          }}
         />
       </label>
 
+      {pending.length > 0 ? (
+        <ul className="space-y-2" aria-live="polite">
+          {pending.map((item) => (
+            <li
+              key={item.id}
+              className="border-border/70 bg-card rounded-xl border px-4 py-3 text-sm"
+            >
+              Uploading {item.name}…
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {photos.length === 0 ? (
+        {photos.length === 0 && pending.length === 0 ? (
           <li className="sm:col-span-2 lg:col-span-3">
             <EmptyState
               compact
@@ -135,7 +169,6 @@ export function PhotosManagerPage() {
             </div>
             <div className="space-y-2 p-3">
               <p className="truncate text-sm font-medium">{photo.name}</p>
-              <Progress value={100} aria-label={`${photo.name} upload`} className="h-1" />
               <div className="flex flex-wrap gap-1.5">
                 <Button
                   type="button"

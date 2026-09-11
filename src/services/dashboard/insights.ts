@@ -15,14 +15,14 @@ export function buildDashboardInsights(
       id: "pending-review",
       tone: "info",
       title: "Your listing is waiting for admin approval.",
-      body: "Profile, hours, and catalog edits are saved. They go live after an admin publishes the listing.",
+      body: "Profile, hours, and catalog edits are saved. Customers will not see the listing until an admin publishes it.",
     });
   } else if (workspace.profile.ownerEditPending) {
     insights.push({
       id: "owner-edits-review",
       tone: "info",
       title: "Latest edits are with admin for review.",
-      body: "Your live listing stays published. An admin will confirm the new details from the businesses queue.",
+      body: "The listing stays hidden from customers until an admin publishes the new details.",
     });
   }
 

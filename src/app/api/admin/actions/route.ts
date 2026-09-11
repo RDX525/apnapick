@@ -5,8 +5,8 @@ import { jsonError, jsonOk } from "@/lib/api/response";
 import { requireAdminSession } from "@/lib/auth/admin";
 import { writeAdminAudit } from "@/services/admin/audit";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
-import { createAdminClient } from "@/lib/db/supabase-admin";
-import { hasServiceRoleKey, hasSupabaseConfig } from "@/config/env";
+import { createAdminDataClient } from "@/lib/db/supabase-admin";
+import { hasSupabaseConfig } from "@/config/env";
 
 export const dynamic = "force-dynamic";
 
@@ -80,15 +80,17 @@ export async function POST(request: NextRequest) {
     const newData: Record<string, unknown> = { ...body };
     let persistedAuditId: string | null = null;
     const databaseConfigured = hasSupabaseConfig();
-    if (databaseConfigured && !hasServiceRoleKey()) {
+    const adminData = await createAdminDataClient();
+    if (databaseConfigured && !adminData) {
       throw new AppError({
-        message: "Admin database credentials are unavailable",
+        message: "Admin database is unavailable",
         code: "ADMIN_DATABASE_UNAVAILABLE",
         status: 503,
         expose: true,
       });
     }
-    const adminSupabase = databaseConfigured ? createAdminClient() : null;
+    const adminSupabase = adminData?.supabase ?? null;
+    const canManageAuthUsers = adminData?.canManageAuthUsers ?? false;
 
     if (body.type === "business" && body.action === "merge_duplicate") {
       await requireAdminSession("admin:merge");
@@ -134,6 +136,15 @@ export async function POST(request: NextRequest) {
     if (adminSupabase) {
       let mutationError: { message: string } | null = null;
       if (body.type === "user") {
+        if (!canManageAuthUsers) {
+          throw new AppError({
+            message:
+              "Suspending or restoring users needs SUPABASE_SERVICE_ROLE_KEY on the server",
+            code: "ADMIN_DATABASE_UNAVAILABLE",
+            status: 503,
+            expose: true,
+          });
+        }
         const result = await adminSupabase.auth.admin.updateUserById(body.userId, {
           ban_duration: body.action === "suspend" ? "876000h" : "none",
         });
