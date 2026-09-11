@@ -18,38 +18,45 @@ Organic search ranking is **never** influenced by plan or payment.
 | `subscriptions`        | Business ↔ plan; status from webhooks                              |
 | `subscription_events`  | Idempotent webhook ledger (`provider`, `provider_event_id` unique) |
 | `payments`             | Payment rows (idempotent on provider + external id)                |
-| `invoices`             | Stripe invoices                                                    |
+| `invoices`             | Razorpay invoices                                                  |
 | `sponsored_placements` | Paid slots — **separate** from organic ranking                     |
 
-Migration: `supabase/migrations/0014_monetization.sql`.
+Migration: `supabase/migrations/0014_monetization.sql`. Ledger apply status: `0016_launch_hardening.sql`.
 
-## Stripe abstraction
+Checkout is currently **disabled** (`BILLING_CHECKOUT_ENABLED = false`). Dashboard copy is “coming soon”; `POST /api/billing/checkout` and `/portal` return 503.
+
+## Razorpay abstraction
 
 - Interface: `src/integrations/payments/types.ts` (`PaymentProvider`)
-- Live: `StripePaymentProvider`
-- Local: `StubPaymentProvider` when `STRIPE_SECRET_KEY` is unset
+- Live: `RazorpayPaymentProvider`
+- Local: `StubPaymentProvider` when `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` are unset
 - Factory: `getPaymentProvider()`
 
 App code must not treat Checkout redirect as success.
 
 ## Source of truth
 
-**Stripe webhooks** update subscription / payment / invoice state.
+**Razorpay webhooks** update subscription / payment / invoice state.
 
-Endpoint: `POST /api/billing/webhooks/stripe`
+Endpoint: `POST /api/billing/webhooks/razorpay`
 
-1. Verify signature (`stripe-signature` or stub header)
-2. Insert `subscription_events` — duplicate event id → ack without re-apply
-3. Apply `customer.subscription.*`, `invoice.*`, etc.
-4. `checkout.session.completed` only links customer ids — **does not** activate the plan
+1. Verify signature (`x-razorpay-signature` or stub header)
+2. Insert `subscription_events` with `apply_status=pending`
+3. Apply `subscription.*`, `payment.*`, `invoice.*`
+4. Mark `applied` (or `failed` and return non-2xx so Razorpay retries)
+5. Duplicate event ids retry apply unless status is already `applied` / `ignored`
+
+Missing service role fails closed (503). Unknown plan/business refs do **not** fall back to Premium.
+
+Razorpay has no hosted customer portal; `/api/billing/portal` returns the in-app subscription page.
 
 ## APIs
 
 | Route                                       | Notes                                               |
 | ------------------------------------------- | --------------------------------------------------- |
 | `GET /api/billing/plans`                    | Public catalog                                      |
-| `POST /api/billing/checkout`                | Returns Checkout URL; `activationSource: "webhook"` |
-| `POST /api/billing/portal`                  | Stripe Customer Portal                              |
+| `POST /api/billing/checkout`                | Returns hosted subscription URL; `activationSource: "webhook"` |
+| `POST /api/billing/portal`                  | In-app billing management URL                       |
 | `GET /api/billing/subscription?businessId=` | Entitlements + subscription                         |
 
 Dashboard: `/business/dashboard/subscription`.
@@ -70,11 +77,11 @@ Example gate: team invites require `teamMembers` (Premium+).
 ## Env
 
 ```
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_PRICE_PREMIUM=
-STRIPE_PRICE_BUSINESS=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+RAZORPAY_PLAN_PREMIUM=
+RAZORPAY_PLAN_BUSINESS=
 ```
 
-Map Stripe Price IDs onto `plans.external_price_id` or the env vars above.
+Map Razorpay Plan IDs onto `plans.external_price_id` or the env vars above.

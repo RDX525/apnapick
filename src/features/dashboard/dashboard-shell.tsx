@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   BarChart3,
@@ -32,6 +33,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/operations/status-badge";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/features/dashboard/dashboard-provider";
+import {
+  hasPersistedListing,
+  shouldAdvanceAfterSave,
+} from "@/features/dashboard/section-nav";
 
 type NavItem = {
   href: string;
@@ -39,7 +44,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
 };
 
-const NAV: NavItem[] = [
+export const DASHBOARD_NAV: NavItem[] = [
   { href: "/business/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/business/dashboard/profile", label: "Profile", icon: ShoppingBag },
   { href: "/business/dashboard/photos", label: "Photos", icon: ImageIcon },
@@ -71,11 +76,59 @@ export function DashboardShell({
   title: string;
   description?: string;
 }) {
-  const { workspace, hydrated, saveStatus, saveError, saveQueuedForReview, retrySave } =
-    useDashboard();
+  const {
+    workspace,
+    hydrated,
+    dirty,
+    saveStatus,
+    saveError,
+    saveQueuedForReview,
+    saveNow,
+    retrySave,
+  } = useDashboard();
+  const router = useRouter();
+  const [sectionBusy, setSectionBusy] = useState<"save" | "next" | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const activeItem = NAV.find((item) => item.href === activePath) ?? NAV[0]!;
+  const activeItem = DASHBOARD_NAV.find((item) => item.href === activePath) ?? DASHBOARD_NAV[0]!;
   const ActiveIcon = activeItem.icon;
+  const activeIndex = DASHBOARD_NAV.findIndex((item) => item.href === activePath);
+  const nextItem =
+    activeIndex >= 0 ? DASHBOARD_NAV[activeIndex + 1] : DASHBOARD_NAV[1];
+  const showSave = activePath !== "/business/dashboard/subscription";
+  const hasListing = hasPersistedListing(workspace.profile.businessId);
+
+  async function onSave() {
+    if (!dirty && saveStatus !== "error" && saveStatus !== "offline") return;
+    setSectionBusy("save");
+    try {
+      await saveNow();
+    } finally {
+      setSectionBusy(null);
+    }
+  }
+
+  async function onNext() {
+    if (!nextItem) return;
+    setSectionBusy("next");
+    try {
+      let saveSucceeded = true;
+      if (dirty) {
+        saveSucceeded = await saveNow();
+      }
+      if (
+        !shouldAdvanceAfterSave({
+          dirty,
+          saveSucceeded,
+          hasListing,
+        })
+      ) {
+        return;
+      }
+      router.push(nextItem.href);
+    } finally {
+      setSectionBusy(null);
+    }
+  }
 
   return (
     <div className="relative flex-1 overflow-x-clip">
@@ -117,7 +170,7 @@ export function DashboardShell({
                   aria-label="Business dashboard mobile"
                 >
                   <ul className="space-y-1">
-                    {NAV.map(({ href, label, icon: Icon }) => {
+                    {DASHBOARD_NAV.map(({ href, label, icon: Icon }) => {
                       const active = activePath === href;
                       return (
                         <li key={href}>
@@ -173,7 +226,7 @@ export function DashboardShell({
               className="max-h-[70vh] space-y-0.5 overflow-y-auto p-2"
               aria-label="Business dashboard"
             >
-              {NAV.map(({ href, label, icon: Icon }) => {
+              {DASHBOARD_NAV.map(({ href, label, icon: Icon }) => {
                 const active = activePath === href;
                 return (
                   <Link
@@ -230,7 +283,9 @@ export function DashboardShell({
                 {!hydrated || saveStatus === "loading"
                   ? "Loading…"
                   : saveStatus === "idle"
-                    ? "Changes waiting to save…"
+                    ? dirty
+                      ? "Unsaved changes"
+                      : "Ready"
                     : saveStatus === "saving"
                       ? "Saving…"
                       : saveStatus === "saved"
@@ -239,7 +294,7 @@ export function DashboardShell({
                           : "All changes saved"
                         : saveStatus === "offline"
                           ? "Offline · saved on this device"
-                          : "Changes not saved to server"}
+                          : "Couldn’t save"}
               </p>
               {(saveStatus === "error" || saveStatus === "offline") && saveError ? (
                 <div className="mt-1 flex items-center justify-end gap-2">
@@ -265,7 +320,54 @@ export function DashboardShell({
               <Skeleton className="h-48 w-full rounded-2xl" />
             </div>
           ) : (
-            children
+            <>
+              {children}
+              <div className="border-border/70 bg-card flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-muted-foreground text-sm">
+                    {showSave
+                      ? "Save this section when you’re ready, then continue."
+                      : "Continue to the next section."}
+                  </p>
+                  {saveError ? (
+                    <p role="alert" className="text-destructive mt-1 text-sm">
+                      {saveError}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {showSave ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      disabled={sectionBusy !== null || saveStatus === "saving"}
+                      onClick={() => void onSave()}
+                    >
+                      {sectionBusy === "save" || saveStatus === "saving"
+                        ? "Saving…"
+                        : dirty
+                          ? "Save"
+                          : "Saved"}
+                    </Button>
+                  ) : null}
+                  {nextItem ? (
+                    <Button
+                      type="button"
+                      className="min-h-11"
+                      disabled={sectionBusy !== null || saveStatus === "saving"}
+                      onClick={() => void onNext()}
+                    >
+                      {sectionBusy === "next"
+                        ? dirty
+                          ? "Saving…"
+                          : "Opening…"
+                        : `Next: ${nextItem.label}`}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </>
           )}
         </section>
       </main>

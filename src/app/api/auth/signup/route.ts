@@ -1,12 +1,9 @@
 import type { NextRequest } from "next/server";
 import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
-import { hasServiceRoleKey, hasSupabaseConfig } from "@/config/env";
-import { createLogger } from "@/lib/logging/logger";
+import { hasSupabaseConfig } from "@/config/env";
 import { rateLimit } from "@/lib/security/rate-limit";
-import { parseRegisterEmailUser, registerEmailUser } from "@/services/auth/register-user";
-
-const log = createLogger({ module: "auth-signup" });
+import { parseRegisterEmailUser } from "@/services/auth/register-user";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +15,10 @@ function clientIp(request: NextRequest) {
   );
 }
 
+/**
+ * Rate-limit signup, then let the browser `signUp` send the confirmation email.
+ * Do not admin-create users; that skipped email verification.
+ */
 export async function POST(request: NextRequest) {
   try {
     if (!hasSupabaseConfig()) {
@@ -27,13 +28,6 @@ export async function POST(request: NextRequest) {
         status: 503,
         expose: true,
       });
-    }
-
-    if (!hasServiceRoleKey()) {
-      log.warn("signup_missing_service_role", {
-        hint: "Client signUp will send confirmation email and can hit per-address rate limits.",
-      });
-      return jsonOk({ fallback: true });
     }
 
     const input = parseRegisterEmailUser(await request.json());
@@ -53,8 +47,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const result = await registerEmailUser(input);
-    return jsonOk(result);
+    return jsonOk({ fallback: true });
   } catch (error) {
     return jsonError(error);
   }

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { isFeatureEnabled } from "@/config/feature-flags";
-import { rateLimit } from "@/lib/security/rate-limit";
+import { rateLimit, SEARCH_RATE_LIMIT_MAX, SEARCH_RATE_LIMIT_WINDOW_MS, clientIpFromHeaders, searchRateLimitKey } from "@/lib/security/rate-limit";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
 import { searchQuerySchema } from "@/validations";
 import { searchWithPlacements } from "@/services/search/get-search-service";
@@ -24,12 +24,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      "anon";
+    const ip = clientIpFromHeaders(request.headers);
 
-    const limited = await rateLimit(`search:${ip}`, 60, 60_000);
+    const limited = await rateLimit(
+      searchRateLimitKey(ip),
+      SEARCH_RATE_LIMIT_MAX,
+      SEARCH_RATE_LIMIT_WINDOW_MS,
+    );
     if (!limited.allowed) {
       throw new AppError({
         message: "Too many requests",

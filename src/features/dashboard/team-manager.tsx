@@ -19,11 +19,12 @@ export function TeamManagerPage() {
   const { workspace, update } = useDashboard();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
   const [auditLog] = useState<OwnershipAuditEvent[]>([]);
 
   const actor = workspace.team.find((t) => t.role === "OWNER");
 
-  function invite() {
+  async function invite() {
     setError(null);
     const trimmed = email.trim().toLowerCase();
     if (!trimmed.includes("@")) {
@@ -35,7 +36,6 @@ export function TeamManagerPage() {
       return;
     }
 
-    // Server-side equivalent enforced in /api/business/team
     const allowed = canManageBusiness({
       userId: actor?.id ?? "owner",
       roles: ["BUSINESS_OWNER"],
@@ -50,35 +50,41 @@ export function TeamManagerPage() {
       return;
     }
 
-    const member: TeamMember = {
-      id: crypto.randomUUID(),
-      email: trimmed,
-      displayName: trimmed.split("@")[0] ?? "Staff",
-      role: "STAFF",
-      permissions: ["manage_profile"],
-      status: "invited",
-      invitedAt: new Date().toISOString(),
-    };
+    setPending(true);
+    try {
+      const response = await fetch("/api/business/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "invite",
+          businessId: workspace.profile.businessId,
+          email: trimmed,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        member?: TeamMember;
+      };
+      if (!response.ok || !body.member) {
+        setError(body.error ?? "Couldn’t send that invite.");
+        return;
+      }
 
-    recordOwnershipChange(auditLog, {
-      action: "member_added",
-      businessId: workspace.profile.businessId,
-      actorId: actor?.id ?? "owner",
-      subjectUserId: member.id,
-      toRole: "STAFF",
-    });
-
-    update((w) => ({ ...w, team: [...w.team, member] }));
-    setEmail("");
-    void fetch("/api/business/team", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "invite",
+      recordOwnershipChange(auditLog, {
+        action: "member_added",
         businessId: workspace.profile.businessId,
-        email: trimmed,
-      }),
-    }).catch(() => undefined);
+        actorId: actor?.id ?? "owner",
+        subjectUserId: body.member.id,
+        toRole: "STAFF",
+      });
+
+      update((w) => ({ ...w, team: [...w.team, body.member!] }));
+      setEmail("");
+    } catch {
+      setError("Couldn’t send that invite.");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function removeMember(id: string) {
@@ -156,8 +162,8 @@ export function TeamManagerPage() {
             placeholder="chef@example.com"
             className="min-h-11"
           />
-          <Button type="button" className="min-h-11" onClick={invite}>
-            Send invite
+          <Button type="button" className="min-h-11" onClick={() => void invite()} disabled={pending}>
+            {pending ? "Sending…" : "Send invite"}
           </Button>
         </div>
         {error ? (
@@ -166,7 +172,8 @@ export function TeamManagerPage() {
           </p>
         ) : (
           <p className="text-muted-foreground mt-2 text-xs">
-            Staff get manage_profile by default. Only owners can invite or remove.
+            They need an ApnaPick account first. Staff get manage_profile by default.
+            Only owners can invite or remove.
           </p>
         )}
       </div>

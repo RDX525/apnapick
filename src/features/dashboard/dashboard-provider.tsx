@@ -18,16 +18,19 @@ import {
   saveWorkspaceToStorage,
   scoreWorkspaceCompleteness,
 } from "@/services/dashboard/workspace";
+import { hasPersistedListing } from "@/features/dashboard/section-nav";
 
 type DashboardContextValue = {
   workspace: DashboardWorkspace;
   insights: ReturnType<typeof buildDashboardInsights>;
   hydrated: boolean;
+  dirty: boolean;
   update: (mutator: (prev: DashboardWorkspace) => DashboardWorkspace) => void;
   replace: (next: DashboardWorkspace) => void;
   saveStatus: "loading" | "idle" | "saving" | "saved" | "error" | "offline";
   saveError: string | null;
   saveQueuedForReview: boolean;
+  saveNow: () => Promise<boolean>;
   retrySave: () => void;
 };
 
@@ -57,15 +60,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     createEmptyWorkspace(),
   );
   const [hydrated, setHydrated] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [saveStatus, setSaveStatus] =
     useState<DashboardContextValue["saveStatus"]>("loading");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveQueuedForReview, setSaveQueuedForReview] = useState(false);
-  const skipInitialPersist = useRef(true);
-  const skipNextPersist = useRef(false);
-  const requestSequence = useRef(0);
   const activeController = useRef<AbortController | null>(null);
   const latestWorkspace = useRef(workspace);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,11 +77,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const local = isUsableLocalWorkspace(saved) ? saved : null;
 
       try {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12_000);
         const response = await fetch("/api/business/workspace", {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-store",
-        });
+          signal: controller.signal,
+        }).finally(() => window.clearTimeout(timeout));
         if (!response.ok) {
           throw new Error("Couldn’t load listing");
         }
@@ -107,6 +112,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
 
       if (!cancelled) {
+        setDirty(false);
+        dirtyRef.current = false;
         setHydrated(true);
         setSaveStatus("saved");
       }
@@ -128,137 +135,119 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const saveToServer = useCallback(
-    async (next: DashboardWorkspace, sequence: number, controller: AbortController) => {
-      if (!navigator.onLine) {
-        if (sequence === requestSequence.current) {
-          setSaveStatus("offline");
-          setSaveError("You’re offline. Changes are safe on this device.");
-        }
-        return;
-      }
+  const saveToServer = useCallback(async (next: DashboardWorkspace) => {
+    if (!hasPersistedListing(next.profile.businessId)) {
+      setSaveStatus("error");
+      setSaveError(
+        "No listing is loaded yet. Finish onboarding, then save this section.",
+      );
+      return false;
+    }
 
-      setSaveStatus("saving");
-      setSaveError(null);
-      try {
-        const response = await fetch("/api/business/workspace", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workspace: next }),
-          signal: controller.signal,
-        });
-        const body = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          persisted?: boolean;
-          queuedForReview?: boolean;
-          status?: DashboardWorkspace["profile"]["status"];
-          completeness?: number;
-        };
-        if (!response.ok) {
-          throw new Error(body.error ?? "Couldn’t save changes.");
-        }
-        if (sequence === requestSequence.current) {
-          setSaveStatus("saved");
-          setSaveError(null);
-          setSaveQueuedForReview(Boolean(body.queuedForReview));
-          const current = latestWorkspace.current;
-          const nextStatus = body.status ?? current.profile.status;
-          const nextCompleteness = body.completeness ?? current.profile.completeness;
-          const nextOwnerEditPending =
-            nextStatus === "PUBLISHED" && Boolean(body.queuedForReview);
-          if (
-            nextStatus !== current.profile.status ||
-            nextOwnerEditPending !== current.profile.ownerEditPending ||
-            nextCompleteness !== current.profile.completeness
-          ) {
-            skipNextPersist.current = true;
-            const patched = {
-              ...current,
-              profile: {
-                ...current.profile,
-                status: nextStatus,
-                completeness: nextCompleteness,
-                ownerEditPending: nextOwnerEditPending,
-              },
-            };
-            applyWorkspace(patched, setWorkspace, latestWorkspace);
-            saveWorkspaceToStorage(patched);
-          }
-        }
-      } catch (err) {
-        if (controller.signal.aborted || sequence !== requestSequence.current) {
-          return;
-        }
-        setSaveStatus(navigator.onLine ? "error" : "offline");
-        setSaveError(
-          navigator.onLine
-            ? err instanceof Error
-              ? err.message
-              : "Couldn’t save changes."
-            : "You’re offline. Changes are safe on this device.",
-        );
-      }
-    },
-    [],
-  );
+    if (!navigator.onLine) {
+      setSaveStatus("offline");
+      setSaveError("You’re offline. Changes are safe on this device.");
+      return false;
+    }
 
-  const retrySave = useCallback(() => {
     activeController.current?.abort();
     const controller = new AbortController();
     activeController.current = controller;
-    const sequence = ++requestSequence.current;
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
+
+    setSaveStatus("saving");
+    setSaveError(null);
+    try {
+      const response = await fetch("/api/business/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace: next }),
+        signal: controller.signal,
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        persisted?: boolean;
+        queuedForReview?: boolean;
+        status?: DashboardWorkspace["profile"]["status"];
+        completeness?: number;
+      };
+      if (!response.ok) {
+        throw new Error(body.error ?? "Couldn’t save changes.");
+      }
+      if (body.persisted === false) {
+        setSaveStatus("error");
+        setSaveError(
+          "Changes stayed on this device. Sign in again to save them to the server.",
+        );
+        return false;
+      }
+
+      setSaveStatus("saved");
+      setSaveError(null);
+      setDirty(false);
+      dirtyRef.current = false;
+      setSaveQueuedForReview(Boolean(body.queuedForReview));
+      const current = latestWorkspace.current;
+      const nextStatus = body.status ?? current.profile.status;
+      const nextCompleteness = body.completeness ?? current.profile.completeness;
+      const nextOwnerEditPending =
+        nextStatus === "PUBLISHED" && Boolean(body.queuedForReview);
+      if (
+        nextStatus !== current.profile.status ||
+        nextOwnerEditPending !== current.profile.ownerEditPending ||
+        nextCompleteness !== current.profile.completeness
+      ) {
+        const patched = {
+          ...current,
+          profile: {
+            ...current.profile,
+            status: nextStatus,
+            completeness: nextCompleteness,
+            ownerEditPending: nextOwnerEditPending,
+          },
+        };
+        applyWorkspace(patched, setWorkspace, latestWorkspace);
+        saveWorkspaceToStorage(patched);
+      }
+      return true;
+    } catch (err) {
+      const superseded = activeController.current !== controller;
+      if (controller.signal.aborted && superseded) return false;
+      setSaveStatus(navigator.onLine ? "error" : "offline");
+      setSaveError(
+        !navigator.onLine
+          ? "You’re offline. Changes are safe on this device."
+          : controller.signal.aborted
+            ? "Saving took too long. Try again."
+            : err instanceof Error
+              ? err.message
+              : "Couldn’t save changes.",
+      );
+      return false;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }, []);
+
+  const saveNow = useCallback(async () => {
     const next = {
       ...latestWorkspace.current,
       updatedAt: new Date().toISOString(),
     };
+    latestWorkspace.current = next;
     saveWorkspaceToStorage(next);
-    void saveToServer(next, sequence, controller);
+    return saveToServer(next);
   }, [saveToServer]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (skipInitialPersist.current) {
-      skipInitialPersist.current = false;
-      return;
-    }
-    if (skipNextPersist.current) {
-      skipNextPersist.current = false;
-      return;
-    }
-
-    const controller = new AbortController();
-    activeController.current?.abort();
-    activeController.current = controller;
-    const sequence = ++requestSequence.current;
-    const scored = {
-      ...workspace,
-      updatedAt: new Date().toISOString(),
-    };
-    latestWorkspace.current = scored;
-    setSaveStatus(navigator.onLine ? "idle" : "offline");
-    setSaveError(
-      navigator.onLine ? null : "You’re offline. Changes are safe on this device.",
-    );
-
-    const timeout = window.setTimeout(() => {
-      saveWorkspaceToStorage(scored);
-      void saveToServer(scored, sequence, controller);
-    }, 350);
-
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [hydrated, saveToServer, workspace]);
 
   useEffect(() => {
     const handleOffline = () => {
       activeController.current?.abort();
-      requestSequence.current += 1;
       setSaveStatus("offline");
       setSaveError("You’re offline. Changes are safe on this device.");
     };
-    const handleOnline = () => retrySave();
+    const handleOnline = () => {
+      if (dirty) setSaveStatus("idle");
+    };
     window.addEventListener("offline", handleOffline);
     window.addEventListener("online", handleOnline);
     return () => {
@@ -266,18 +255,45 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", handleOnline);
       activeController.current?.abort();
     };
-  }, [retrySave]);
+  }, [dirty]);
+
+  useEffect(() => {
+    const onLeave = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, []);
 
   const update = useCallback(
     (mutator: (prev: DashboardWorkspace) => DashboardWorkspace) => {
-      setWorkspace((prev) => prepare(mutator(prev)));
+      setWorkspace((prev) => {
+        const next = prepare(mutator(prev));
+        latestWorkspace.current = next;
+        saveWorkspaceToStorage(next);
+        return next;
+      });
+      setDirty(true);
+      dirtyRef.current = true;
+      setSaveStatus(navigator.onLine ? "idle" : "offline");
+      setSaveError(
+        navigator.onLine ? null : "You’re offline. Changes are safe on this device.",
+      );
     },
     [prepare],
   );
 
   const replace = useCallback(
     (next: DashboardWorkspace) => {
-      setWorkspace(prepare(next));
+      const prepared = prepare(next);
+      latestWorkspace.current = prepared;
+      saveWorkspaceToStorage(prepared);
+      setWorkspace(prepared);
+      setDirty(true);
+      dirtyRef.current = true;
+      setSaveStatus("idle");
     },
     [prepare],
   );
@@ -289,23 +305,28 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       workspace,
       insights,
       hydrated,
+      dirty,
       update,
       replace,
       saveStatus,
       saveError,
       saveQueuedForReview,
-      retrySave,
+      saveNow,
+      retrySave: () => {
+        void saveNow();
+      },
     }),
     [
       workspace,
       insights,
       hydrated,
+      dirty,
       update,
       replace,
       saveStatus,
       saveError,
       saveQueuedForReview,
-      retrySave,
+      saveNow,
     ],
   );
 

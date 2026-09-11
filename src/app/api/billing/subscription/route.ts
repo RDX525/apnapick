@@ -30,23 +30,30 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      const { data: membership } = await supabase
-        .from("business_members")
-        .select("role")
-        .eq("business_id", businessId)
-        .eq("user_id", user.id)
-        .maybeSingle();
+    if (!supabase) {
+      throw new AppError({
+        message: "Billing requires a database session",
+        code: "BILLING_NOT_CONFIGURED",
+        status: 503,
+        expose: true,
+      });
+    }
 
-      const isAdmin = user.roles.some((r) => r === "ADMIN" || r === "SUPER_ADMIN");
-      if (!membership && !isAdmin) {
-        throw new AppError({
-          message: "Not a member of this business",
-          code: "FORBIDDEN",
-          status: 403,
-          expose: true,
-        });
-      }
+    const { data: membership } = await supabase
+      .from("business_members")
+      .select("role")
+      .eq("business_id", businessId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const isAdmin = user.roles.some((r) => r === "ADMIN" || r === "SUPER_ADMIN");
+    if (!membership && !isAdmin) {
+      throw new AppError({
+        message: "Not a member of this business",
+        code: "FORBIDDEN",
+        status: 403,
+        expose: true,
+      });
     }
 
     const entitlements = await getBusinessEntitlements(businessId);

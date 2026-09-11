@@ -175,6 +175,7 @@ function DesktopDiscoveryMock() {
                 alt=""
                 sizes="28rem"
                 quality={85}
+                priority
                 className="transition duration-700 group-hover:scale-105"
               />
               <div

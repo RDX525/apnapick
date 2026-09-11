@@ -4,7 +4,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
-import { createCheckoutForBusiness } from "@/services/billing/checkout-service";
+import { createCheckoutForBusiness, assertPaidBillingEnabled } from "@/services/billing/checkout-service";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { hasSupabaseConfig } from "@/config/env";
 
@@ -17,10 +17,11 @@ const bodySchema = z.object({
 
 /**
  * Creates a Checkout session URL. Client redirects — does NOT activate the plan.
- * Activation happens only via Stripe webhooks.
+ * Activation happens only via Razorpay webhooks.
  */
 export async function POST(request: NextRequest) {
   try {
+    assertPaidBillingEnabled();
     const user = await getSessionUser();
     if (!user) {
       throw new AppError({

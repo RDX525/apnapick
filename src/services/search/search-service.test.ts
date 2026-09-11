@@ -183,6 +183,29 @@ describe("SearchService integration (demo catalog)", () => {
   });
 });
 
+describe("SearchService retrieve window", () => {
+  it("asks the engine for a large enough ranked window, not SQL offset", async () => {
+    const base = new InMemorySearchRepository();
+    let seen: { limit?: number; offset?: number } = {};
+    const engine: SearchEngine = {
+      name: "limit-probe",
+      async retrieve(query, context) {
+        seen = { limit: context?.limit, offset: context?.offset };
+        return base.retrieve(query, context);
+      },
+    };
+    const service = new SearchService(engine);
+    await service.search({
+      query: "restaurant near me",
+      location: { lat: 18.5204, lng: 73.8567, radiusM: 50000 },
+      page: 5,
+      pageSize: 20,
+    });
+    expect(seen.limit).toBe(100);
+    expect(seen.offset).toBe(0);
+  });
+});
+
 describe("Ranking weights", () => {
   it("exposes configurable weights without paid fields", () => {
     const ranking = new RankingService(DEFAULT_RANKING_WEIGHTS);

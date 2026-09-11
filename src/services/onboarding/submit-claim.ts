@@ -52,10 +52,10 @@ function asClaimRow(data: unknown): ClaimSubmitResult | null {
   };
 }
 
-function evidenceFromPayload(payload: OnboardingDraftPayload) {
+function evidenceFromPayload(payload: { name?: string } & Record<string, unknown>) {
   return {
     source: "onboarding_wizard",
-    note: `Ownership claim for ${payload.name}`,
+    note: `Ownership claim for ${payload.name ?? "listing"}`,
     payload,
   };
 }
@@ -87,7 +87,7 @@ async function attachClaimDraft(
     businessId: string;
     claimId: string;
     status: string;
-    payload: OnboardingDraftPayload;
+    payload: Record<string, unknown>;
   },
 ) {
   const nextPayload = {
@@ -133,7 +133,7 @@ async function persistClaimWithAdmin(input: {
   userId: string;
   displayName?: string | null;
   businessId: string;
-  payload: OnboardingDraftPayload;
+  payload: Record<string, unknown> & { name?: string };
 }): Promise<ClaimSubmitResult> {
   const admin = createAdminClient();
   await ensureProfile(admin, input.userId, input.displayName);
@@ -215,7 +215,7 @@ async function persistClaimWithAdmin(input: {
       .from("business_claims")
       .update({
         evidence,
-        notes: `Submitted from listing wizard for ${input.payload.name}`,
+        notes: `Submitted from listing wizard for ${String(input.payload.name ?? "listing")}`,
       })
       .eq("id", claimId);
     if (error) throwClaimError(error.message);
@@ -227,7 +227,7 @@ async function persistClaimWithAdmin(input: {
         claimant_id: input.userId,
         status: "PENDING",
         evidence,
-        notes: `Submitted from listing wizard for ${input.payload.name}`,
+        notes: `Submitted from listing wizard for ${String(input.payload.name ?? "listing")}`,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       })
       .select("id, status")
@@ -289,13 +289,9 @@ export async function persistBusinessClaim(input: {
   userId: string;
   displayName?: string | null;
   businessId: string;
-  payload: OnboardingDraftPayload;
+  payload: Record<string, unknown>;
   userClient: UserClient;
 }): Promise<ClaimSubmitResult> {
-  if (hasServiceRoleKey()) {
-    return persistClaimWithAdmin(input);
-  }
-
   const { data, error } = await input.userClient.rpc("submit_business_claim", {
     p_business_id: input.businessId,
     p_payload: input.payload,
@@ -327,6 +323,14 @@ export async function persistBusinessClaim(input: {
     };
   }
   if (isMissingRpcError(error.message)) {
+    if (process.env.NODE_ENV === "production") {
+      throwClaimError(
+        "Claim submission isn’t available on this database yet. Apply the latest migrations.",
+      );
+    }
+    if (hasServiceRoleKey()) {
+      return persistClaimWithAdmin(input);
+    }
     throwClaimError(
       "Claim submission isn’t available on this database yet. Apply the latest migrations, or set the service role key.",
     );

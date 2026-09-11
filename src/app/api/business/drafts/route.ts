@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { requireWritableDatabase } from "@/lib/db/require-writable-db";
 import { createEmptyDraft } from "@/domain/onboarding/types";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { saveActiveOnboardingDraft } from "@/services/onboarding/active-draft";
@@ -71,10 +72,10 @@ export async function PUT(request: NextRequest) {
     const draft = body.draft ?? createEmptyDraft();
     const stepIndex = Math.max(0, Math.min(8, Number(body.stepIndex ?? 0)));
 
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return jsonOk({ ok: true, persisted: false });
-    }
+    const supabase = requireWritableDatabase(
+      await createServerSupabaseClient(),
+      "Draft save",
+    );
 
     const error = await saveActiveOnboardingDraft(supabase, {
       userId: user.id,

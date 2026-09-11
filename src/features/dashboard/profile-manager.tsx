@@ -230,7 +230,8 @@ export function ProfileManagerPage() {
           address={[p.addressLine1, p.suburb, p.city].filter(Boolean).join(", ")}
           lat={p.lat}
           lng={p.lng}
-          onSelect={(result) =>
+          onSelect={(result) => {
+            if (p.lat === result.position.lat && p.lng === result.position.lng) return;
             update((w) => ({
               ...w,
               profile: {
@@ -238,8 +239,8 @@ export function ProfileManagerPage() {
                 lat: result.position.lat,
                 lng: result.position.lng,
               },
-            }))
-          }
+            }));
+          }}
         />
       </div>
     </DashboardShell>

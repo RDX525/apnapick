@@ -12,7 +12,7 @@ import type {
 } from "@/integrations/payments/types";
 
 /**
- * Local/dev provider when Stripe keys are absent.
+ * Local/dev provider when Razorpay keys are absent.
  * Still never activates subscriptions from the client — webhook path required.
  */
 export class StubPaymentProvider implements PaymentProvider {
@@ -42,6 +42,7 @@ export class StubPaymentProvider implements PaymentProvider {
   async constructWebhookEvent(
     payload: string | Buffer,
     signatureHeader: string,
+    eventIdHeader?: string | null,
   ): Promise<VerifiedWebhookEvent> {
     if (signatureHeader !== "stub" && !signatureHeader.startsWith("stub_")) {
       throw new AppError({
@@ -66,21 +67,51 @@ export class StubPaymentProvider implements PaymentProvider {
     }
 
     const id =
-      typeof parsed.id === "string"
-        ? parsed.id
-        : `stub_evt_${createHash("sha256").update(rawText).digest("hex").slice(0, 24)}`;
+      (eventIdHeader && eventIdHeader.trim()) ||
+      (typeof parsed.id === "string" ? parsed.id : null) ||
+      `stub_evt_${createHash("sha256").update(rawText).digest("hex").slice(0, 24)}`;
 
     const type =
-      typeof parsed.type === "string" ? parsed.type : "customer.subscription.updated";
+      typeof parsed.event === "string"
+        ? parsed.event
+        : typeof parsed.type === "string"
+          ? parsed.type
+          : "subscription.activated";
+
+    const payloadBody =
+      parsed.payload && typeof parsed.payload === "object"
+        ? (parsed.payload as Record<string, unknown>)
+        : null;
+    const razorpayEntity = (key: string): Record<string, unknown> | null => {
+      if (!payloadBody) return null;
+      const wrapper = payloadBody[key];
+      if (!wrapper || typeof wrapper !== "object") return null;
+      const entity = (wrapper as { entity?: unknown }).entity;
+      if (entity && typeof entity === "object") return entity as Record<string, unknown>;
+      return null;
+    };
+    const subscription = razorpayEntity("subscription");
+    const payment = razorpayEntity("payment");
+    const invoice = razorpayEntity("invoice");
 
     const dataObject =
-      parsed.data &&
+      subscription ??
+      payment ??
+      invoice ??
+      (parsed.data &&
       typeof parsed.data === "object" &&
       "object" in (parsed.data as object)
         ? ((parsed.data as { object: Record<string, unknown> }).object ?? {})
         : typeof parsed.object === "object" && parsed.object
           ? (parsed.object as Record<string, unknown>)
-          : {};
+          : {});
+
+    if (subscription && payment) {
+      (dataObject as Record<string, unknown>).payment = payment;
+    }
+    if (subscription && invoice) {
+      (dataObject as Record<string, unknown>).invoice = invoice;
+    }
 
     return {
       id,

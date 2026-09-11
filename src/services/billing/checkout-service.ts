@@ -7,9 +7,19 @@ import type { PaidPlanCode } from "@/integrations/payments/types";
 import {
   getActiveSubscription,
   getPlanByCode,
-  resolvePriceId,
+  resolveExternalPlanId,
 } from "@/services/billing/subscription-service";
-import { isPlanCode } from "@/config/billing-plans";
+import { isPlanCode, BILLING_CHECKOUT_ENABLED } from "@/config/billing-plans";
+
+export function assertPaidBillingEnabled() {
+  if (BILLING_CHECKOUT_ENABLED) return;
+  throw new AppError({
+    message: "Paid plans are coming soon.",
+    code: "BILLING_COMING_SOON",
+    status: 503,
+    expose: true,
+  });
+}
 
 /**
  * Start Checkout. Client must redirect to returned URL.
@@ -22,6 +32,7 @@ export async function createCheckoutForBusiness(input: {
   successPath?: string;
   cancelPath?: string;
 }) {
+  assertPaidBillingEnabled();
   if (!isPlanCode(input.planCode) || input.planCode === "free") {
     throw new AppError({
       message: "Select Premium or Business to checkout",
@@ -41,13 +52,13 @@ export async function createCheckoutForBusiness(input: {
     });
   }
 
-  const priceId = resolvePriceId(plan);
+  const priceId = resolveExternalPlanId(plan);
   const provider = getPaymentProvider();
 
-  if (provider.id === "stripe" && !priceId) {
+  if (provider.id === "razorpay" && !priceId) {
     throw new AppError({
       message:
-        "Stripe price is not configured for this plan (plans.external_price_id or STRIPE_PRICE_*)",
+        "Razorpay plan is not configured for this listing plan (plans.external_price_id or RAZORPAY_PLAN_*)",
       code: "BILLING_PRICE_MISSING",
       status: 503,
       expose: true,
@@ -73,7 +84,7 @@ export async function createCheckoutForBusiness(input: {
     expectedInterval: plan.interval,
     customerEmail: input.customerEmail,
     externalCustomerId: existing?.externalCustomerId,
-    successUrl: `${base}${successPath}${successPath.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: `${base}${successPath}`,
     cancelUrl: `${base}${cancelPath}`,
     metadata: { business_id: input.businessId, plan_code: plan.code },
   });
@@ -91,6 +102,7 @@ export async function createBillingPortalForBusiness(input: {
   businessId: string;
   returnPath?: string;
 }) {
+  assertPaidBillingEnabled();
   const sub = await getActiveSubscription(input.businessId);
   if (!sub?.externalCustomerId) {
     throw new AppError({

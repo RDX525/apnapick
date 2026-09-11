@@ -8,6 +8,7 @@ import { getVerificationProvider } from "@/integrations/verification/provider";
 import { hasPermission } from "@/lib/auth/permissions";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { persistBusinessClaim } from "@/services/onboarding/submit-claim";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,14 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServerSupabaseClient();
     if (!supabase) {
-      // Offline: return synthetic claim for UI continuity
+      if (process.env.NODE_ENV === "production") {
+        throw new AppError({
+          message: "Claim submission is unavailable",
+          code: "CLAIM_UNAVAILABLE",
+          status: 503,
+          expose: true,
+        });
+      }
       const claimId = crypto.randomUUID();
       const session = await getVerificationProvider("manual_document").start({
         claimId,
@@ -81,57 +89,45 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { data, error } = await supabase
-      .from("business_claims")
-      .insert({
-        business_id: parsed.data.businessId,
-        claimant_id: user.id,
-        status: "PENDING",
+    const claim = await persistBusinessClaim({
+      userId: user.id,
+      displayName: user.displayName,
+      businessId: parsed.data.businessId,
+      payload: {
+        mode: "claim",
+        claimBusinessId: parsed.data.businessId,
+        name: parsed.data.notes?.trim() || "Ownership claim",
+        description: "",
+        categorySlug: "",
+        notes: parsed.data.notes ?? "",
         evidence: parsed.data.evidence ?? {},
-        notes: parsed.data.notes ?? null,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      .select("id, status, business_id")
-      .maybeSingle();
+      },
+      userClient: supabase,
+    });
 
-    if (error) {
-      throw new AppError({
-        message: error.message,
-        code: "CLAIM_CREATE_FAILED",
-        status: 400,
-        expose: true,
+    if (claim.alreadyMember) {
+      return jsonOk({
+        claim: {
+          id: claim.claimId,
+          businessId: claim.businessId,
+          status: claim.status,
+        },
+        alreadyMember: true,
+        persisted: true,
       });
     }
 
-    const claimId = data!.id as string;
     const session = await getVerificationProvider("manual_document").start({
-      claimId,
+      claimId: claim.claimId,
       businessId: parsed.data.businessId,
       userId: user.id,
     });
 
-    await supabase.from("verification_events").insert({
-      claim_id: claimId,
-      provider: session.provider,
-      event_type: "started",
-      external_session_id: session.sessionId,
-      payload: { message: session.message },
-      created_by: user.id,
-    });
-
-    await supabase.from("audit_logs").insert({
-      actor_id: user.id,
-      action: "claim_created",
-      entity_type: "business_claim",
-      entity_id: claimId,
-      new_data: { businessId: parsed.data.businessId },
-    });
-
     return jsonOk({
       claim: {
-        id: claimId,
-        businessId: parsed.data.businessId,
-        status: data!.status,
+        id: claim.claimId,
+        businessId: claim.businessId,
+        status: claim.status,
         verificationSession: session,
       },
       persisted: true,

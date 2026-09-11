@@ -15,6 +15,7 @@ import {
   resolveOnboardingCategorySlug,
 } from "@/services/onboarding/submit-payload";
 import { persistBusinessClaim } from "@/services/onboarding/submit-claim";
+import { requireWritableDatabase } from "@/lib/db/require-writable-db";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ function assertDatabaseWrite(
     code,
     status: 400,
     expose: true,
-    details: error.message,
+    cause: error,
   });
 }
 
@@ -93,18 +94,16 @@ export async function POST(request: NextRequest) {
 
     const score = completenessScore(draft);
     const user = await getSessionUser();
-    const supabase = await createServerSupabaseClient();
 
-    if (!user && hasSupabaseConfig()) {
-      throw new AppError({
-        message: "Log in before submitting your business for approval.",
-        code: "UNAUTHORIZED",
-        status: 401,
-        expose: true,
-      });
-    }
-
-    if (!user || !supabase) {
+    if (!user) {
+      if (hasSupabaseConfig()) {
+        throw new AppError({
+          message: "Log in before submitting your business for approval.",
+          code: "UNAUTHORIZED",
+          status: 401,
+          expose: true,
+        });
+      }
       return jsonOk({
         ok: true,
         status: "PENDING_REVIEW",
@@ -114,6 +113,11 @@ export async function POST(request: NextRequest) {
           "Submission recorded locally. Log in with Supabase to persist for admin review.",
       });
     }
+
+    const supabase = requireWritableDatabase(
+      await createServerSupabaseClient(),
+      "Listing submission",
+    );
 
     const categorySlugs = await ensureOwnerCategoriesExist(
       await loadActiveCategorySlugs(supabase),

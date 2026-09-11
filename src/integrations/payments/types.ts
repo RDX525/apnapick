@@ -1,6 +1,6 @@
 /**
  * Payment provider abstraction.
- * Product code must never import Stripe SDK types directly outside integrations/payments.
+ * Product code must never import Razorpay SDK types outside integrations/payments.
  */
 
 export type PaidPlanCode = "premium" | "business";
@@ -8,7 +8,7 @@ export type PaidPlanCode = "premium" | "business";
 export type CheckoutSessionInput = {
   businessId: string;
   planCode: PaidPlanCode;
-  /** Stripe Price id — from plans.external_price_id or env map */
+  /** Razorpay Plan id — from plans.external_price_id or env map */
   priceId: string;
   expectedAmountCents: number;
   expectedCurrency: string;
@@ -40,14 +40,14 @@ export type BillingPortalResult = {
 export type VerifiedWebhookEvent = {
   id: string;
   type: string;
-  /** Provider object payload (subscription, invoice, checkout session, …) */
+  /** Provider object payload (subscription, invoice, payment, …) */
   dataObject: Record<string, unknown>;
   created: number;
   livemode: boolean;
   raw: unknown;
 };
 
-export type PaymentProviderId = "stripe" | "stub";
+export type PaymentProviderId = "razorpay" | "stub";
 
 export interface PaymentProvider {
   readonly id: PaymentProviderId;
@@ -60,5 +60,6 @@ export interface PaymentProvider {
   constructWebhookEvent(
     payload: string | Buffer,
     signatureHeader: string,
+    eventIdHeader?: string | null,
   ): Promise<VerifiedWebhookEvent>;
 }

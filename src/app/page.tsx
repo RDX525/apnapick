@@ -312,8 +312,8 @@ export default async function HomePage() {
               Own a local business?
             </h2>
             <p className="text-muted-foreground relative mt-3 max-w-xl">
-              Claim your profile, add the dishes and services people search for, and show
-              up when intent matches what you offer.
+              Create an account, list the business, then manage it from your dashboard.
+              Customers see you when their search matches what you actually offer.
             </p>
             <Button asChild className="ap-cta-glow relative mt-8 min-h-11 px-6" size="lg">
               <Link href="/business/onboarding">List your business</Link>

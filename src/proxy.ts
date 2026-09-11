@@ -20,11 +20,11 @@ export async function proxy(request: NextRequest) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}`,
+      `script-src 'self' 'unsafe-inline' https://checkout.razorpay.com${development ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${localSupabase} https://nominatim.openstreetmap.org https://tile.openstreetmap.org`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${localSupabase} https://nominatim.openstreetmap.org https://tile.openstreetmap.org https://*.razorpay.com https://api.razorpay.com`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

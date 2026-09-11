@@ -26,6 +26,7 @@ Initial market: **Pune, Maharashtra, India**. Schema and services are market-agn
 | UI         | Tailwind CSS 4, shadcn/ui, Framer Motion   |
 | Data       | Supabase PostgreSQL + PostGIS              |
 | Auth       | Supabase Auth + server-side RBAC           |
+| Payments   | Razorpay (webhooks source of truth)        |
 | Storage    | Supabase Storage                           |
 | Validation | Zod                                        |
 | Forms      | React Hook Form                            |
@@ -131,9 +132,9 @@ src/
 
 | Route              | Purpose                                  |
 | ------------------ | ---------------------------------------- |
-| `/api/search`      | Search (rate-limited)                    |
-| `/api/geo/resolve` | Resolve place / reverse geocode contract |
-| `/api/health`      | Health                                   |
+| `/api/search`      | Search (rate-limited, including SSR `/search`) |
+| `/api/billing/webhooks/razorpay` | Razorpay billing webhooks     |
+| `/api/health`      | Liveness + Supabase ping (no feature flags) |
 
 Server Actions are preferred for mutations; route handlers for search and public JSON.
 
@@ -174,7 +175,6 @@ UI SearchBox
 
 ## Non-goals (v1)
 
-- Full payment processor integration (schema + stubs only)
 - External search engine (Elastic/Typesense) — interface ready
 - SMS verification provider — abstraction + manual/admin path
 - Multi-language UI

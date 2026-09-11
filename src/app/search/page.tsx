@@ -1,6 +1,14 @@
+import { headers } from "next/headers";
 import { SearchResultsView } from "@/features/consumer/search-results-view";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { sanitizeSearchQuery } from "@/lib/security/sanitize";
+import {
+  clientIpFromHeaders,
+  rateLimit,
+  SEARCH_RATE_LIMIT_MAX,
+  SEARCH_RATE_LIMIT_WINDOW_MS,
+  searchRateLimitKey,
+} from "@/lib/security/rate-limit";
 import { searchWithPlacements } from "@/services/search/get-search-service";
 import { SearchBox } from "@/components/search/search-box";
 import { BackLink } from "@/components/navigation/back-link";
@@ -52,6 +60,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <BackLink href="/" />
         <h1 className="font-display text-ink text-3xl">Search Pune</h1>
         <SearchBox />
+      </main>
+    );
+  }
+
+  const ip = clientIpFromHeaders(await headers());
+  const limited = await rateLimit(
+    searchRateLimitKey(ip),
+    SEARCH_RATE_LIMIT_MAX,
+    SEARCH_RATE_LIMIT_WINDOW_MS,
+  );
+  if (!limited.allowed) {
+    return (
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16">
+        <h1 className="font-display text-ink text-3xl">Too many searches</h1>
+        <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
+          Please wait a minute before searching again. This protects discovery
+          for everyone on ApnaPick.
+        </p>
+        <div className="mt-6">
+          <BackLink href="/" />
+        </div>
       </main>
     );
   }

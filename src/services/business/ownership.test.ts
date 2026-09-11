@@ -70,7 +70,7 @@ describe("ownership authorization", () => {
           businessId: "b1",
           userId: "s1",
           role: "STAFF",
-          permissions: ["manage_profile"],
+          permissions: { manage_profile: true },
         },
       }),
     ).toBe(true);

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { CheckCircle2, Plus, Trash2, Upload, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +40,7 @@ import { DEFAULT_CATEGORIES } from "@/config/consumer-content";
 import { AREA_CENTROIDS, DISCOVERY_AREA_SLUGS } from "@/config/geo-areas";
 import { cn } from "@/lib/utils";
 import { OnboardingLocationPicker } from "@/features/onboarding/location-picker";
+import { navigateAfterAuth } from "@/features/auth/auth-redirect";
 
 const LIVE_NEIGHBOURHOODS = DISCOVERY_AREA_SLUGS.map((slug) => ({
   slug,
@@ -74,7 +74,6 @@ function uid() {
 }
 
 export function OnboardingWizard({ userId = null }: { userId?: string | null }) {
-  const router = useRouter();
   const [step, setStep] = useState(0);
   const [maxStepReached, setMaxStepReached] = useState(0);
   const [draft, setDraft] = useState<OnboardingDraftPayload>(createEmptyDraft);
@@ -122,11 +121,7 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
 
   useEffect(() => {
     const q = findQuery.trim();
-    if (q.length < 2) {
-      setMatches([]);
-      setClaimSearchStatus("idle");
-      return;
-    }
+    if (q.length < 2) return;
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -152,6 +147,13 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
     };
   }, [findQuery]);
 
+  const claimQuery = findQuery.trim();
+  const claimMatches = useMemo(
+    () => (claimQuery.length < 2 ? [] : matches),
+    [claimQuery, matches],
+  );
+  const claimStatus = claimQuery.length < 2 ? "idle" : claimSearchStatus;
+
   const duplicates = useMemo(() => {
     if (draft.mode !== "create" || draft.name.trim().length < 3) return [];
     return findDuplicateCandidates(
@@ -165,9 +167,10 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
         lat: draft.lat,
         lng: draft.lng,
       },
-      toDupCatalog(matches),
+      toDupCatalog(claimMatches),
     );
   }, [
+    claimMatches,
     draft.addressLine1,
     draft.city,
     draft.lat,
@@ -177,7 +180,6 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
     draft.phone,
     draft.suburb,
     draft.website,
-    matches,
   ]);
 
   useEffect(() => {
@@ -563,7 +565,7 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
       setDraft(submittedDraft);
       saveLocalDraft(userId, submittedDraft, step);
       setSaveStatus("saved");
-      router.push("/business/dashboard?submitted=1");
+      navigateAfterAuth("/business/dashboard?submitted=1");
     } catch (err) {
       const message =
         err instanceof Error
@@ -631,7 +633,7 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
             ) : null}
           </div>
           <Button asChild variant="outline" size="sm" className="min-h-9">
-            <Link href="/business/dashboard">Save & exit</Link>
+            <Link href="/">Exit</Link>
           </Button>
         </div>
         <Progress
@@ -698,28 +700,28 @@ export function OnboardingWizard({ userId = null }: { userId?: string | null }) 
                   className="min-h-11"
                 />
               </div>
-              {claimSearchStatus === "idle" ? (
+              {claimStatus === "idle" ? (
                 <p className="text-muted-foreground text-sm">
                   Type your business name to check for an existing listing.
                 </p>
               ) : null}
-              {claimSearchStatus === "loading" ? (
+              {claimStatus === "loading" ? (
                 <p className="text-muted-foreground text-sm">
                   Searching published listings…
                 </p>
               ) : null}
-              {claimSearchStatus === "error" ? (
+              {claimStatus === "error" ? (
                 <p className="text-destructive text-sm">
                   Couldn’t load listings. Check your connection and try again.
                 </p>
               ) : null}
-              {claimSearchStatus === "ready" && matches.length === 0 ? (
+              {claimStatus === "ready" && claimMatches.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
                   No published matches yet. Create a new listing if this is your business.
                 </p>
               ) : null}
               <ul className="space-y-2">
-                {matches.map((b) => (
+                {claimMatches.map((b) => (
                   <li
                     key={b.id}
                     className="border-border/70 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"

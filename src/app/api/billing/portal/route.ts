@@ -4,7 +4,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
-import { createBillingPortalForBusiness } from "@/services/billing/checkout-service";
+import { createBillingPortalForBusiness, assertPaidBillingEnabled } from "@/services/billing/checkout-service";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertPaidBillingEnabled();
     const user = await getSessionUser();
     if (!user) {
       throw new AppError({
@@ -36,23 +37,30 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      const { data: membership } = await supabase
-        .from("business_members")
-        .select("role")
-        .eq("business_id", parsed.data.businessId)
-        .eq("user_id", user.id)
-        .maybeSingle();
+    if (!supabase) {
+      throw new AppError({
+        message: "Billing requires a database session",
+        code: "BILLING_NOT_CONFIGURED",
+        status: 503,
+        expose: true,
+      });
+    }
 
-      const isAdmin = user.roles.some((r) => r === "ADMIN" || r === "SUPER_ADMIN");
-      if (membership?.role !== "OWNER" && !isAdmin) {
-        throw new AppError({
-          message: "Only owners can manage billing",
-          code: "FORBIDDEN",
-          status: 403,
-          expose: true,
-        });
-      }
+    const { data: membership } = await supabase
+      .from("business_members")
+      .select("role")
+      .eq("business_id", parsed.data.businessId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const isAdmin = user.roles.some((r) => r === "ADMIN" || r === "SUPER_ADMIN");
+    if (membership?.role !== "OWNER" && !isAdmin) {
+      throw new AppError({
+        message: "Only owners can manage billing",
+        code: "FORBIDDEN",
+        status: 403,
+        expose: true,
+      });
     }
 
     const result = await createBillingPortalForBusiness({

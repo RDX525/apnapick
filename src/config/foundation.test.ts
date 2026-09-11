@@ -14,6 +14,7 @@ describe("env schemas", () => {
     const env = serverEnvSchema.parse({});
     expect(env.SEARCH_DEFAULT_RADIUS_M).toBe(8000);
     expect(env.LOG_LEVEL).toBe("info");
+    expect(env.SENTRY_DSN).toBeUndefined();
   });
 });
 

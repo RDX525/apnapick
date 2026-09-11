@@ -62,11 +62,32 @@ export class MemoryRateLimitStore implements RateLimitStore {
 
 const defaultStore = new MemoryRateLimitStore();
 
+export const SEARCH_RATE_LIMIT_MAX = 60;
+export const SEARCH_RATE_LIMIT_WINDOW_MS = 60_000;
+
+export function searchRateLimitKey(ip: string) {
+  return `search:${ip}`;
+}
+
+export function clientIpFromHeaders(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (forwarded) return forwarded;
+  return headers.get("x-real-ip")?.trim() || "anon";
+}
+
+async function resolveStore(): Promise<RateLimitStore> {
+  const url = process.env.RATE_LIMIT_REDIS_URL?.trim();
+  if (!url) return defaultStore;
+  const { getSharedRedisRateLimitStore } = await import("@/lib/security/rate-limit-redis");
+  return (await getSharedRedisRateLimitStore(url)) ?? defaultStore;
+}
+
 export async function rateLimit(
   key: string,
   limit = 60,
   windowMs = 60_000,
-  store: RateLimitStore = defaultStore,
+  store?: RateLimitStore,
 ): Promise<RateLimitResult> {
-  return store.hit(key, limit, windowMs);
+  const resolved = store ?? (await resolveStore());
+  return resolved.hit(key, limit, windowMs);
 }

@@ -108,6 +108,8 @@ describe("Phase 2 database migrations", () => {
     expect(sql).toContain("education-learning");
     expect(sql).toContain("v_old.status in ('DRAFT', 'REJECTED', 'PUBLISHED')");
     expect(sql).toContain("business-photos");
+    expect(sql).toContain("file_size_limit = 5242880");
+    expect(sql).toContain("allowed_mime_types");
     expect(sql).toContain("(b.metadata ->> 'temporarilyClosed')::boolean");
     expect(sql).toContain("v_unusable");
     expect(sql).toContain(

@@ -3,16 +3,19 @@ import Link from "next/link";
 import { MapPin, Sparkles } from "lucide-react";
 import { CoverPhoto } from "@/components/media/cover-photo";
 import { MEDIA } from "@/config/visual-media";
+import { OwnerJourneySteps } from "@/features/auth/owner-journey-steps";
 
 export function AuthShell({
   eyebrow,
   title,
   description,
+  journeyStep,
   children,
 }: {
   eyebrow: string;
   title: string;
   description: string;
+  journeyStep?: "account" | "list" | "dashboard";
   children: ReactNode;
 }) {
   return (
@@ -123,6 +126,7 @@ export function AuthShell({
           <p className="text-muted-foreground mt-3 text-base leading-relaxed">
             {description}
           </p>
+          {journeyStep ? <OwnerJourneySteps current={journeyStep} /> : null}
           {children}
         </div>
       </section>

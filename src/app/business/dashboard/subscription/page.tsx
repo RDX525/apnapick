@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { SubscriptionPage } from "@/features/dashboard/subscription-page";
 
@@ -10,11 +9,5 @@ export const metadata = buildPageMetadata({
 });
 
 export default function Page() {
-  return (
-    <Suspense
-      fallback={<div className="text-muted-foreground p-6 text-sm">Loading…</div>}
-    >
-      <SubscriptionPage />
-    </Suspense>
-  );
+  return <SubscriptionPage />;
 }

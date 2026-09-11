@@ -2,6 +2,8 @@ import "server-only";
 
 import type { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { createLogger } from "@/lib/logging/logger";
+import { hasServiceRoleKey } from "@/config/env";
+import { createAdminClient } from "@/lib/db/supabase-admin";
 import type { OwnerListingSnapshot } from "@/services/dashboard/owner-workspace";
 import type { DashboardLead, MenuCategory, TeamMember } from "@/domain/dashboard/types";
 import { resolvePhotoUrl } from "@/lib/media/photo-url";
@@ -64,6 +66,29 @@ function memberPermissions(value: unknown): string[] {
   return Object.entries(record)
     .filter(([, enabled]) => Boolean(enabled))
     .map(([key]) => key);
+}
+
+async function memberEmails(userIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0 || !hasServiceRoleKey()) return new Map();
+  try {
+    const { data, error } = await createAdminClient()
+      .from("users")
+      .select("id, email")
+      .in("id", unique);
+    if (error) {
+      log.warn("owner_member_emails_failed", { message: error.message });
+      return new Map();
+    }
+    return new Map(
+      (data ?? []).map((row) => [String(row.id), String(row.email ?? "")]),
+    );
+  } catch (error) {
+    log.warn("owner_member_emails_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return new Map();
+  }
 }
 
 function mapMenu(rawMenus: unknown): MenuCategory[] {
@@ -190,17 +215,19 @@ export async function fetchOwnerListingSnapshot(
     emptyMetrics,
   );
 
-  const team: TeamMember[] = asArray<Record<string, unknown>>(membersResult.data).map(
-    (member) => ({
-      id: asString(member.id),
-      email: "",
-      displayName: asString(asRecord(member.profiles).display_name, "Team member"),
-      role: asString(member.role) === "OWNER" ? "OWNER" : "STAFF",
-      permissions: memberPermissions(member.permissions),
-      status: member.accepted_at ? "active" : "invited",
-      invitedAt: asString(member.created_at),
-    }),
+  const memberRows = asArray<Record<string, unknown>>(membersResult.data);
+  const emails = await memberEmails(
+    memberRows.map((member) => asString(member.user_id)),
   );
+  const team: TeamMember[] = memberRows.map((member) => ({
+    id: asString(member.id),
+    email: emails.get(asString(member.user_id)) ?? "",
+    displayName: asString(asRecord(member.profiles).display_name, "Team member"),
+    role: asString(member.role) === "OWNER" ? "OWNER" : "STAFF",
+    permissions: memberPermissions(member.permissions),
+    status: member.accepted_at ? "active" : "invited",
+    invitedAt: asString(member.created_at),
+  }));
 
   if (membersResult.error) {
     log.warn("owner_members_failed", { message: membersResult.error.message });

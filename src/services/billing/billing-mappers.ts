@@ -1,23 +1,24 @@
 import type { SubscriptionStatus } from "@/domain/billing/types";
 
-export function mapStripeSubscriptionStatus(
+export function mapRazorpaySubscriptionStatus(
   status: string | null | undefined,
 ): SubscriptionStatus {
   switch (status) {
-    case "trialing":
+    case "created":
+    case "authenticated":
       return "TRIALING";
     case "active":
       return "ACTIVE";
-    case "past_due":
-      return "PAST_DUE";
-    case "canceled":
-      return "CANCELED";
-    case "unpaid":
-    case "incomplete_expired":
-      return "EXPIRED";
-    case "incomplete":
+    case "pending":
+    case "halted":
     case "paused":
       return "PAST_DUE";
+    case "cancelled":
+    case "canceled":
+      return "CANCELED";
+    case "completed":
+    case "expired":
+      return "EXPIRED";
     default:
       return "EXPIRED";
   }
@@ -38,11 +39,12 @@ export function ts(seconds: unknown): string | null {
 }
 
 export function meta(obj: Record<string, unknown>): Record<string, string> {
-  const m = obj.metadata;
-  if (!m || typeof m !== "object") return {};
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(m as Record<string, unknown>)) {
-    if (typeof v === "string") out[k] = v;
+  for (const source of [obj.metadata, obj.notes]) {
+    if (!source || typeof source !== "object") continue;
+    for (const [k, v] of Object.entries(source as Record<string, unknown>)) {
+      if (typeof v === "string" && v.length > 0) out[k] = v;
+    }
   }
   return out;
 }

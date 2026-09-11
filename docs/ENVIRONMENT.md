@@ -26,8 +26,14 @@ Never import into Client Components. Validated by `serverEnvSchema`.
 | `SUPABASE_SERVICE_ROLE_KEY` | Privileged Supabase access             |
 | `SEARCH_DEFAULT_RADIUS_M`   | Default geo radius                     |
 | `LOG_LEVEL`                 | `debug` \| `info` \| `warn` \| `error` |
-| `RATE_LIMIT_REDIS_URL`      | Optional Redis rate-limit backend      |
+| `RATE_LIMIT_REDIS_URL`      | Redis/Upstash URL for multi-instance rate limits |
 | `FEATURE_FLAGS_JSON`        | JSON overrides for feature flags       |
+| `RAZORPAY_KEY_ID`           | Razorpay key id                        |
+| `RAZORPAY_KEY_SECRET`       | Razorpay key secret                    |
+| `RAZORPAY_WEBHOOK_SECRET`   | Razorpay webhook HMAC secret           |
+| `RAZORPAY_PLAN_PREMIUM`     | Razorpay Plan id for Premium           |
+| `RAZORPAY_PLAN_BUSINESS`    | Razorpay Plan id for Business          |
+| `SENTRY_DSN`                | Optional Sentry DSN for server errors  |
 
 ## Rules
 

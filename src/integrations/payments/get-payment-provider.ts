@@ -1,28 +1,25 @@
 import "server-only";
 
-import { StripePaymentProvider } from "@/integrations/payments/stripe-provider";
+import { RazorpayPaymentProvider, hasRazorpayConfig } from "@/integrations/payments/razorpay-provider";
 import { StubPaymentProvider } from "@/integrations/payments/stub-provider";
 import type { PaymentProvider } from "@/integrations/payments/types";
+import { BILLING_CHECKOUT_ENABLED } from "@/config/billing-plans";
 import { AppError } from "@/lib/errors/app-error";
 
 let cached: PaymentProvider | null = null;
 
-export function hasStripeConfig(): boolean {
-  return Boolean(
-    process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_SECRET_KEY !== "sk_test_placeholder",
-  );
-}
+export { hasRazorpayConfig };
 
 /**
- * Prefer Stripe when configured.
- * In production, refuse stub webhooks so missing Stripe keys fail closed.
+ * Prefer Razorpay when configured.
+ * Paid checkout is currently off; production only requires Razorpay keys when
+ * BILLING_CHECKOUT_ENABLED is true.
  */
 export function createPaymentProvider(): PaymentProvider {
-  if (hasStripeConfig()) return new StripePaymentProvider();
-  if (process.env.NODE_ENV === "production") {
+  if (hasRazorpayConfig()) return new RazorpayPaymentProvider();
+  if (process.env.NODE_ENV === "production" && BILLING_CHECKOUT_ENABLED) {
     throw new AppError({
-      message: "Stripe is not configured",
+      message: "Razorpay is not configured",
       code: "BILLING_NOT_CONFIGURED",
       status: 503,
       expose: true,

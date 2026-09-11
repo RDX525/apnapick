@@ -16,7 +16,6 @@ export const publicEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 /**
@@ -28,10 +27,12 @@ export const serverEnvSchema = z.object({
   RATE_LIMIT_REDIS_URL: z.union([z.string().url(), z.literal("")]).optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   FEATURE_FLAGS_JSON: z.string().optional(),
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PRICE_PREMIUM: z.string().optional(),
-  STRIPE_PRICE_BUSINESS: z.string().optional(),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  RAZORPAY_PLAN_PREMIUM: z.string().optional(),
+  RAZORPAY_PLAN_BUSINESS: z.string().optional(),
+  SENTRY_DSN: z.union([z.string().url(), z.literal("")]).optional(),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -48,7 +49,6 @@ function readPublicRaw() {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_ENABLE_ANALYTICS: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS,
-    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   };
 }
 
@@ -63,10 +63,12 @@ export function getServerEnv(): ServerEnv {
     RATE_LIMIT_REDIS_URL: process.env.RATE_LIMIT_REDIS_URL,
     LOG_LEVEL: process.env.LOG_LEVEL,
     FEATURE_FLAGS_JSON: process.env.FEATURE_FLAGS_JSON,
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    STRIPE_PRICE_PREMIUM: process.env.STRIPE_PRICE_PREMIUM,
-    STRIPE_PRICE_BUSINESS: process.env.STRIPE_PRICE_BUSINESS,
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+    RAZORPAY_PLAN_PREMIUM: process.env.RAZORPAY_PLAN_PREMIUM,
+    RAZORPAY_PLAN_BUSINESS: process.env.RAZORPAY_PLAN_BUSINESS,
+    SENTRY_DSN: process.env.SENTRY_DSN,
   });
 }
 

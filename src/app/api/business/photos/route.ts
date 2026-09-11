@@ -2,8 +2,6 @@ import type { NextRequest } from "next/server";
 import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
-import { hasServiceRoleKey } from "@/config/env";
-import { createAdminClient } from "@/lib/db/supabase-admin";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { BUSINESS_PHOTOS_BUCKET, ownerPhotoObjectPath } from "@/lib/media/photo-storage";
 import { resolvePhotoUrl } from "@/lib/media/photo-url";
@@ -13,7 +11,7 @@ import { getBusinessEntitlements } from "@/services/billing/subscription-service
 import {
   PHOTO_LIMITS,
   photoErrorMessage,
-  validatePhotoFile,
+  validatePhotoBytes,
 } from "@/services/onboarding/photo-validation";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +96,7 @@ export async function POST(request: NextRequest) {
             businessId: membership.business_id as string,
             userId: membership.user_id as string,
             role: membership.role as "OWNER" | "STAFF",
-            permissions: (membership.permissions as string[]) ?? [],
+            permissions: membership.permissions,
           }
         : null,
     });
@@ -119,35 +117,27 @@ export async function POST(request: NextRequest) {
       .eq("business_id", businessId)
       .is("deleted_at", null);
 
-    const validation = validatePhotoFile(file, {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const validation = validatePhotoBytes(bytes, {
       galleryCount: count ?? 0,
       maxGallery,
     });
-    if (validation) {
+    if ("error" in validation) {
       throw new AppError({
-        message: photoErrorMessage(validation, maxGallery),
+        message: photoErrorMessage(validation.error, maxGallery),
         code: "VALIDATION_ERROR",
-        status: validation === "too_many" ? 402 : 400,
+        status: validation.error === "too_many" ? 402 : 400,
         expose: true,
       });
     }
 
-    const objectPath = ownerPhotoObjectPath(businessId, photoId, file.type);
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const uploadOptions = {
-      contentType: file.type,
-      upsert: false,
-    };
-
-    let upload = await supabase.storage
+    const objectPath = ownerPhotoObjectPath(businessId, photoId, validation.mime);
+    const upload = await supabase.storage
       .from(BUSINESS_PHOTOS_BUCKET)
-      .upload(objectPath, bytes, uploadOptions);
-
-    if (upload.error && hasServiceRoleKey()) {
-      upload = await createAdminClient()
-        .storage.from(BUSINESS_PHOTOS_BUCKET)
-        .upload(objectPath, bytes, uploadOptions);
-    }
+      .upload(objectPath, Buffer.from(bytes), {
+        contentType: validation.mime,
+        upsert: false,
+      });
 
     if (upload.error) {
       throw new AppError({

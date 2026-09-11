@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/auth/admin";
 import { createAdminDataClient } from "@/lib/db/supabase-admin";
 import { isImportedCatalogListing } from "@/lib/business/imported-catalog";
 import { extraBusinessIdsForAdminLabels } from "@/services/admin/queue-visibility";
+import { publicMutationMessage } from "@/lib/errors/public-message";
 import type {
   AdminBusiness,
   AdminClaim,
@@ -13,6 +14,10 @@ import type {
 
 export const dynamic = "force-dynamic";
 
+const QUEUE_LIMIT = 150;
+const LOOKUP_LIMIT = 200;
+const ROLE_LIMIT = 400;
+const AUTH_USERS_PAGE = 100;
 const NAME_LOOKUP_CHUNK = 200;
 
 type RelatedBusiness = {
@@ -87,31 +92,31 @@ export async function GET() {
         .is("deleted_at", null)
         .or("metadata->>source.is.null,metadata->>source.neq.openstreetmap")
         .order("created_at", { ascending: false })
-        .limit(500),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("business_claims")
         .select(
           "id, business_id, claimant_id, status, evidence, notes, created_at, businesses(id, name, metadata), profiles!business_claims_claimant_id_fkey(display_name)",
         )
         .order("created_at", { ascending: false })
-        .limit(500),
+        .limit(QUEUE_LIMIT),
       canManageAuthUsers
-        ? supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+        ? supabase.auth.admin.listUsers({ page: 1, perPage: AUTH_USERS_PAGE })
         : Promise.resolve({ data: { users: [] }, error: null }),
-      supabase.from("profiles").select("id, display_name, created_at").limit(1000),
-      supabase.from("user_roles").select("user_id, role").limit(5000),
+      supabase.from("profiles").select("id, display_name, created_at").limit(LOOKUP_LIMIT),
+      supabase.from("user_roles").select("user_id, role").limit(ROLE_LIMIT),
       supabase
         .from("verification_events")
         .select("claim_id, event_type, payload, created_at, created_by")
         .order("created_at", { ascending: true })
-        .limit(2000),
+        .limit(LOOKUP_LIMIT),
       supabase
         .from("reports")
         .select(
           "id, reason, details, target_type, target_id, status, reporter_id, created_at",
         )
         .order("created_at", { ascending: false })
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("categories")
         .select("id, slug, name, is_active")
@@ -121,52 +126,52 @@ export async function GET() {
         .from("audit_logs")
         .select("id, actor_id, action, entity_type, entity_id, new_data, created_at")
         .order("created_at", { ascending: false })
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("products")
         .select(
           "id, name, description, is_available, metadata, businesses(id, name, metadata)",
         )
         .is("deleted_at", null)
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("services")
         .select(
           "id, name, description, is_available, metadata, businesses(id, name, metadata)",
         )
         .is("deleted_at", null)
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("photos")
         .select("id, storage_path, alt_text, deleted_at, businesses(id, name, metadata)")
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("reviews")
         .select("id, title, body, status, businesses(id, name, metadata)")
         .is("deleted_at", null)
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("searches")
         .select("normalized_query, hit_count, last_seen_at")
         .order("hit_count", { ascending: false })
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("seo_pages")
         .select("id, path, title, indexable, business_count")
         .order("updated_at", { ascending: false })
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("subscriptions")
         .select(
           "id, status, current_period_end, plans(name, price_cents), businesses(id, name, metadata)",
         )
         .order("updated_at", { ascending: false })
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
       supabase
         .from("payments")
         .select("id, amount_cents, status, created_at, businesses(id, name, metadata)")
         .order("created_at", { ascending: false })
-        .limit(1000),
+        .limit(QUEUE_LIMIT),
     ]);
 
     const firstError =
@@ -189,7 +194,10 @@ export async function GET() {
       paymentsResult.error;
     if (firstError) {
       throw new AppError({
-        message: firstError.message,
+        message: publicMutationMessage(
+          firstError.message,
+          "Couldn’t load the admin queues.",
+        ),
         code: "ADMIN_APPROVALS_LOAD_FAILED",
         status: 500,
         expose: true,
@@ -245,7 +253,10 @@ export async function GET() {
         .in("id", extraIds.slice(i, i + NAME_LOOKUP_CHUNK));
       if (extraResult.error) {
         throw new AppError({
-          message: extraResult.error.message,
+          message: publicMutationMessage(
+            extraResult.error.message,
+            "Couldn’t load the admin queues.",
+          ),
           code: "ADMIN_APPROVALS_LOAD_FAILED",
           status: 500,
           expose: true,

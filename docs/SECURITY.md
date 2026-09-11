@@ -52,7 +52,11 @@ Helpers (security definer):
 
 ## Uploads
 
-Storage bucket policies (app phase): MIME allowlist, size limits, path prefix per `business_id`.
+Storage bucket `business-photos`: path prefix per `business_id`, JPEG/PNG/WebP/GIF magic-byte sniff on upload, bucket `file_size_limit` 5 MB and `allowed_mime_types` (migration `0029_business_photos_mime_size.sql`). Uploads use the signed-in member client — no service-role fallback.
+
+## Rate limiting
+
+`RATE_LIMIT_REDIS_URL` is required for multi-instance production (Vercel). The in-memory store is for single-process local use only. SSR `/search` shares the same limiter as `GET /api/search`.
 
 ## Headers
 

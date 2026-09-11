@@ -1,6 +1,9 @@
 import type { PlanFeatures, PlanCode } from "@/domain/billing/types";
 import { DEFAULT_FREE_FEATURES } from "@/domain/billing/types";
 
+/** Paid Razorpay checkout is off until we turn this on. */
+export const BILLING_CHECKOUT_ENABLED = false;
+
 export const PLAN_CATALOG: Record<
   PlanCode,
   { name: string; description: string; priceCents: number; features: PlanFeatures }

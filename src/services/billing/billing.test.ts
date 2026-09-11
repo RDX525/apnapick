@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import { StubPaymentProvider } from "@/integrations/payments/stub-provider";
-import { mapStripeSubscriptionStatus } from "@/services/billing/stripe-mappers";
+import { mapRazorpaySubscriptionStatus } from "@/services/billing/billing-mappers";
 import { hasEntitlement } from "@/domain/billing/entitlements";
-import { PLAN_CATALOG, parsePlanFeatures } from "@/config/billing-plans";
+import { PLAN_CATALOG, parsePlanFeatures, BILLING_CHECKOUT_ENABLED } from "@/config/billing-plans";
 import { DEFAULT_FREE_FEATURES } from "@/domain/billing/types";
 
 describe("billing plan catalog", () => {
@@ -16,6 +16,7 @@ describe("billing plan catalog", () => {
   it("uses the configured monthly INR prices", () => {
     expect(PLAN_CATALOG.premium.priceCents).toBe(49_900);
     expect(PLAN_CATALOG.business.priceCents).toBe(89_900);
+    expect(BILLING_CHECKOUT_ENABLED).toBe(false);
   });
 
   it("keeps free without sponsored eligibility", () => {
@@ -32,13 +33,13 @@ describe("billing plan catalog", () => {
   });
 });
 
-describe("Stripe status mapping", () => {
-  it("maps Stripe statuses to domain enums", () => {
-    expect(mapStripeSubscriptionStatus("active")).toBe("ACTIVE");
-    expect(mapStripeSubscriptionStatus("trialing")).toBe("TRIALING");
-    expect(mapStripeSubscriptionStatus("past_due")).toBe("PAST_DUE");
-    expect(mapStripeSubscriptionStatus("canceled")).toBe("CANCELED");
-    expect(mapStripeSubscriptionStatus("unpaid")).toBe("EXPIRED");
+describe("Razorpay status mapping", () => {
+  it("maps Razorpay statuses to domain enums", () => {
+    expect(mapRazorpaySubscriptionStatus("active")).toBe("ACTIVE");
+    expect(mapRazorpaySubscriptionStatus("authenticated")).toBe("TRIALING");
+    expect(mapRazorpaySubscriptionStatus("pending")).toBe("PAST_DUE");
+    expect(mapRazorpaySubscriptionStatus("cancelled")).toBe("CANCELED");
+    expect(mapRazorpaySubscriptionStatus("expired")).toBe("EXPIRED");
   });
 });
 
@@ -58,22 +59,23 @@ describe("StubPaymentProvider webhook", () => {
     });
   });
 
-  it("parses stub events with stable ids", async () => {
+  it("parses Razorpay-shaped stub events", async () => {
     const provider = new StubPaymentProvider();
     const payload = JSON.stringify({
-      id: "evt_test_1",
-      type: "customer.subscription.updated",
-      data: {
-        object: {
-          id: "sub_1",
-          status: "active",
-          metadata: { business_id: "00000000-0000-0000-0000-000000000001" },
+      event: "subscription.activated",
+      payload: {
+        subscription: {
+          entity: {
+            id: "sub_1",
+            status: "active",
+            notes: { business_id: "00000000-0000-0000-0000-000000000001" },
+          },
         },
       },
     });
-    const event = await provider.constructWebhookEvent(payload, "stub");
+    const event = await provider.constructWebhookEvent(payload, "stub", "evt_test_1");
     expect(event.id).toBe("evt_test_1");
-    expect(event.type).toBe("customer.subscription.updated");
+    expect(event.type).toBe("subscription.activated");
     expect(event.dataObject.id).toBe("sub_1");
   });
 
@@ -82,7 +84,7 @@ describe("StubPaymentProvider webhook", () => {
     const session = await provider.createCheckoutSession({
       businessId: "biz",
       planCode: "premium",
-      priceId: "price_x",
+      priceId: "plan_x",
       expectedAmountCents: 49_900,
       expectedCurrency: "INR",
       expectedInterval: "month",
@@ -94,13 +96,22 @@ describe("StubPaymentProvider webhook", () => {
   });
 });
 
+describe("paid checkout", () => {
+  it("is disabled until coming-soon is lifted", async () => {
+    const { assertPaidBillingEnabled } = await import(
+      "@/services/billing/checkout-service"
+    );
+    expect(() => assertPaidBillingEnabled()).toThrowError(/coming soon/i);
+  });
+});
+
 describe("webhook idempotency contract", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
   it("documents unique constraint key used for idempotency", () => {
-    const key = ["stripe", "evt_123"];
-    expect(key.join(":")).toBe("stripe:evt_123");
+    const key = ["razorpay", "evt_123"];
+    expect(key.join(":")).toBe("razorpay:evt_123");
   });
 });

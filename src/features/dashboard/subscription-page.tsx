@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/operations/status-badge";
 import { useDashboard } from "@/features/dashboard/dashboard-provider";
 import { DashboardShell } from "@/features/dashboard/dashboard-shell";
@@ -23,23 +21,15 @@ type EntitlementResponse = {
   planCode?: PlanCode;
   features?: PlanFeatures;
   subscription?: Subscription | null;
-  note?: string;
 };
 
 export function SubscriptionPage() {
   const { workspace } = useDashboard();
   const businessId = workspace.profile.businessId;
-  const searchParams = useSearchParams();
-  const awaitingWebhook = useMemo(() => {
-    const checkout = searchParams.get("checkout");
-    return checkout === "return" || searchParams.get("await_webhook") === "1";
-  }, [searchParams]);
 
   const [planCode, setPlanCode] = useState<PlanCode>("free");
   const [features, setFeatures] = useState<PlanFeatures | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!businessId) return;
@@ -56,57 +46,9 @@ export function SubscriptionPage() {
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        /* catalog fallback below */
       });
     return () => controller.abort();
   }, [businessId]);
-
-  async function startCheckout(code: "premium" | "business") {
-    setBusy(code);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, planCode: code }),
-      });
-      const json = (await res.json()) as {
-        checkoutUrl?: string;
-        error?: string;
-      };
-      if (!res.ok || !json.checkoutUrl) {
-        setMessage(json.error ?? "Checkout failed");
-        return;
-      }
-      window.location.assign(json.checkoutUrl);
-    } catch {
-      setMessage("Checkout failed");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function openPortal() {
-    setBusy("portal");
-    setMessage(null);
-    try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId }),
-      });
-      const json = (await res.json()) as { portalUrl?: string; error?: string };
-      if (!res.ok || !json.portalUrl) {
-        setMessage(json.error ?? "Billing portal unavailable");
-        return;
-      }
-      window.location.assign(json.portalUrl);
-    } catch {
-      setMessage("Billing portal unavailable");
-    } finally {
-      setBusy(null);
-    }
-  }
 
   const codes = Object.keys(PLAN_CATALOG) as PlanCode[];
 
@@ -128,34 +70,13 @@ export function SubscriptionPage() {
             </div>
             {subscription?.status ? <StatusBadge status={subscription.status} /> : null}
             <Badge variant="secondary" className="ml-auto">
-              Secure billing status
+              Coming soon
             </Badge>
           </div>
-          {awaitingWebhook ? (
-            <p
-              role="status"
-              className="ap-status-warning mt-3 rounded-xl border px-3 py-2 text-sm"
-            >
-              Payment received. We’re securely confirming your plan; this usually takes
-              only a few seconds.
-            </p>
-          ) : null}
-          {message ? (
-            <p role="status" className="text-muted-foreground mt-3 text-sm">
-              {message}
-            </p>
-          ) : null}
-          {subscription?.externalCustomerId ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-4 min-h-10"
-              disabled={busy === "portal"}
-              onClick={() => void openPortal()}
-            >
-              Manage billing
-            </Button>
-          ) : null}
+          <p role="status" className="text-muted-foreground mt-3 text-sm">
+            Paid plans are coming soon. Checkout is disabled for now — you can keep
+            using the Free plan.
+          </p>
         </div>
 
         <ul className="grid gap-4 md:grid-cols-3">
@@ -197,19 +118,10 @@ export function SubscriptionPage() {
                   <Badge className="mt-4 w-fit" variant="secondary">
                     Current
                   </Badge>
-                ) : code === "free" ? (
-                  <p className="text-muted-foreground mt-4 text-xs">
-                    Downgrades apply when the paid period ends (via Stripe).
-                  </p>
                 ) : (
-                  <Button
-                    type="button"
-                    className="mt-4 min-h-10"
-                    disabled={Boolean(busy)}
-                    onClick={() => void startCheckout(code)}
-                  >
-                    {busy === code ? "Redirecting…" : `Upgrade to ${plan.name}`}
-                  </Button>
+                  <Badge className="mt-4 w-fit" variant="secondary">
+                    Coming soon
+                  </Badge>
                 )}
               </li>
             );

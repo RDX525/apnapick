@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +10,9 @@ import { Check, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { safeAuthNextPath } from "@/lib/security/safe-redirect";
 import { friendlyAuthError } from "@/features/auth/auth-errors";
 import { establishEmailPasswordSession } from "@/features/auth/email-password-auth";
+import { navigateAfterAuth, resolveOwnerHome } from "@/features/auth/auth-redirect";
 
 export function SignupForm({ configured }: { configured: boolean }) {
-  const router = useRouter();
   const params = useSearchParams();
   const next = safeAuthNextPath(params.get("next"));
   const [email, setEmail] = useState("");
@@ -21,86 +21,87 @@ export function SignupForm({ configured }: { configured: boolean }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const submitting = useRef(false);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting.current) return;
     submitting.current = true;
     setError(null);
     setMessage(null);
-    startTransition(async () => {
-      try {
-        if (!configured) {
-          if (process.env.NODE_ENV === "development") {
-            router.replace(next);
-          } else {
-            setError(
-              "Account creation is temporarily unavailable. Please try again later.",
-            );
-          }
-          return;
+    setPending(true);
+    let navigating = false;
+    try {
+      if (!configured) {
+        if (process.env.NODE_ENV === "development") {
+          navigating = true;
+          navigateAfterAuth(next);
+        } else {
+          setError(
+            "Account creation is temporarily unavailable. Please try again later.",
+          );
         }
-        const { createBrowserSupabaseClient } = await import("@/lib/db/supabase-browser");
-        const supabase = createBrowserSupabaseClient();
-        const registerResponse = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name }),
-        });
-        const registerPayload = (await registerResponse.json().catch(() => null)) as {
-          fallback?: boolean;
-          status?: "created" | "exists";
-          error?: string;
-        } | null;
-
-        if (registerResponse.ok && registerPayload && !registerPayload.fallback) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (signInError) {
-            setError(
-              registerPayload.status === "exists"
-                ? "An account with this email still exists in Auth. Log in, or reset your password."
-                : friendlyAuthError(signInError, "Account created. Try logging in."),
-            );
-            return;
-          }
-          router.replace(next);
-          router.refresh();
-          return;
-        }
-
-        if (registerResponse.status >= 400 && registerPayload?.error) {
-          setError(registerPayload.error);
-          return;
-        }
-
-        const outcome = await establishEmailPasswordSession(supabase.auth, {
-          email,
-          password,
-          name,
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-          mode: "signup",
-        });
-        if (outcome.status === "authenticated") {
-          router.replace(next);
-          router.refresh();
-          return;
-        }
-        if (outcome.status === "needs_confirmation") {
-          setMessage("Check your email to confirm your account, then log in.");
-          return;
-        }
-        setError(outcome.message);
-      } catch (err) {
-        setError(friendlyAuthError(err, "Unable to create your account. Try again."));
-      } finally {
-        submitting.current = false;
+        return;
       }
-    });
+      const { createBrowserSupabaseClient } = await import("@/lib/db/supabase-browser");
+      const supabase = createBrowserSupabaseClient();
+      const registerResponse = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      });
+      const registerPayload = (await registerResponse.json().catch(() => null)) as {
+        fallback?: boolean;
+        status?: "created" | "exists";
+        error?: string;
+      } | null;
+
+      if (registerResponse.ok && registerPayload && !registerPayload.fallback) {
+        if (registerPayload.status === "exists") {
+          setError(
+            "An account with this email already exists. Log in, or reset your password.",
+          );
+          return;
+        }
+        setMessage("Check your email to confirm your account, then log in.");
+        return;
+      }
+
+      if (registerResponse.status >= 400 && registerPayload?.error) {
+        setError(registerPayload.error);
+        return;
+      }
+
+      const outcome = await establishEmailPasswordSession(supabase.auth, {
+        email,
+        password,
+        name,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        mode: "signup",
+      });
+      if (outcome.status === "authenticated") {
+        navigating = true;
+        navigateAfterAuth(
+          resolveOwnerHome({
+            requestedNext: params.get("next"),
+            roles: [],
+            hasListing: false,
+          }),
+        );
+        return;
+      }
+      if (outcome.status === "needs_confirmation") {
+        setMessage("Check your email to confirm your account, then log in.");
+        return;
+      }
+      setError(outcome.message);
+    } catch (err) {
+      setError(friendlyAuthError(err, "Unable to create your account. Try again."));
+    } finally {
+      submitting.current = false;
+      if (!navigating) setPending(false);
+    }
   }
 
   return (
@@ -211,7 +212,7 @@ export function SignupForm({ configured }: { configured: boolean }) {
         </p>
       </div>
       <Button type="submit" size="lg" className="ap-cta-glow w-full" disabled={pending}>
-        {pending ? "Creating…" : "Create account & list business"}
+        {pending ? "Creating…" : "Create account"}
       </Button>
       <p className="border-border/70 text-muted-foreground border-t pt-5 text-center text-sm">
         Already have an account?{" "}

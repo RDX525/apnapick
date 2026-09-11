@@ -165,14 +165,17 @@ export async function assertBusinessEntitlement(
   return features;
 }
 
-/** Resolve Stripe price id: DB column, then env map. */
-export function resolvePriceId(plan: Plan): string | null {
+/** Resolve Razorpay plan id: DB column, then env map. */
+export function resolveExternalPlanId(plan: Plan): string | null {
   if (plan.externalPriceId) return plan.externalPriceId;
   const envKey =
     plan.code === "premium"
-      ? process.env.STRIPE_PRICE_PREMIUM
+      ? process.env.RAZORPAY_PLAN_PREMIUM
       : plan.code === "business"
-        ? process.env.STRIPE_PRICE_BUSINESS
+        ? process.env.RAZORPAY_PLAN_BUSINESS
         : null;
   return envKey || null;
 }
+
+/** @deprecated Use resolveExternalPlanId */
+export const resolvePriceId = resolveExternalPlanId;

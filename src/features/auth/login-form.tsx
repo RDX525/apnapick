@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,73 +10,85 @@ import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { safeAuthNextPath } from "@/lib/security/safe-redirect";
 import { friendlyAuthError } from "@/features/auth/auth-errors";
 import { establishEmailPasswordSession } from "@/features/auth/email-password-auth";
-import { resolveLoginDestination } from "@/features/auth/auth-redirect";
+import {
+  navigateAfterAuth,
+  resolveOwnerHome,
+} from "@/features/auth/auth-redirect";
 
 export function LoginForm({ configured }: { configured: boolean }) {
-  const router = useRouter();
   const params = useSearchParams();
   const requestedNext = params.get("next");
-  const next = safeAuthNextPath(requestedNext, "/business/dashboard");
+  const next = safeAuthNextPath(requestedNext, "/business/onboarding");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const submitting = useRef(false);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting.current) return;
     submitting.current = true;
     setError(null);
-    startTransition(async () => {
-      try {
-        if (!configured) {
-          if (process.env.NODE_ENV === "development") {
-            router.replace(next);
-          } else {
-            setError("Authentication is temporarily unavailable. Please try again later.");
-          }
-          return;
+    setPending(true);
+    let navigating = false;
+    try {
+      if (!configured) {
+        if (process.env.NODE_ENV === "development") {
+          navigating = true;
+          navigateAfterAuth(next);
+        } else {
+          setError("Authentication is temporarily unavailable. Please try again later.");
         }
-        const { createBrowserSupabaseClient } = await import("@/lib/db/supabase-browser");
-        const supabase = createBrowserSupabaseClient();
-        const outcome = await establishEmailPasswordSession(supabase.auth, {
-          email,
-          password,
-          mode: "login",
-        });
-        if (outcome.status === "authenticated") {
-          let destination = next;
-          if (!requestedNext) {
-            const {
-              data: { user },
-            } = await supabase.auth.getUser();
-            const { data: roleRows } = user
-              ? await supabase.from("user_roles").select("role").eq("user_id", user.id)
-              : { data: null };
-            destination = resolveLoginDestination(
-              requestedNext,
-              (roleRows ?? []).map((row) => String(row.role)),
-            );
-          }
-          router.replace(destination);
-          router.refresh();
-          return;
-        }
-        if (outcome.status === "needs_confirmation") {
-          setError(
-            "Confirm your email before signing in. Check your inbox (and spam) for the link.",
-          );
-          return;
-        }
-        setError(outcome.message);
-      } catch (err) {
-        setError(friendlyAuthError(err, "Unable to sign in. Try again."));
-      } finally {
-        submitting.current = false;
+        return;
       }
-    });
+      const { createBrowserSupabaseClient } = await import("@/lib/db/supabase-browser");
+      const supabase = createBrowserSupabaseClient();
+      const outcome = await establishEmailPasswordSession(supabase.auth, {
+        email,
+        password,
+        mode: "login",
+      });
+        if (outcome.status === "authenticated") {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          const [{ data: roleRows }, { data: memberships }] = user
+            ? await Promise.all([
+                supabase.from("user_roles").select("role").eq("user_id", user.id),
+                supabase
+                  .from("business_members")
+                  .select("business_id")
+                  .eq("user_id", user.id)
+                  .limit(1),
+              ])
+            : [
+                { data: null },
+                { data: null },
+              ];
+          const destination = resolveOwnerHome({
+            requestedNext,
+            roles: (roleRows ?? []).map((row) => String(row.role)),
+            hasListing: (memberships?.length ?? 0) > 0,
+          });
+          navigating = true;
+          navigateAfterAuth(destination);
+          return;
+        }
+      if (outcome.status === "needs_confirmation") {
+        setError(
+          "Confirm your email before signing in. Check your inbox (and spam) for the link.",
+        );
+        return;
+      }
+      setError(outcome.message);
+    } catch (err) {
+      setError(friendlyAuthError(err, "Unable to sign in. Try again."));
+    } finally {
+      submitting.current = false;
+      if (!navigating) setPending(false);
+    }
   }
 
   return (

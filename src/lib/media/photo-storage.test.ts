@@ -6,6 +6,8 @@ import {
 } from "@/lib/media/photo-storage";
 import {
   photoErrorMessage,
+  sniffImageMime,
+  validatePhotoBytes,
   validatePhotoFile,
 } from "@/services/onboarding/photo-validation";
 
@@ -36,5 +38,25 @@ describe("photo validation plan limits", () => {
     const file = { size: 1024, type: "image/jpeg" };
     expect(validatePhotoFile(file, { galleryCount: 5, maxGallery: 5 })).toBe("too_many");
     expect(photoErrorMessage("too_many", 5)).toBe("Gallery limit is 5 photos.");
+  });
+});
+
+describe("photo magic-byte sniff", () => {
+  it("accepts JPEG/PNG/GIF/WebP headers and rejects spoofed types", () => {
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...Array(12).fill(0)]);
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, ...Array(12).fill(0)]);
+    const gif = Uint8Array.from([0x47, 0x49, 0x46, 0x38, ...Array(12).fill(0)]);
+    const webp = new Uint8Array(16);
+    webp.set([0x52, 0x49, 0x46, 0x46], 0);
+    webp.set([0x57, 0x45, 0x42, 0x50], 8);
+    const pdf = Uint8Array.from([0x25, 0x50, 0x44, 0x46, ...Array(12).fill(0)]);
+
+    expect(sniffImageMime(jpeg)).toBe("image/jpeg");
+    expect(sniffImageMime(png)).toBe("image/png");
+    expect(sniffImageMime(gif)).toBe("image/gif");
+    expect(sniffImageMime(webp)).toBe("image/webp");
+    expect(sniffImageMime(pdf)).toBeNull();
+    expect("mime" in validatePhotoBytes(jpeg)).toBe(true);
+    expect(validatePhotoBytes(pdf)).toEqual({ error: "invalid_type" });
   });
 });

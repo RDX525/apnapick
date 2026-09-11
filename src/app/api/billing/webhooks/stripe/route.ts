@@ -1,41 +1,17 @@
-import type { NextRequest } from "next/server";
-import { jsonError, jsonOk } from "@/lib/api/response";
-import { getPaymentProvider } from "@/integrations/payments/get-payment-provider";
-import { processBillingWebhookEvent } from "@/services/billing/webhook-processor";
-import { createLogger } from "@/lib/logging/logger";
+import { AppError } from "@/lib/errors/app-error";
+import { jsonError } from "@/lib/api/response";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const log = createLogger({ route: "api.billing.webhooks.stripe" });
-
-/**
- * Stripe (or stub) webhooks — source of truth for subscription state.
- * Client-side checkout success must never activate a plan.
- */
-export async function POST(request: NextRequest) {
-  try {
-    const signature =
-      request.headers.get("stripe-signature") ??
-      request.headers.get("x-apnapick-webhook-signature") ??
-      "";
-
-    const payload = await request.text();
-    const provider = getPaymentProvider();
-
-    // When Stripe is configured, require stripe-signature.
-    // Stub accepts x-apnapick-webhook-signature: stub for local tests.
-    const event = await provider.constructWebhookEvent(payload, signature);
-    const providerId = provider.id === "stub" ? "stub" : "stripe";
-
-    const result = await processBillingWebhookEvent(event, providerId);
-    log.info("webhook_handled", result);
-
-    return jsonOk({
-      received: true,
-      ...result,
-    });
-  } catch (error) {
-    return jsonError(error);
-  }
+/** Stripe is no longer used. Point webhooks at /api/billing/webhooks/razorpay. */
+export async function POST() {
+  return jsonError(
+    new AppError({
+      message: "Stripe billing is disabled. Use POST /api/billing/webhooks/razorpay.",
+      code: "BILLING_PROVIDER_REMOVED",
+      status: 410,
+      expose: true,
+    }),
+  );
 }

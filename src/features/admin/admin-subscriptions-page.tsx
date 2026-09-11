@@ -74,7 +74,7 @@ export function AdminSubscriptionsPage() {
           description={
             workspace.subscriptions.length
               ? "Try a different search or status filter."
-              : "Business subscriptions will appear here after checkout."
+              : "Paid plans are coming soon. Subscriptions will appear here after checkout is enabled."
           }
         />
       ) : (

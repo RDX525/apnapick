@@ -7,6 +7,7 @@ import { writeAdminAudit } from "@/services/admin/audit";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { createAdminDataClient } from "@/lib/db/supabase-admin";
 import { hasSupabaseConfig } from "@/config/env";
+import { publicMutationMessage } from "@/lib/errors/public-message";
 
 export const dynamic = "force-dynamic";
 
@@ -122,7 +123,10 @@ export async function POST(request: NextRequest) {
 
       if (mutation.error) {
         throw new AppError({
-          message: mutation.error.message,
+          message: publicMutationMessage(
+            mutation.error.message,
+            "Couldn’t complete that admin action.",
+          ),
           code: "ADMIN_MUTATION_FAILED",
           status: 400,
           expose: true,
@@ -272,7 +276,10 @@ export async function POST(request: NextRequest) {
 
       if (mutationError) {
         throw new AppError({
-          message: mutationError.message,
+          message: publicMutationMessage(
+            mutationError.message,
+            "Couldn’t complete that admin action.",
+          ),
           code: "ADMIN_MUTATION_FAILED",
           status: 400,
           expose: true,

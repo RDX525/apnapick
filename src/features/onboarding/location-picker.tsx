@@ -101,6 +101,8 @@ export function OnboardingLocationPicker({
   }
 
   useEffect(() => {
+    if (lat != null && lng != null) return;
+    if (!street.trim()) return;
     const query = address.trim();
     if (query.length < 3) return;
     if (query === lastAutoQuery.current) return;
@@ -113,7 +115,7 @@ export function OnboardingLocationPicker({
     };
     // Autopick when the composed address changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [address, street, lat, lng]);
 
   useEffect(
     () => () => {

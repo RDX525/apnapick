@@ -7,8 +7,21 @@ export type BusinessMembership = {
   businessId: string;
   userId: string;
   role: BusinessMemberRole;
-  permissions?: string[];
+  permissions?: unknown;
 };
+
+/** DB stores jsonb `{ manage_profile: true }`; some callers still pass string[]. */
+export function memberPermissionKeys(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).filter(Boolean);
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([key]) => key);
+  }
+  return [];
+}
 
 export type OwnershipAuditEvent = {
   action:
@@ -41,7 +54,7 @@ export function canManageBusiness(input: {
   }
   if (input.membership.role === "OWNER") return true;
   if (input.membership.role === "STAFF") {
-    const perms = input.membership.permissions ?? [];
+    const perms = memberPermissionKeys(input.membership.permissions);
     return perms.includes("manage_profile") || perms.includes("manage_all");
   }
   return false;

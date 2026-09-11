@@ -9,6 +9,7 @@ import { rankingService } from "@/services/search/ranking-service";
 import { searchParser } from "@/services/search/search-parser";
 import { applySearchFilters, applySearchSort } from "@/services/search/search-filters";
 import { NAMED_AREA_RETRIEVE_RADIUS_M } from "@/lib/search/named-area";
+import { searchRetrieveLimit } from "@/lib/search/retrieve-window";
 import { SearchAnalyticsService } from "@/services/search/search-analytics-service";
 
 /**
@@ -71,18 +72,19 @@ export class SearchService {
       delete retrieveFilters.distanceM;
     }
 
+    const page = Math.max(1, request.page ?? 1);
+    const pageSize = Math.min(50, Math.max(1, request.pageSize ?? 20));
+
     const candidates = await this.engine.retrieve(parsed, {
       location,
       filters: retrieveFilters,
-      limit: 80,
+      limit: searchRetrieveLimit(page, pageSize),
+      offset: 0,
     });
 
     const filtered = applySearchFilters(candidates, parsed, request.filters);
     let ranked = this.ranking.rank(filtered, parsed, { radiusM });
     ranked = applySearchSort(ranked, request.sort);
-
-    const page = Math.max(1, request.page ?? 1);
-    const pageSize = Math.min(50, Math.max(1, request.pageSize ?? 20));
     const start = (page - 1) * pageSize;
     const pageResults = ranked.slice(start, start + pageSize);
 

@@ -10,6 +10,15 @@ describe("safeAuthNextPath", () => {
     expect(safeAuthNextPath("/restaurants/pune")).toBe("/restaurants/pune");
   });
 
+  it("rejects auth routes that would loop after sign-in", () => {
+    expect(safeAuthNextPath("/login")).toBe("/business/onboarding");
+    expect(safeAuthNextPath("/login?next=/business/dashboard")).toBe(
+      "/business/onboarding",
+    );
+    expect(safeAuthNextPath("/signup")).toBe("/business/onboarding");
+    expect(safeAuthNextPath("/auth/callback")).toBe("/business/onboarding");
+  });
+
   it("rejects open redirects", () => {
     expect(safeAuthNextPath("https://evil.com")).toBe("/business/onboarding");
     expect(safeAuthNextPath("//evil.com")).toBe("/business/onboarding");

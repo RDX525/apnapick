@@ -3,6 +3,8 @@ import { AppError } from "@/lib/errors/app-error";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
+import { requireWritableDatabase } from "@/lib/db/require-writable-db";
+import { publicMutationMessage } from "@/lib/errors/public-message";
 import { canManageBusiness } from "@/services/business/ownership";
 import { fetchOwnerListingSnapshot } from "@/repositories/dashboard/owner-workspace-repository";
 import { workspaceFromOwnerListing } from "@/services/dashboard/owner-workspace";
@@ -70,9 +72,17 @@ export async function PUT(request: NextRequest) {
       return jsonOk({ ok: true, persisted: false, queuedForReview: false });
     }
 
-    const supabase = await createServerSupabaseClient();
-    if (!supabase || !businessId || !BUSINESS_ID_RE.test(businessId) || !workspace) {
-      return jsonOk({ ok: true, persisted: false, queuedForReview: false });
+    const supabase = requireWritableDatabase(
+      await createServerSupabaseClient(),
+      "Listing save",
+    );
+    if (!businessId || !BUSINESS_ID_RE.test(businessId) || !workspace) {
+      throw new AppError({
+        message: "Business required",
+        code: "VALIDATION_ERROR",
+        status: 400,
+        expose: true,
+      });
     }
 
     if (!workspace.profile.name.trim()) {
@@ -99,7 +109,7 @@ export async function PUT(request: NextRequest) {
             businessId: membership.business_id as string,
             userId: membership.user_id as string,
             role: membership.role as "OWNER" | "STAFF",
-            permissions: (membership.permissions as string[]) ?? [],
+            permissions: membership.permissions,
           }
         : null,
     });
@@ -133,7 +143,7 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       throw new AppError({
-        message: error.message || "Couldn’t save your listing.",
+        message: publicMutationMessage(error.message, "Couldn’t save your listing."),
         code: "OWNER_WORKSPACE_SAVE_FAILED",
         status: 400,
         expose: true,
