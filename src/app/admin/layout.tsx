@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getOptionalAdminSession } from "@/lib/auth/admin";
 import { isFeatureEnabled } from "@/config/feature-flags";
 import { AdminProvider } from "@/features/admin/admin-provider";
+import { AdminShell } from "@/features/admin/admin-shell";
 import { isE2EAuthBypass } from "@/config/env";
 
 export const dynamic = "force-dynamic";
@@ -27,5 +28,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     }
   }
 
-  return <AdminProvider>{children}</AdminProvider>;
+  return (
+    <AdminProvider>
+      <AdminShell>{children}</AdminShell>
+    </AdminProvider>
+  );
 }

@@ -11,7 +11,6 @@ import {
 } from "@/components/operations/queue-controls";
 import { StatusBadge } from "@/components/operations/status-badge";
 import { Label } from "@/components/ui/label";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import type { ClaimAdminAction } from "@/domain/admin/types";
 
@@ -60,11 +59,7 @@ export function AdminClaimsPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/claims"
-      title="Claims"
-      description="Review ownership claims on owner-created and catalog listings. Evidence, history, and verification actions are audited."
-    >
+    <>
       <QueueControls
         id="claims"
         query={queue.query}
@@ -235,6 +230,6 @@ export function AdminClaimsPage() {
           })}
         </ul>
       )}
-    </AdminShell>
+    </>
   );
 }

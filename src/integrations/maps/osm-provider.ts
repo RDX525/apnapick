@@ -4,7 +4,7 @@ import type {
   MapsProvider,
   ReverseGeocodeResult,
 } from "@/domain/geo/types";
-import { AREA_CENTROIDS, nearestAreaSlug } from "@/config/geo-areas";
+import { AREA_CENTROIDS, discoveryAreaFromPlaceName, nearestAreaSlug } from "@/config/geo-areas";
 import { mapsDirectionsUrl } from "@/lib/geo/directions";
 
 const NOMINATIM_TIMEOUT_MS = 5_000;
@@ -232,8 +232,9 @@ export class OsmMapsProvider implements MapsProvider {
   }
 
   async reverseGeocode(position: LatLng): Promise<ReverseGeocodeResult | null> {
-    const areaSlug = nearestAreaSlug(position);
-    const area = areaSlug ? AREA_CENTROIDS[areaSlug] : null;
+    const namedFromPin = discoveryAreaFromPlaceName(
+      nearestAreaSlug(position) ? AREA_CENTROIDS[nearestAreaSlug(position)!]?.label : null,
+    );
 
     try {
       const url = new URL("https://nominatim.openstreetmap.org/reverse");
@@ -251,6 +252,8 @@ export class OsmMapsProvider implements MapsProvider {
         next: { revalidate: 3600 },
       });
       if (!res.ok) {
+        const areaSlug = namedFromPin ?? nearestAreaSlug(position);
+        const area = areaSlug ? AREA_CENTROIDS[areaSlug] : null;
         return area
           ? {
               label: area.label,
@@ -272,21 +275,30 @@ export class OsmMapsProvider implements MapsProvider {
       };
 
       const suburb =
-        data.address?.suburb ?? data.address?.neighbourhood ?? area?.label ?? null;
+        data.address?.suburb ?? data.address?.neighbourhood ?? null;
       const city = data.address?.city ?? data.address?.town ?? "Pune";
+      const named =
+        discoveryAreaFromPlaceName(suburb) ??
+        discoveryAreaFromPlaceName(data.display_name);
+      const areaSlug = named ?? nearestAreaSlug(position);
+      const area = areaSlug ? AREA_CENTROIDS[areaSlug] : null;
 
       return {
         label:
-          suburb && city
-            ? `${suburb}, ${city}`
+          named && AREA_CENTROIDS[named]
+            ? AREA_CENTROIDS[named]!.label
+            : suburb && city
+              ? `${suburb}, ${city}`
             : (data.display_name?.split(",").slice(0, 2).join(",") ??
               area?.label ??
               "Selected location"),
         areaSlug,
-        suburb,
+        suburb: suburb ?? area?.label ?? null,
         city,
       };
     } catch {
+      const areaSlug = namedFromPin ?? nearestAreaSlug(position);
+      const area = areaSlug ? AREA_CENTROIDS[areaSlug] : null;
       return area
         ? { label: area.label, areaSlug, city: "Pune", suburb: area.label }
         : null;

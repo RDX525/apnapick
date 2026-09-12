@@ -3,7 +3,12 @@ import { jsonError, jsonOk } from "@/lib/api/response";
 import { requireAdminSession } from "@/lib/auth/admin";
 import { createAdminDataClient } from "@/lib/db/supabase-admin";
 import { isImportedCatalogListing } from "@/lib/business/imported-catalog";
-import { extraBusinessIdsForAdminLabels } from "@/services/admin/queue-visibility";
+import {
+  extraBusinessIdsForAdminLabels,
+  keepAdminBusinessRow,
+  mergeAdminBusinessRows,
+} from "@/services/admin/queue-visibility";
+import { actorEmailFromAuditRow } from "@/services/admin/audit";
 import { publicMutationMessage } from "@/lib/errors/public-message";
 import type {
   AdminBusiness,
@@ -19,6 +24,9 @@ const LOOKUP_LIMIT = 200;
 const ROLE_LIMIT = 400;
 const AUTH_USERS_PAGE = 100;
 const NAME_LOOKUP_CHUNK = 200;
+
+const BUSINESS_LISTING_SELECT =
+  "id, name, slug, description, status, is_claimed, verified_at, completeness, metadata, business_locations(suburb, city)";
 
 type RelatedBusiness = {
   id?: string;
@@ -53,7 +61,7 @@ function evidenceItems(raw: unknown): AdminClaim["evidence"] {
 
 export async function GET() {
   try {
-    await requireAdminSession("admin:moderate");
+    const session = await requireAdminSession("admin:moderate");
     const adminData = await createAdminDataClient();
     if (!adminData) {
       throw new AppError({
@@ -67,6 +75,7 @@ export async function GET() {
 
     const [
       businessResult,
+      reviewResult,
       claimResult,
       authUsersResult,
       profilesResult,
@@ -86,12 +95,19 @@ export async function GET() {
     ] = await Promise.all([
       supabase
         .from("businesses")
-        .select(
-          "id, name, slug, description, status, is_claimed, verified_at, completeness, metadata, business_locations(suburb, city)",
-        )
+        .select(BUSINESS_LISTING_SELECT)
         .is("deleted_at", null)
         .or("metadata->>source.is.null,metadata->>source.neq.openstreetmap")
         .order("created_at", { ascending: false })
+        .limit(QUEUE_LIMIT),
+      supabase
+        .from("businesses")
+        .select(BUSINESS_LISTING_SELECT)
+        .is("deleted_at", null)
+        .or(
+          "status.in.(DRAFT,PENDING_REVIEW),metadata->>ownerEditPending.eq.true",
+        )
+        .order("updated_at", { ascending: false })
         .limit(QUEUE_LIMIT),
       supabase
         .from("business_claims")
@@ -176,6 +192,7 @@ export async function GET() {
 
     const firstError =
       businessResult.error ??
+      reviewResult.error ??
       claimResult.error ??
       authUsersResult.error ??
       profilesResult.error ??
@@ -206,7 +223,28 @@ export async function GET() {
     }
 
     const authUsers = authUsersResult.data?.users ?? [];
-    const emails = new Map(authUsers.map((user) => [user.id, String(user.email ?? "")]));
+    const emails = new Map(
+      authUsers.map((user) => [user.id, String(user.email ?? "")]),
+    );
+    if (session.email) emails.set(session.id, session.email);
+    if (canManageAuthUsers) {
+      const missingActorIds = [
+        ...new Set(
+          (auditResult.data ?? [])
+            .map((row) => (row.actor_id ? String(row.actor_id) : ""))
+            .filter((id) => id && !emails.get(id)),
+        ),
+      ];
+      const lookedUp = await Promise.all(
+        missingActorIds.slice(0, 30).map(async (id) => {
+          const { data } = await supabase.auth.admin.getUserById(id);
+          return [id, data.user?.email ? String(data.user.email) : ""] as const;
+        }),
+      );
+      for (const [id, email] of lookedUp) {
+        if (email) emails.set(id, email);
+      }
+    }
     const profiles = new Map(
       (profilesResult.data ?? []).map((profile) => [
         String(profile.id),
@@ -228,12 +266,21 @@ export async function GET() {
       reportCounts.set(id, (reportCounts.get(id) ?? 0) + 1);
     }
 
-    const businessRows = (businessResult.data ?? []).filter(
-      (row) =>
-        !isImportedCatalogListing(
+    const businessRows = mergeAdminBusinessRows(
+      (reviewResult.data ?? []).filter((row) =>
+        keepAdminBusinessRow(
           String(row.id),
           (row.metadata as Record<string, unknown> | null) ?? null,
+          { includeOpenStreetMap: true },
         ),
+      ),
+      (businessResult.data ?? []).filter((row) =>
+        keepAdminBusinessRow(
+          String(row.id),
+          (row.metadata as Record<string, unknown> | null) ?? null,
+          { includeOpenStreetMap: false },
+        ),
+      ),
     );
     const extraIds = extraBusinessIdsForAdminLabels(
       businessRows.map((row) => String(row.id)),
@@ -511,7 +558,11 @@ export async function GET() {
         action: String(row.action),
         entityType: String(row.entity_type),
         entityId: row.entity_id ? String(row.entity_id) : null,
-        actorEmail: row.actor_id ? (emails.get(String(row.actor_id)) ?? null) : null,
+        actorEmail: actorEmailFromAuditRow(
+          row.actor_id ? String(row.actor_id) : null,
+          emails,
+          row.new_data,
+        ),
         createdAt: String(row.created_at),
       })),
       content,

@@ -3,6 +3,7 @@ import {
   isPersistedStoragePath,
   ownerPhotoObjectPath,
   photoExtensionForMime,
+  photoStorageObjectKey,
 } from "@/lib/media/photo-storage";
 import {
   photoErrorMessage,
@@ -24,6 +25,27 @@ describe("photo storage helpers", () => {
     );
     expect(photoExtensionForMime("image/webp")).toBe("webp");
     expect(photoExtensionForMime("application/pdf")).toBeNull();
+  });
+
+  it("extracts the storage object key from paths and public URLs", () => {
+    expect(
+      photoStorageObjectKey(
+        "b14d373d-9292-45c8-b681-24494529fcae/d1c30a79-7333-4a54-87e6-ba032f580f78.png",
+      ),
+    ).toBe(
+      "b14d373d-9292-45c8-b681-24494529fcae/d1c30a79-7333-4a54-87e6-ba032f580f78.png",
+    );
+    expect(
+      photoStorageObjectKey(
+        "business-photos/b14d373d-9292-45c8-b681-24494529fcae/cover.jpg",
+      ),
+    ).toBe("b14d373d-9292-45c8-b681-24494529fcae/cover.jpg");
+    expect(
+      photoStorageObjectKey(
+        "https://example.supabase.co/storage/v1/object/public/business-photos/biz/cover.jpg?v=1",
+      ),
+    ).toBe("biz/cover.jpg");
+    expect(photoStorageObjectKey("local/abc")).toBeNull();
   });
 
   it("rejects local placeholders and blob urls", () => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -24,11 +23,7 @@ export function AdminAuditLogsPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/audit-logs"
-      title="Audit Logs"
-      description="Every admin action writes a server-side audit record."
-    >
+    <>
       <QueueControls
         id="audit-logs"
         query={queue.query}
@@ -106,6 +101,6 @@ export function AdminAuditLogsPage() {
           </div>
         </>
       )}
-    </AdminShell>
+    </>
   );
 }

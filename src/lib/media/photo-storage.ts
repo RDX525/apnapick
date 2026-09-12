@@ -38,4 +38,26 @@ export function ownerPhotoObjectPath(
   return `${businessId}/${photoId}.${ext}`;
 }
 
+/** Bucket object key for storage.remove(), from a photos.storage_path or public URL. */
+export function photoStorageObjectKey(
+  storagePath: string | null | undefined,
+): string | null {
+  const value = storagePath?.trim() ?? "";
+  if (!isPersistedStoragePath(value)) return null;
+
+  const publicMarker = `/object/public/${BUSINESS_PHOTOS_BUCKET}/`;
+  const publicAt = value.indexOf(publicMarker);
+  if (publicAt >= 0) {
+    const key = decodeURIComponent(
+      value.slice(publicAt + publicMarker.length).split("?")[0] ?? "",
+    ).replace(/^\/+/, "");
+    return key.length > 0 ? key : null;
+  }
+
+  const key = value
+    .replace(/^\/+/, "")
+    .replace(new RegExp(`^${BUSINESS_PHOTOS_BUCKET}/`), "");
+  return key.length > 0 ? key : null;
+}
+
 export { BUSINESS_PHOTOS_BUCKET };

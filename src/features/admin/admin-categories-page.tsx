@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -23,11 +22,7 @@ export function AdminCategoriesPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/categories"
-      title="Categories"
-      description="Activate or deactivate discovery categories. Changes are audited."
-    >
+    <>
       <QueueControls
         id="categories"
         query={queue.query}
@@ -95,6 +90,6 @@ export function AdminCategoriesPage() {
           })}
         </ul>
       )}
-    </AdminShell>
+    </>
   );
 }

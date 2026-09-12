@@ -3,9 +3,10 @@ import type { LatLng } from "@/domain/geo/types";
 export const CURRENT_LOCATION_VALUE = "current";
 export const CURRENT_LOCATION_LABEL = "Current location";
 
-/** Coarse Wi‑Fi/IP fix. 15s made the header sit on “Locating…” for a full GPS wait. */
-export const COARSE_LOCATE_TIMEOUT_MS = 7_000;
-export const COARSE_LOCATE_MAX_AGE_MS = 300_000;
+/** Neighbourhood chips need GPS, not a stale city-level Wi‑Fi/IP guess. */
+export const FINE_LOCATE_TIMEOUT_MS = 8_000;
+export const COARSE_LOCATE_TIMEOUT_MS = 5_000;
+export const LOCATE_MAX_AGE_MS = 60_000;
 
 export function isCurrentLocationValue(value: string) {
   return value === CURRENT_LOCATION_VALUE;
@@ -86,10 +87,18 @@ export function locateDevicePosition(): Promise<LocateResult> {
     if (permission === "denied") {
       return { ok: false, reason: "denied" };
     }
+    const fine = await readDevicePosition({
+      enableHighAccuracy: true,
+      timeout: FINE_LOCATE_TIMEOUT_MS,
+      maximumAge: LOCATE_MAX_AGE_MS,
+    });
+    if (fine.ok || fine.reason === "denied" || fine.reason === "unsupported") {
+      return fine;
+    }
     return readDevicePosition({
       enableHighAccuracy: false,
       timeout: COARSE_LOCATE_TIMEOUT_MS,
-      maximumAge: COARSE_LOCATE_MAX_AGE_MS,
+      maximumAge: LOCATE_MAX_AGE_MS,
     });
   })();
   return locatePromise;

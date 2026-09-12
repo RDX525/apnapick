@@ -53,14 +53,53 @@ export function ownerEditPendingFromMetadata(
   return metadata?.ownerEditPending === true;
 }
 
+function clockForSave(value: string | null | undefined): string | null {
+  const match = value?.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)/);
+  if (!match) return null;
+  return `${match[1]!.padStart(2, "0")}:${match[2]}`;
+}
+
+function moneyCents(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.round(value));
+}
+
+function priceLevel(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return Math.max(1, Math.min(4, Math.round(value)));
+}
+
+function pin(value: number | null | undefined): number | null {
+  return value != null && Number.isFinite(value) ? value : null;
+}
+
 function sanitizeHours(hours: DayHours[]): DayHours[] {
-  return hours.map((day) => {
-    const opensAt = day.opensAt?.trim() || null;
-    const closesAt = day.closesAt?.trim() || null;
+  const byDay = new Map<number, DayHours>();
+  for (const day of hours) {
+    const dayOfWeek = Math.round(Number(day.dayOfWeek));
+    if (!Number.isFinite(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) continue;
+    const opensAt = clockForSave(day.opensAt);
+    const closesAt = clockForSave(day.closesAt);
     if (day.isClosed || !opensAt || !closesAt) {
-      return { ...day, isClosed: true, opensAt: null, closesAt: null };
+      byDay.set(dayOfWeek, {
+        dayOfWeek,
+        isClosed: true,
+        opensAt: null,
+        closesAt: null,
+      });
+    } else {
+      byDay.set(dayOfWeek, { dayOfWeek, isClosed: false, opensAt, closesAt });
     }
-    return { ...day, opensAt, closesAt, isClosed: false };
+  }
+  return Array.from({ length: 7 }, (_, dayOfWeek) => {
+    return (
+      byDay.get(dayOfWeek) ?? {
+        dayOfWeek,
+        isClosed: true,
+        opensAt: null,
+        closesAt: null,
+      }
+    );
   });
 }
 
@@ -92,8 +131,8 @@ function sanitizeSpecialHours(entries: SpecialHoursEntry[]): SpecialHoursEntry[]
   return entries
     .filter((entry) => Boolean(entry.date?.trim()))
     .map((entry) => {
-      const opensAt = entry.opensAt?.trim() || null;
-      const closesAt = entry.closesAt?.trim() || null;
+      const opensAt = clockForSave(entry.opensAt);
+      const closesAt = clockForSave(entry.closesAt);
       if (entry.isClosed || !opensAt || !closesAt) {
         return { ...entry, isClosed: true, opensAt: null, closesAt: null };
       }
@@ -116,9 +155,9 @@ export function ownerWorkspaceSavePayload(
     suburb: profile.suburb.trim(),
     city: profile.city.trim(),
     addressLine1: profile.addressLine1.trim(),
-    lat: profile.lat,
-    lng: profile.lng,
-    priceLevel: profile.priceLevel,
+    lat: pin(profile.lat),
+    lng: pin(profile.lng),
+    priceLevel: priceLevel(profile.priceLevel),
     temporarilyClosed: workspace.temporarilyClosed,
     hours: sanitizeHours(workspace.hours),
     specialHours: sanitizeSpecialHours(workspace.specialHours),
@@ -128,7 +167,7 @@ export function ownerWorkspaceSavePayload(
         id: item.id,
         name: item.name.trim(),
         description: item.description.trim(),
-        priceCents: item.priceCents,
+        priceCents: moneyCents(item.priceCents),
         published: item.published,
         sortOrder: item.sortOrder,
       })),
@@ -138,7 +177,7 @@ export function ownerWorkspaceSavePayload(
         id: item.id,
         name: item.name.trim(),
         description: item.description.trim(),
-        priceCents: item.priceCents,
+        priceCents: moneyCents(item.priceCents),
         published: item.published,
         sortOrder: item.sortOrder,
       })),
@@ -147,7 +186,13 @@ export function ownerWorkspaceSavePayload(
       .map((category) => ({
         ...category,
         name: category.name.trim(),
-        items: category.items.filter((item) => item.name.trim().length > 0),
+        items: category.items
+          .filter((item) => item.name.trim().length > 0)
+          .map((item) => ({
+            ...item,
+            name: item.name.trim(),
+            priceCents: moneyCents(item.priceCents),
+          })),
       })),
     photos: photosForSave(workspace.photos),
     offers: workspace.offers

@@ -7,6 +7,9 @@ import type {
 } from "@/domain/admin/types";
 import type { BusinessStatus, ClaimStatus } from "@/domain/business/types";
 import { nextStatusForOwnerEditAction } from "@/services/admin/queue-visibility";
+import { createEmptyAdminWorkspace } from "@/services/admin/workspace";
+
+const RECENT_LOCAL_AUDIT_MS = 45_000;
 
 export function applyClaimAction(
   claim: AdminClaim,
@@ -114,7 +117,91 @@ export function appendLocalAudit(
 ): AdminWorkspace {
   return {
     ...workspace,
-    auditLogs: [entry, ...workspace.auditLogs].slice(0, 200),
+    auditLogs: [entry, ...workspace.auditLogs.filter((log) => log.id !== entry.id)].slice(
+      0,
+      200,
+    ),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+export function mergeAuditLogs(
+  primary: AdminWorkspace["auditLogs"],
+  secondary: AdminWorkspace["auditLogs"] = [],
+): AdminWorkspace["auditLogs"] {
+  const seen = new Set<string>();
+  const merged: AdminWorkspace["auditLogs"] = [];
+  for (const log of [...primary, ...secondary]) {
+    if (!log.id || seen.has(log.id)) continue;
+    seen.add(log.id);
+    merged.push(log);
+  }
+  return merged
+    .sort((a, b) => {
+      const delta = Date.parse(b.createdAt) - Date.parse(a.createdAt);
+      return delta !== 0 ? delta : a.id.localeCompare(b.id);
+    })
+    .slice(0, 200);
+}
+
+export function applyAdminWorkspaceSnapshot(
+  previous: AdminWorkspace,
+  incoming: Partial<AdminWorkspace>,
+  options: { hasPendingActions: boolean; now?: number },
+): AdminWorkspace {
+  const incomingLogs = incoming.auditLogs ?? [];
+  if (options.hasPendingActions) {
+    return {
+      ...previous,
+      auditLogs: mergeAuditLogs(incomingLogs, previous.auditLogs),
+    };
+  }
+
+  const now = options.now ?? Date.now();
+  const recentLocal = previous.auditLogs.filter((log) => {
+    const created = Date.parse(log.createdAt);
+    return (
+      Number.isFinite(created) &&
+      now - created >= 0 &&
+      now - created < RECENT_LOCAL_AUDIT_MS
+    );
+  });
+
+  return {
+    ...createEmptyAdminWorkspace(),
+    ...incoming,
+    auditLogs: mergeAuditLogs(incomingLogs, recentLocal),
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+export function removeAdminContentItem(
+  workspace: AdminWorkspace,
+  contentId: string,
+): AdminWorkspace {
+  return {
+    ...workspace,
+    content: workspace.content.filter((item) => item.id !== contentId),
+  };
+}
+
+export function auditEntryFromAction(
+  result: {
+    audit?: {
+      id?: string;
+      action?: string;
+      createdAt?: string;
+      actorEmail?: string | null;
+    };
+  },
+  entry: { action: string; entityType: string; entityId: string },
+): AdminWorkspace["auditLogs"][number] {
+  return {
+    id: result.audit?.id ?? crypto.randomUUID(),
+    action: result.audit?.action ?? entry.action,
+    entityType: entry.entityType,
+    entityId: entry.entityId,
+    actorEmail: result.audit?.actorEmail ?? null,
+    createdAt: result.audit?.createdAt ?? new Date().toISOString(),
   };
 }

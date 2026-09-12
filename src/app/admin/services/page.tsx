@@ -9,5 +9,5 @@ export const metadata = buildPageMetadata({
 });
 
 export default function Page() {
-  return <AdminContentPage kind="service" title="Services" path="/admin/services" />;
+  return <AdminContentPage kind="service" title="Services" />;
 }

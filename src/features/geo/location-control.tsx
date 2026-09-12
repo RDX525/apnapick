@@ -16,6 +16,7 @@ import {
   saveSessionLocation,
 } from "@/lib/geo/session-location";
 import { AREA_CENTROIDS, DISCOVERY_AREA_SLUGS } from "@/config/geo-areas";
+import { persistCurrentLocation } from "@/lib/geo/location-access";
 import { defaultDiscoveryLocation } from "@/lib/geo/default-location";
 import { cn } from "@/lib/utils";
 
@@ -78,18 +79,12 @@ export function LocationControl({ value, onChange, className }: Props) {
     }
     const coords = result.position;
     try {
-      const res = await fetch(
-        `/api/geo/reverse?lat=${coords.lat}&lng=${coords.lng}`,
-        { signal: controller.signal },
-      );
-      const json = (await res.json()) as {
-        data?: { result?: { label?: string; areaSlug?: string | null } };
-      };
+      const resolved = await persistCurrentLocation(coords);
       if (controller.signal.aborted) return;
       apply({
         position: coords,
-        label: json.data?.result?.label ?? CURRENT_LOCATION_LABEL,
-        areaSlug: json.data?.result?.areaSlug ?? null,
+        label: resolved.label,
+        areaSlug: resolved.areaSlug,
         source: "device",
       });
     } catch {

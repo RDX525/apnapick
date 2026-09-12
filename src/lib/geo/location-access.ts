@@ -1,7 +1,6 @@
-import { AREA_CENTROIDS, nearestDiscoveryArea } from "@/config/geo-areas";
+import { resolveDiscoveryPlace } from "@/config/geo-areas";
 import { saveSessionLocation } from "@/lib/geo/session-location";
 import {
-  CURRENT_LOCATION_LABEL,
   CURRENT_LOCATION_VALUE,
   locateDevicePosition,
   resetDeviceLocateCache,
@@ -19,7 +18,7 @@ type LocationAccessState = {
 const ACCESS_EVENT = "apnapick:location-access";
 const DISMISS_KEY = "apnapick.geo.access-dismissed.v1";
 export const DISCOVERY_AREA_EVENT = "apnapick:discovery-area";
-export const DISCOVERY_AREA_SESSION_KEY = "apnapick.discovery.area.v4";
+export const DISCOVERY_AREA_SESSION_KEY = "apnapick.discovery.area.v5";
 
 let state: LocationAccessState = { open: false, reason: "prompt" };
 
@@ -89,35 +88,50 @@ export function keepCurrentLocationSelection() {
   emitDiscoveryArea(CURRENT_LOCATION_VALUE);
 }
 
-export function persistCurrentLocation(position: { lat: number; lng: number }) {
-  const areaSlug = nearestDiscoveryArea(position);
-  if (areaSlug) {
-    const label = AREA_CENTROIDS[areaSlug]?.label ?? areaSlug;
-    saveSessionLocation({
-      position,
-      label,
-      areaSlug,
-      source: "device",
-    });
-    writeDiscoveryArea(areaSlug);
-    emitDiscoveryArea(areaSlug);
-    return;
-  }
+export async function persistCurrentLocation(position: { lat: number; lng: number }) {
+  const reverse = await reverseGeocodeDevicePosition(position);
+  const resolved = resolveDiscoveryPlace(position, reverse);
+  const areaSlug = resolved.areaSlug;
   saveSessionLocation({
     position,
-    label: CURRENT_LOCATION_LABEL,
-    areaSlug: CURRENT_LOCATION_VALUE,
+    label: resolved.label,
+    areaSlug: areaSlug ?? CURRENT_LOCATION_VALUE,
     source: "device",
   });
-  writeDiscoveryArea(CURRENT_LOCATION_VALUE);
-  emitDiscoveryArea(CURRENT_LOCATION_VALUE);
+  if (areaSlug) {
+    writeDiscoveryArea(areaSlug);
+    emitDiscoveryArea(areaSlug);
+  } else {
+    writeDiscoveryArea(CURRENT_LOCATION_VALUE);
+    emitDiscoveryArea(CURRENT_LOCATION_VALUE);
+  }
+  return resolved;
+}
+
+async function reverseGeocodeDevicePosition(position: {
+  lat: number;
+  lng: number;
+}): Promise<{ suburb?: string | null; label?: string | null } | null> {
+  if (typeof fetch === "undefined") return null;
+  try {
+    const response = await fetch(
+      `/api/geo/reverse?lat=${position.lat}&lng=${position.lng}`,
+    );
+    if (!response.ok) return null;
+    const json = (await response.json()) as {
+      data?: { result?: { suburb?: string | null; label?: string | null } };
+    };
+    return json.data?.result ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function requestDeviceLocation(): Promise<LocateResult> {
   resetDeviceLocateCache();
   const result = await locateDevicePosition();
   if (result.ok) {
-    persistCurrentLocation(result.position);
+    await persistCurrentLocation(result.position);
     closeLocationAccess();
   } else {
     state = { open: true, reason: result.reason };

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   extraBusinessIdsForAdminLabels,
+  keepAdminBusinessRow,
+  mergeAdminBusinessRows,
   nextStatusForOwnerEditAction,
 } from "@/services/admin/queue-visibility";
 
@@ -19,6 +21,47 @@ describe("extraBusinessIdsForAdminLabels", () => {
     expect(
       extraBusinessIdsForAdminLabels(["a", "b"], ["a"], ["b"]),
     ).toEqual([]);
+  });
+});
+
+describe("keepAdminBusinessRow", () => {
+  it("hides OSM catalog listings from the general businesses list", () => {
+    expect(
+      keepAdminBusinessRow(
+        "99548baa-4a09-5aef-ad02-a9741936c1fc",
+        { source: "openstreetmap" },
+        { includeOpenStreetMap: false },
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps OSM listings that are waiting for owner-edit review", () => {
+    expect(
+      keepAdminBusinessRow(
+        "99548baa-4a09-5aef-ad02-a9741936c1fc",
+        { source: "openstreetmap" },
+        { includeOpenStreetMap: true },
+      ),
+    ).toBe(true);
+  });
+
+  it("always hides local seed listings", () => {
+    expect(
+      keepAdminBusinessRow("11111111-1111-1111-1111-111111111101", null, {
+        includeOpenStreetMap: true,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("mergeAdminBusinessRows", () => {
+  it("puts review-queue listings first and drops duplicates", () => {
+    expect(
+      mergeAdminBusinessRows(
+        [{ id: "pending" }, { id: "shared" }],
+        [{ id: "shared" }, { id: "newest" }],
+      ),
+    ).toEqual([{ id: "pending" }, { id: "shared" }, { id: "newest" }]);
   });
 });
 

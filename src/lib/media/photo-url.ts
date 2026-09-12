@@ -51,3 +51,33 @@ export function resolvePhotoUrl(
 
   return `${origin}/storage/v1/object/public/${BUSINESS_PHOTOS_BUCKET}/${objectPath}`;
 }
+
+export type CoverPhotoInput = {
+  storagePath?: string | null;
+  storage_path?: string | null;
+  isCover?: boolean;
+  is_cover?: boolean;
+  deletedAt?: string | null;
+  deleted_at?: string | null;
+  sortOrder?: number;
+  sort_order?: number;
+};
+
+/** Cover first, then gallery order. Skips deleted rows and unusable paths. */
+export function pickCoverPhotoUrl(
+  photos: CoverPhotoInput[],
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): string | null {
+  const live = photos.filter((photo) => !photo.deletedAt && !photo.deleted_at);
+  live.sort((a, b) => {
+    const coverA = Boolean(a.isCover || a.is_cover);
+    const coverB = Boolean(b.isCover || b.is_cover);
+    if (coverA !== coverB) return coverA ? -1 : 1;
+    return (a.sortOrder ?? a.sort_order ?? 0) - (b.sortOrder ?? b.sort_order ?? 0);
+  });
+  for (const photo of live) {
+    const url = resolvePhotoUrl(photo.storagePath ?? photo.storage_path, supabaseUrl);
+    if (url) return url;
+  }
+  return null;
+}

@@ -8,6 +8,10 @@ import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { createAdminDataClient } from "@/lib/db/supabase-admin";
 import { hasSupabaseConfig } from "@/config/env";
 import { publicMutationMessage } from "@/lib/errors/public-message";
+import {
+  BUSINESS_PHOTOS_BUCKET,
+  photoStorageObjectKey,
+} from "@/lib/media/photo-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +37,7 @@ const schema = z.discriminatedUnion("type", [
     type: z.literal("content"),
     contentId: z.string().uuid(),
     contentKind: z.enum(["product", "service", "photo", "description", "review"]),
-    status: z.enum(["visible", "hidden", "flagged"]),
+    status: z.enum(["visible", "hidden", "flagged", "deleted"]),
   }),
   z.object({
     type: z.literal("report"),
@@ -75,6 +79,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = parsed.data;
+    if (
+      body.type === "content" &&
+      body.status === "deleted" &&
+      body.contentKind !== "photo"
+    ) {
+      throw new AppError({
+        message: "Only photos can be permanently deleted.",
+        code: "VALIDATION_ERROR",
+        status: 400,
+        expose: true,
+      });
+    }
     let action = "";
     let entityType = "";
     let entityId: string | null = null;
@@ -223,7 +239,37 @@ export async function POST(request: NextRequest) {
             mutationError = result.error;
           }
         } else if (body.contentKind === "photo") {
-          if (body.status !== "flagged") {
+          if (body.status === "deleted") {
+            const existing = await adminSupabase
+              .from("photos")
+              .select("id, storage_path")
+              .eq("id", body.contentId)
+              .maybeSingle();
+            mutationError = existing.error;
+            if (!mutationError && !existing.data) {
+              throw new AppError({
+                message: "Photo not found",
+                code: "NOT_FOUND",
+                status: 404,
+                expose: true,
+              });
+            }
+            if (!mutationError && existing.data) {
+              const objectKey = photoStorageObjectKey(
+                String(existing.data.storage_path),
+              );
+              if (objectKey) {
+                await adminSupabase.storage
+                  .from(BUSINESS_PHOTOS_BUCKET)
+                  .remove([objectKey]);
+              }
+              const result = await adminSupabase
+                .from("photos")
+                .delete()
+                .eq("id", body.contentId);
+              mutationError = result.error;
+            }
+          } else if (body.status !== "flagged") {
             const result = await adminSupabase
               .from("photos")
               .update({

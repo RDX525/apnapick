@@ -8,7 +8,6 @@ import {
   useOperationalQueue,
 } from "@/components/operations/queue-controls";
 import { StatusBadge } from "@/components/operations/status-badge";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 
 const REASON_LABELS: Record<string, string> = {
@@ -41,11 +40,7 @@ export function AdminReportsPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/reports"
-      title="Reports"
-      description="Incorrect info, duplicates, closed businesses, spam, and abuse."
-    >
+    <>
       <QueueControls
         id="reports"
         query={queue.query}
@@ -149,6 +144,6 @@ export function AdminReportsPage() {
           })}
         </ul>
       )}
-    </AdminShell>
+    </>
   );
 }

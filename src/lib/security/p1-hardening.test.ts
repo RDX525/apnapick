@@ -39,6 +39,15 @@ describe("publicMutationMessage", () => {
         "Couldn’t save.",
       ),
     ).toMatch(/cover photo/i);
+    expect(
+      publicMutationMessage(
+        'duplicate key value violates unique constraint "business_hours_unique_day"',
+        "Couldn’t save.",
+      ),
+    ).toMatch(/opening and closing times/i);
+    expect(
+      publicMutationMessage("unpublishing requires admin P0001", "Couldn’t save."),
+    ).toMatch(/stay published/i);
   });
 });
 

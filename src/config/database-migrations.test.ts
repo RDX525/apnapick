@@ -116,6 +116,20 @@ describe("Phase 2 database migrations", () => {
       "when v_old.status = 'PENDING_REVIEW' then 'PUBLISHED'::public.business_status",
     );
     expect(sql).toContain("photos_enforce_single_cover");
+    expect(sql).toContain(
+      "update public.photos\n  set is_cover = false\n  where business_id = p_business_id",
+    );
+    const ownerSaveCover = readFileSync(
+      path.join(migrationsDir, "0031_owner_save_cover_reset.sql"),
+      "utf8",
+    );
+    expect(ownerSaveCover).toContain("elsif v_old.status = 'PUBLISHED' then");
+    expect(ownerSaveCover).toContain(
+      "jsonb_set(v_metadata, '{ownerEditPending}', 'true'::jsonb)",
+    );
+    expect(ownerSaveCover).not.toContain(
+      "v_old.status in ('DRAFT', 'REJECTED', 'PUBLISHED')",
+    );
   });
 
   it("dev seed is explicitly non-production", () => {

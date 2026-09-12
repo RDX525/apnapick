@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -33,11 +32,7 @@ export function AdminSubscriptionsPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/subscriptions"
-      title="Subscriptions"
-      description="Business plan status. Paid placement never affects organic rank."
-    >
+    <>
       <QueueControls
         id="subscriptions"
         query={queue.query}
@@ -135,6 +130,6 @@ export function AdminSubscriptionsPage() {
           </div>
         </>
       )}
-    </AdminShell>
+    </>
   );
 }

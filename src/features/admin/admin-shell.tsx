@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   Building2,
@@ -91,20 +92,94 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
 
 export const ADMIN_NAV = ADMIN_NAV_GROUPS.flatMap((group) => group.items);
 
-export function AdminShell({
-  children,
-  activePath,
-  title,
-  description,
-}: {
-  children: ReactNode;
-  activePath: string;
-  title: string;
-  description?: string;
-}) {
+export const ADMIN_PAGE_COPY: Record<string, { title: string; description: string }> = {
+  "/admin": {
+    title: "Dashboard",
+    description: "Moderate claims, listings, users, and trust & safety queues.",
+  },
+  "/admin/businesses": {
+    title: "Businesses",
+    description:
+      "Approve or accept owner edits to publish a listing. Reject, suspend, verify, or merge duplicates.",
+  },
+  "/admin/claims": {
+    title: "Claims",
+    description:
+      "Review ownership claims on owner-created and catalog listings. Evidence, history, and verification actions are audited.",
+  },
+  "/admin/users": {
+    title: "Users",
+    description: "View accounts, suspend abuse, and restore access. All actions are audited.",
+  },
+  "/admin/categories": {
+    title: "Categories",
+    description: "Activate or deactivate discovery categories. Changes are audited.",
+  },
+  "/admin/products": {
+    title: "Products",
+    description: "Content moderation — hide or flag items. Actions are audited server-side.",
+  },
+  "/admin/services": {
+    title: "Services",
+    description: "Content moderation — hide or flag items. Actions are audited server-side.",
+  },
+  "/admin/photos": {
+    title: "Photos",
+    description: "Content moderation — hide or flag items. Actions are audited server-side.",
+  },
+  "/admin/descriptions": {
+    title: "Descriptions",
+    description: "Content moderation — hide or flag items. Actions are audited server-side.",
+  },
+  "/admin/reviews": {
+    title: "Reviews",
+    description: "Content moderation — hide or flag items. Actions are audited server-side.",
+  },
+  "/admin/reports": {
+    title: "Reports",
+    description: "Incorrect info, duplicates, closed businesses, spam, and abuse.",
+  },
+  "/admin/search-analytics": {
+    title: "Search Analytics",
+    description: "Popular queries and areas. Precise GPS is never stored.",
+  },
+  "/admin/seo": {
+    title: "SEO",
+    description: "Control indexability of category and area hub pages.",
+  },
+  "/admin/subscriptions": {
+    title: "Subscriptions",
+    description: "Business plan status. Paid placement never affects organic rank.",
+  },
+  "/admin/payments": {
+    title: "Payments",
+    description: "Payment ledger for billed businesses.",
+  },
+  "/admin/audit-logs": {
+    title: "Audit Logs",
+    description: "Every admin action writes a server-side audit record.",
+  },
+  "/admin/settings": {
+    title: "Settings",
+    description: "Platform flags and admin policy. Authorization is always server-side.",
+  },
+};
+
+export function adminPageCopy(pathname: string) {
+  return (
+    ADMIN_PAGE_COPY[pathname] ?? {
+      title: ADMIN_NAV.find((item) => item.href === pathname)?.label ?? "Admin",
+      description: undefined,
+    }
+  );
+}
+
+export function AdminShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { title, description } = adminPageCopy(pathname);
   const { hydrated, saving, workspace, actionError, clearActionError } = useAdmin();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const activeItem = ADMIN_NAV.find((item) => item.href === activePath) ?? {
+  const activeItem = ADMIN_NAV.find((item) => item.href === pathname) ?? {
     href: "/admin",
     label: "Dashboard",
     icon: LayoutDashboard,
@@ -157,11 +232,12 @@ export function AdminShell({
                       </p>
                       <ul className="space-y-1">
                         {group.items.map(({ href, label, icon: Icon }) => {
-                          const active = activePath === href;
+                          const active = pathname === href;
                           return (
                             <li key={href}>
                               <Link
                                 href={href}
+                                prefetch
                                 aria-current={active ? "page" : undefined}
                                 className={cn(
                                   "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm",
@@ -213,11 +289,12 @@ export function AdminShell({
                     {group.label}
                   </p>
                   {group.items.map(({ href, label, icon: Icon }) => {
-                    const active = activePath === href;
+                    const active = pathname === href;
                     return (
                       <Link
                         key={href}
                         href={href}
+                        prefetch
                         aria-current={active ? "page" : undefined}
                         className={cn(
                           "flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-sm",
@@ -246,7 +323,11 @@ export function AdminShell({
               ) : null}
             </div>
             <p className="text-muted-foreground text-xs" aria-live="polite">
-              {saving ? "Recording audit…" : hydrated ? "Server-authorized" : "Loading…"}
+              {saving
+                ? "Recording audit…"
+                : hydrated
+                  ? "Live · server-authorized"
+                  : "Loading…"}
             </p>
           </header>
           {actionError ? (

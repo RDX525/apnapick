@@ -23,7 +23,7 @@ import { navLinkIsActive, primaryNavForArea } from "@/config/site-nav";
 export function SiteHeader({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const { area, setArea, locating } = useDiscoveryArea();
+  const { area, setArea, locating, placeLabel } = useDiscoveryArea();
   const links = useMemo(() => primaryNavForArea(area), [area]);
 
   function handleNavigation() {
@@ -94,6 +94,7 @@ export function SiteHeader({ className }: { className?: string }) {
                 value={area}
                 onChange={setArea}
                 locating={locating}
+                placeLabel={placeLabel}
                 variant="chip"
               />
             </div>
@@ -186,6 +187,7 @@ export function SiteHeader({ className }: { className?: string }) {
                 value={area}
                 onChange={setArea}
                 locating={locating}
+                placeLabel={placeLabel}
                 variant="chip"
                 className="w-full min-w-0"
               />

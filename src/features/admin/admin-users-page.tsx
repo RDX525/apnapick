@@ -8,7 +8,6 @@ import {
   useOperationalQueue,
 } from "@/components/operations/queue-controls";
 import { StatusBadge } from "@/components/operations/status-badge";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 
 export function AdminUsersPage() {
@@ -25,11 +24,7 @@ export function AdminUsersPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/users"
-      title="Users"
-      description="View accounts, suspend abuse, and restore access. All actions are audited."
-    >
+    <>
       <QueueControls
         id="users"
         query={queue.query}
@@ -115,6 +110,6 @@ export function AdminUsersPage() {
           })}
         </ul>
       )}
-    </AdminShell>
+    </>
   );
 }

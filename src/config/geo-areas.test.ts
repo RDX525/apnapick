@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   AREA_CENTROIDS,
   DISCOVERY_AREA_SLUGS,
+  discoveryAreaFromPlaceName,
   isDiscoveryAreaSlug,
   isPlatformAreaSlug,
   nearestAreaSlug,
   nearestAreaSlugAmong,
   nearestDiscoveryArea,
+  resolveDiscoveryPlace,
 } from "@/config/geo-areas";
 
 describe("live neighbourhoods", () => {
@@ -49,6 +51,38 @@ describe("nearestDiscoveryArea", () => {
 
   it("returns null when the point is outside Kharadi, Wagholi, and Lohegaon", () => {
     expect(nearestDiscoveryArea({ lat: 19.076, lng: 72.8777 })).toBeNull();
+    expect(nearestDiscoveryArea(AREA_CENTROIDS.pune!.position)).toBeNull();
+    expect(nearestDiscoveryArea(AREA_CENTROIDS.hadapsar!.position)).toBeNull();
+    expect(nearestDiscoveryArea(AREA_CENTROIDS["viman-nagar"]!.position)).toBeNull();
+  });
+});
+
+describe("discoveryAreaFromPlaceName", () => {
+  it("maps live neighbourhood names from reverse-geocode text", () => {
+    expect(discoveryAreaFromPlaceName("Kharadi, Pune")).toBe("kharadi");
+    expect(discoveryAreaFromPlaceName("Wagholi")).toBe("wagholi");
+    expect(discoveryAreaFromPlaceName("Lohegaon")).toBe("lohegaon");
+    expect(discoveryAreaFromPlaceName("Viman Nagar")).toBeNull();
+  });
+});
+
+describe("resolveDiscoveryPlace", () => {
+  it("prefers the reverse-geocoded suburb over a nearby centroid", () => {
+    expect(
+      resolveDiscoveryPlace(AREA_CENTROIDS.lohegaon!.position, {
+        suburb: "Kharadi",
+        label: "Kharadi, Pune",
+      }),
+    ).toEqual({ areaSlug: "kharadi", label: "Kharadi" });
+  });
+
+  it("uses the current place name when GPS is outside the live neighbourhoods", () => {
+    expect(
+      resolveDiscoveryPlace(AREA_CENTROIDS["viman-nagar"]!.position, {
+        suburb: "Viman Nagar",
+        label: "Viman Nagar, Pune",
+      }),
+    ).toEqual({ areaSlug: null, label: "Viman Nagar" });
   });
 });
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -31,11 +30,7 @@ export function AdminPaymentsPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/payments"
-      title="Payments"
-      description="Payment ledger for billed businesses."
-    >
+    <>
       <QueueControls
         id="payments"
         query={queue.query}
@@ -124,6 +119,6 @@ export function AdminPaymentsPage() {
           </div>
         </>
       )}
-    </AdminShell>
+    </>
   );
 }

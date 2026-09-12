@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,20 +32,29 @@ export function useOperationalQueue<T>(items: readonly T[], config: QueueConfig<
   const [sort, setSort] = useState(config.defaultSort);
   const [page, setPage] = useState(1);
   const pageSize = config.pageSize ?? 8;
+  const searchTextRef = useRef(config.searchText);
+  const filterValueRef = useRef(config.filterValue);
+  const sortersRef = useRef(config.sorters);
+  searchTextRef.current = config.searchText;
+  filterValueRef.current = config.filterValue;
+  sortersRef.current = config.sorters;
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
+    const searchText = searchTextRef.current;
+    const filterValue = filterValueRef.current;
+    const sorters = sortersRef.current;
     const matches = items.filter((item) => {
       const matchesSearch =
         !normalizedQuery ||
-        config.searchText(item).toLocaleLowerCase().includes(normalizedQuery);
+        searchText(item).toLocaleLowerCase().includes(normalizedQuery);
       const matchesFilter =
-        filter === "all" || !config.filterValue || config.filterValue(item) === filter;
+        filter === "all" || !filterValue || filterValue(item) === filter;
       return matchesSearch && matchesFilter;
     });
 
-    return [...matches].sort(config.sorters[sort] ?? config.sorters[config.defaultSort]);
-  }, [config, filter, items, query, sort]);
+    return [...matches].sort(sorters[sort] ?? sorters[config.defaultSort]);
+  }, [config.defaultSort, filter, items, query, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, pageCount);

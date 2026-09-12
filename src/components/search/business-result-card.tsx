@@ -1,6 +1,6 @@
 import { memo } from "react";
 import Link from "next/link";
-import { MapPin, MessageCircle, Navigation, Phone, Star } from "lucide-react";
+import { Eye, MapPin, MessageCircle, Navigation, Phone, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VerifiedBadge, ClaimedBadge } from "@/components/trust/verified-badge";
@@ -247,8 +247,11 @@ export const BusinessResultCard = memo(function BusinessResultCard({
               Directions
             </a>
           </Button>
-          <Button asChild size="sm" variant="ghost" className="hidden min-h-11 sm:inline-flex">
-            <Link href={`/b/${model.slug}`}>View</Link>
+          <Button asChild size="sm" variant="outline" className="min-h-10 sm:min-h-11">
+            <Link href={`/b/${model.slug}`}>
+              <Eye className="size-4" aria-hidden />
+              View
+            </Link>
           </Button>
         </div>
       </div>

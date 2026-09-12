@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -24,11 +23,7 @@ export function AdminSeoPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/seo"
-      title="SEO"
-      description="Control indexability of category and area hub pages."
-    >
+    <>
       <QueueControls
         id="seo-pages"
         query={queue.query}
@@ -102,6 +97,6 @@ export function AdminSeoPage() {
           })}
         </ul>
       )}
-    </AdminShell>
+    </>
   );
 }

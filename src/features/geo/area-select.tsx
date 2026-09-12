@@ -21,13 +21,16 @@ type AreaSelectProps = {
   value: string;
   onChange: (next: string) => void;
   locating?: boolean;
+  placeLabel?: string | null;
   variant?: "default" | "chip";
   className?: string;
 };
 
-function areaLabel(value: string, locating?: boolean) {
+function areaLabel(value: string, locating?: boolean, placeLabel?: string | null) {
   if (locating) return "Locating…";
-  if (isCurrentLocationValue(value)) return CURRENT_LOCATION_LABEL;
+  if (isCurrentLocationValue(value)) {
+    return placeLabel?.trim() || CURRENT_LOCATION_LABEL;
+  }
   return AREA_CENTROIDS[value]?.label ?? "Pune";
 }
 
@@ -36,6 +39,7 @@ export function AreaSelect({
   value,
   onChange,
   locating = false,
+  placeLabel = null,
   variant = "default",
   className,
 }: AreaSelectProps) {
@@ -53,7 +57,7 @@ export function AreaSelect({
       >
         <MapPin className="text-sea size-3.5" aria-hidden />
         <SelectValue placeholder={CURRENT_LOCATION_LABEL}>
-          {areaLabel(value, locating)}
+          {areaLabel(value, locating, placeLabel)}
         </SelectValue>
       </SelectTrigger>
       <SelectContent position="popper" align="end">

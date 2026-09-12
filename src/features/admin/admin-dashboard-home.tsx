@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/empty-state";
@@ -9,9 +8,10 @@ import { StatusBadge } from "@/components/operations/status-badge";
 
 export function AdminDashboardHome() {
   const { workspace } = useAdmin();
-  const openClaims = workspace.claims.filter((c) =>
+  const openClaimItems = workspace.claims.filter((c) =>
     ["PENDING", "UNDER_REVIEW"].includes(c.status),
-  ).length;
+  );
+  const openClaims = openClaimItems.length;
   const pendingBiz = workspace.businesses.filter(
     (b) => ["PENDING_REVIEW", "DRAFT"].includes(b.status) || b.ownerEditPending,
   ).length;
@@ -26,11 +26,7 @@ export function AdminDashboardHome() {
   ] as const;
 
   return (
-    <AdminShell
-      activePath="/admin"
-      title="Dashboard"
-      description="Moderate claims, listings, users, and trust & safety queues."
-    >
+    <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map(([label, value, href]) => (
           <Link
@@ -53,7 +49,7 @@ export function AdminDashboardHome() {
             </Button>
           </div>
           <ul className="mt-4 space-y-3">
-            {workspace.claims.length === 0 ? (
+            {openClaimItems.length === 0 ? (
               <li>
                 <EmptyState
                   compact
@@ -62,7 +58,7 @@ export function AdminDashboardHome() {
                 />
               </li>
             ) : null}
-            {workspace.claims.slice(0, 4).map((c) => (
+            {openClaimItems.slice(0, 4).map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
                 <span>
                   {c.businessName}
@@ -104,6 +100,6 @@ export function AdminDashboardHome() {
           </ul>
         </section>
       </div>
-    </AdminShell>
+    </>
   );
 }

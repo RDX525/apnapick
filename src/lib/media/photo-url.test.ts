@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUsableImageSrc, pickImageSrc, resolvePhotoUrl } from "@/lib/media/photo-url";
+import { isUsableImageSrc, pickCoverPhotoUrl, pickImageSrc, resolvePhotoUrl } from "@/lib/media/photo-url";
 
 describe("isUsableImageSrc", () => {
   it("accepts absolute http(s) urls and root-relative paths", () => {
@@ -24,6 +24,39 @@ describe("pickImageSrc", () => {
     expect(pickImageSrc("local/abc", "/images/fallback.jpg")).toBe("/images/fallback.jpg");
     expect(pickImageSrc("/images/cover.jpg", "/images/fallback.jpg")).toBe(
       "/images/cover.jpg",
+    );
+  });
+});
+
+describe("pickCoverPhotoUrl", () => {
+  const supabaseUrl = "https://example.supabase.co";
+
+  it("prefers the cover photo over earlier gallery rows", () => {
+    expect(
+      pickCoverPhotoUrl(
+        [
+          { storage_path: "biz/gallery.jpg", is_cover: false, sort_order: 0 },
+          { storage_path: "biz/cover.jpg", is_cover: true, sort_order: 1 },
+        ],
+        supabaseUrl,
+      ),
+    ).toBe(
+      "https://example.supabase.co/storage/v1/object/public/business-photos/biz/cover.jpg",
+    );
+  });
+
+  it("skips deleted rows and unusable placeholders", () => {
+    expect(
+      pickCoverPhotoUrl(
+        [
+          { storage_path: "biz/old.jpg", is_cover: true, deleted_at: "2026-01-01" },
+          { storage_path: "local/abc", is_cover: false, sort_order: 0 },
+          { storage_path: "biz/live.jpg", is_cover: false, sort_order: 1 },
+        ],
+        supabaseUrl,
+      ),
+    ).toBe(
+      "https://example.supabase.co/storage/v1/object/public/business-photos/biz/live.jpg",
     );
   });
 });

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,9 +14,12 @@ import type { AdminWorkspace } from "@/domain/admin/types";
 import { createEmptyAdminWorkspace } from "@/services/admin/workspace";
 import {
   appendLocalAudit,
+  applyAdminWorkspaceSnapshot,
   applyBusinessAction,
   applyClaimAction,
   applyUserAction,
+  auditEntryFromAction,
+  removeAdminContentItem,
 } from "@/services/admin/actions";
 import type {
   BusinessAdminAction,
@@ -44,7 +48,7 @@ type AdminContextValue = {
   moderateContent: (
     id: string,
     kind: "product" | "service" | "photo" | "description" | "review",
-    status: "visible" | "hidden" | "flagged",
+    status: "visible" | "hidden" | "flagged" | "deleted",
   ) => Promise<void>;
   resolveReport: (
     id: string,
@@ -69,8 +73,31 @@ async function postAdminAction(body: Record<string, unknown>) {
     throw new Error(data.error ?? "Admin action failed");
   }
   return res.json() as Promise<{
-    audit?: { id: string; action: string; createdAt: string };
+    audit?: {
+      id: string;
+      action: string;
+      createdAt: string;
+      actorEmail?: string | null;
+    };
   }>;
+}
+
+const LIVE_POLL_MS = 5_000;
+
+function workspacePayloadKey(body: Partial<AdminWorkspace>) {
+  return JSON.stringify([
+    body.businesses,
+    body.claims,
+    body.users,
+    body.categories,
+    body.reports,
+    body.auditLogs,
+    body.content,
+    body.searchAnalytics,
+    body.seoPages,
+    body.subscriptions,
+    body.payments,
+  ]);
 }
 
 export function AdminProvider({ children }: { children: ReactNode }) {
@@ -79,40 +106,92 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [pendingActions, setPendingActions] = useState<Set<string>>(() => new Set());
   const [actionError, setActionError] = useState<string | null>(null);
   const saving = pendingActions.size > 0;
+  const pendingActionsRef = useRef(pendingActions);
+  pendingActionsRef.current = pendingActions;
+  const mutationEpochRef = useRef(0);
+  const loadApprovalsRef = useRef<() => Promise<void>>(async () => {});
+  const lastPayloadKeyRef = useRef("");
 
   useEffect(() => {
-    const controller = new AbortController();
-    void fetch("/api/admin/approvals", { signal: controller.signal })
-      .then(async (response) => {
+    let cancelled = false;
+    let inFlight: AbortController | null = null;
+
+    async function loadApprovals() {
+      inFlight?.abort();
+      const controller = new AbortController();
+      inFlight = controller;
+      const epochAtStart = mutationEpochRef.current;
+      try {
+        const response = await fetch("/api/admin/approvals", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
         const body = (await response
           .json()
           .catch(() => ({}))) as Partial<AdminWorkspace> & {
           error?: string;
         };
         if (!response.ok) throw new Error(body.error ?? "Could not load approval queues");
-        setWorkspace({
-          ...createEmptyAdminWorkspace(),
-          ...body,
-          updatedAt: new Date().toISOString(),
-        });
+        if (cancelled) return;
+        setActionError(null);
+        const stale =
+          pendingActionsRef.current.size > 0 ||
+          epochAtStart !== mutationEpochRef.current;
+        const payloadKey = workspacePayloadKey(body);
+        if (!stale && payloadKey === lastPayloadKeyRef.current) {
+          setHydrated(true);
+          return;
+        }
+        if (!stale) lastPayloadKeyRef.current = payloadKey;
+        setWorkspace((previous) =>
+          applyAdminWorkspaceSnapshot(previous, body, {
+            hasPendingActions: stale,
+          }),
+        );
         setHydrated(true);
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        if (cancelled) return;
         setActionError(
           error instanceof Error ? error.message : "Could not load approval queues",
         );
         setHydrated(true);
-      });
+      }
+    }
 
-    return () => controller.abort();
+    loadApprovalsRef.current = loadApprovals;
+    void loadApprovals();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadApprovals();
+    }, LIVE_POLL_MS);
+    const onResume = () => {
+      if (document.visibilityState === "visible") void loadApprovals();
+    };
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+
+    return () => {
+      cancelled = true;
+      inFlight?.abort();
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
+    };
   }, []);
 
   const runTracked = useCallback(async (key: string, work: () => Promise<void>) => {
     setActionError(null);
-    setPendingActions((current) => new Set(current).add(key));
+    setPendingActions((current) => {
+      const next = new Set(current).add(key);
+      pendingActionsRef.current = next;
+      return next;
+    });
     try {
       await work();
+      mutationEpochRef.current += 1;
+      queueMicrotask(() => {
+        void loadApprovalsRef.current();
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "The admin action failed.";
       setActionError(message);
@@ -121,6 +200,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       setPendingActions((current) => {
         const next = new Set(current);
         next.delete(key);
+        pendingActionsRef.current = next;
         return next;
       });
     }
@@ -158,14 +238,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
               ),
             };
           }
-          next = appendLocalAudit(next, {
-            id: result.audit?.id ?? crypto.randomUUID(),
-            action: `claim_${action}`,
-            entityType: "business_claim",
-            entityId: claimId,
-            actorEmail: "admin",
-            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-          });
+          next = appendLocalAudit(
+            next,
+            auditEntryFromAction(result, {
+              action: `claim_${action}`,
+              entityType: "business_claim",
+              entityId: claimId,
+            }),
+          );
           return next;
         });
       });
@@ -184,14 +264,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         });
         setWorkspace((prev) => {
           let next = applyBusinessAction(prev, businessId, action, mergeIntoId);
-          next = appendLocalAudit(next, {
-            id: result.audit?.id ?? crypto.randomUUID(),
-            action: `business_${action}`,
-            entityType: "business",
-            entityId: businessId,
-            actorEmail: "admin",
-            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-          });
+          next = appendLocalAudit(
+            next,
+            auditEntryFromAction(result, {
+              action: `business_${action}`,
+              entityType: "business",
+              entityId: businessId,
+            }),
+          );
           return next;
         });
       });
@@ -209,14 +289,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         });
         setWorkspace((prev) => {
           let next = applyUserAction(prev, userId, action);
-          next = appendLocalAudit(next, {
-            id: result.audit?.id ?? crypto.randomUUID(),
-            action: `user_${action}`,
-            entityType: "user",
-            entityId: userId,
-            actorEmail: "admin",
-            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-          });
+          next = appendLocalAudit(
+            next,
+            auditEntryFromAction(result, {
+              action: `user_${action}`,
+              entityType: "user",
+              entityId: userId,
+            }),
+          );
           return next;
         });
       });
@@ -228,7 +308,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     async (
       id: string,
       kind: "product" | "service" | "photo" | "description" | "review",
-      status: "visible" | "hidden" | "flagged",
+      status: "visible" | "hidden" | "flagged" | "deleted",
     ) => {
       await runTracked(`content:${id}:${status}`, async () => {
         const result = await postAdminAction({
@@ -238,18 +318,23 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           status,
         });
         setWorkspace((prev) => {
-          let next: AdminWorkspace = {
-            ...prev,
-            content: prev.content.map((c) => (c.id === id ? { ...c, status } : c)),
-          };
-          next = appendLocalAudit(next, {
-            id: result.audit?.id ?? crypto.randomUUID(),
-            action: `content_${status}`,
-            entityType: "content",
-            entityId: id,
-            actorEmail: "admin",
-            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-          });
+          let next: AdminWorkspace =
+            status === "deleted"
+              ? removeAdminContentItem(prev, id)
+              : {
+                  ...prev,
+                  content: prev.content.map((c) =>
+                    c.id === id ? { ...c, status } : c,
+                  ),
+                };
+          next = appendLocalAudit(
+            next,
+            auditEntryFromAction(result, {
+              action: `content_${status}`,
+              entityType: "content",
+              entityId: id,
+            }),
+          );
           return next;
         });
       });
@@ -270,14 +355,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             ...prev,
             reports: prev.reports.map((r) => (r.id === id ? { ...r, status } : r)),
           };
-          next = appendLocalAudit(next, {
-            id: result.audit?.id ?? crypto.randomUUID(),
-            action: `report_${status.toLowerCase()}`,
-            entityType: "report",
-            entityId: id,
-            actorEmail: "admin",
-            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-          });
+          next = appendLocalAudit(
+            next,
+            auditEntryFromAction(result, {
+              action: `report_${status.toLowerCase()}`,
+              entityType: "report",
+              entityId: id,
+            }),
+          );
           return next;
         });
       });
@@ -305,14 +390,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
                 c.id === id ? { ...c, active } : c,
               ),
             };
-            next = appendLocalAudit(next, {
-              id: result.audit?.id ?? crypto.randomUUID(),
-              action: active ? "category_activate" : "category_deactivate",
-              entityType: "category",
-              entityId: id,
-              actorEmail: "admin",
-              createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-            });
+            next = appendLocalAudit(
+              next,
+              auditEntryFromAction(result, {
+                action: active ? "category_activate" : "category_deactivate",
+                entityType: "category",
+                entityId: id,
+              }),
+            );
             return next;
           });
         },
@@ -337,14 +422,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             ...prev,
             seoPages: prev.seoPages.map((p) => (p.id === id ? { ...p, indexable } : p)),
           };
-          next = appendLocalAudit(next, {
-            id: result.audit?.id ?? crypto.randomUUID(),
-            action: indexable ? "seo_index" : "seo_noindex",
-            entityType: "seo_page",
-            entityId: id,
-            actorEmail: "admin",
-            createdAt: result.audit?.createdAt ?? new Date().toISOString(),
-          });
+          next = appendLocalAudit(
+            next,
+            auditEntryFromAction(result, {
+              action: indexable ? "seo_index" : "seo_noindex",
+              entityType: "seo_page",
+              entityId: id,
+            }),
+          );
           return next;
         });
       });

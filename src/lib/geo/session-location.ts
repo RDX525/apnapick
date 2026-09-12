@@ -5,7 +5,7 @@
 
 import type { DiscoveryLocation } from "@/domain/geo/types";
 
-export const GEO_SESSION_KEY = "apnapick.geo.session.v1";
+export const GEO_SESSION_KEY = "apnapick.geo.session.v2";
 
 export function loadSessionLocation(): DiscoveryLocation | null {
   if (typeof window === "undefined") return null;

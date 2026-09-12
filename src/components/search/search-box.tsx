@@ -29,7 +29,7 @@ export function SearchBox({
   autoFocus = false,
 }: SearchBoxProps) {
   const router = useRouter();
-  const { area, setArea, position, locating } = useDiscoveryArea();
+  const { area, setArea, position, locating, placeLabel } = useDiscoveryArea();
   const [query, setQuery] = useState(initialQuery);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,6 +113,7 @@ export function SearchBox({
               value={area}
               onChange={setArea}
               locating={locating}
+              placeLabel={placeLabel}
               className="h-11 rounded-full text-sm"
             />
           </div>

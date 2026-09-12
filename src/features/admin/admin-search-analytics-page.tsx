@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -21,11 +20,7 @@ export function AdminSearchAnalyticsPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/search-analytics"
-      title="Search Analytics"
-      description="Popular queries and areas. Precise GPS is never stored."
-    >
+    <>
       <QueueControls
         id="search-analytics"
         query={queue.query}
@@ -113,6 +108,6 @@ export function AdminSearchAnalyticsPage() {
           </div>
         </>
       )}
-    </AdminShell>
+    </>
   );
 }

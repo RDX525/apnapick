@@ -4,7 +4,8 @@ import { jsonError, jsonOk } from "@/lib/api/response";
 import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { requireWritableDatabase } from "@/lib/db/require-writable-db";
-import { publicMutationMessage } from "@/lib/errors/public-message";
+import { publicMutationMessage, providerErrorText } from "@/lib/errors/public-message";
+import { createLogger } from "@/lib/logging/logger";
 import { canManageBusiness } from "@/services/business/ownership";
 import { fetchOwnerListingSnapshot } from "@/repositories/dashboard/owner-workspace-repository";
 import { workspaceFromOwnerListing } from "@/services/dashboard/owner-workspace";
@@ -17,6 +18,8 @@ import { geocodeLocation } from "@/services/geo/geo-service";
 import type { DashboardWorkspace } from "@/domain/dashboard/types";
 
 export const dynamic = "force-dynamic";
+
+const log = createLogger({ module: "owner-workspace" });
 
 const BUSINESS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -135,6 +138,19 @@ export async function PUT(request: NextRequest) {
       geocode: geocodeLocation,
     });
 
+    const { error: coverResetError } = await supabase
+      .from("photos")
+      .update({ is_cover: false })
+      .eq("business_id", businessId)
+      .eq("is_cover", true)
+      .is("deleted_at", null);
+    if (coverResetError) {
+      log.warn("photo_cover_reset_failed", {
+        businessId,
+        message: coverResetError.message,
+      });
+    }
+
     const { data, error } = await supabase.rpc("save_owner_workspace", {
       p_business_id: businessId,
       p_payload: ownerWorkspaceSavePayload(located),
@@ -142,8 +158,10 @@ export async function PUT(request: NextRequest) {
     });
 
     if (error) {
+      const raw = providerErrorText(error);
+      log.warn("owner_workspace_save_failed", { businessId, message: raw });
       throw new AppError({
-        message: publicMutationMessage(error.message, "Couldn’t save your listing."),
+        message: publicMutationMessage(raw, "Couldn’t save your listing."),
         code: "OWNER_WORKSPACE_SAVE_FAILED",
         status: 400,
         expose: true,

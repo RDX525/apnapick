@@ -9,5 +9,5 @@ export const metadata = buildPageMetadata({
 });
 
 export default function Page() {
-  return <AdminContentPage kind="review" title="Reviews" path="/admin/reviews" />;
+  return <AdminContentPage kind="review" title="Reviews" />;
 }

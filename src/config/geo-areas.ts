@@ -48,8 +48,70 @@ export const DISCOVERY_AREA_SLUGS = ["kharadi", "wagholi", "lohegaon"] as const;
 
 export type DiscoveryAreaSlug = (typeof DISCOVERY_AREA_SLUGS)[number];
 
+/**
+ * Snap GPS to a live neighbourhood only when the pin is actually in it.
+ * 15 km pulled Viman Nagar / Magarpatta / Pune CBD into the wrong chip.
+ */
+export const DISCOVERY_AREA_SNAP_RADIUS_M = 1_500;
+
+const DISCOVERY_AREA_ALIASES: Record<DiscoveryAreaSlug, readonly string[]> = {
+  kharadi: ["kharadi"],
+  wagholi: ["wagholi"],
+  lohegaon: ["lohegaon", "lohgaon"],
+};
+
 export function isDiscoveryAreaSlug(value: string): value is DiscoveryAreaSlug {
   return (DISCOVERY_AREA_SLUGS as readonly string[]).includes(value);
+}
+
+/** Match Nominatim suburb / label text onto Kharadi, Wagholi, or Lohegaon. */
+export function discoveryAreaFromPlaceName(
+  value: string | null | undefined,
+): DiscoveryAreaSlug | null {
+  if (!value) return null;
+  const hay = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  for (const slug of DISCOVERY_AREA_SLUGS) {
+    if (DISCOVERY_AREA_ALIASES[slug].some((alias) => hay.includes(alias))) {
+      return slug;
+    }
+  }
+  return null;
+}
+
+export function resolveDiscoveryPlace(
+  position: LatLng,
+  reverse?: {
+    suburb?: string | null;
+    label?: string | null;
+    city?: string | null;
+  } | null,
+): { areaSlug: DiscoveryAreaSlug | null; label: string } {
+  const named =
+    discoveryAreaFromPlaceName(reverse?.suburb) ??
+    discoveryAreaFromPlaceName(reverse?.label);
+  if (named) {
+    return { areaSlug: named, label: AREA_CENTROIDS[named]?.label ?? named };
+  }
+  const near = nearestDiscoveryArea(position);
+  if (near) {
+    return { areaSlug: near, label: AREA_CENTROIDS[near]?.label ?? near };
+  }
+  const suburb = reverse?.suburb?.trim();
+  if (suburb) return { areaSlug: null, label: suburb };
+  const fromLabel = reverse?.label?.trim();
+  if (fromLabel) {
+    const short = fromLabel
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(", ");
+    return { areaSlug: null, label: short || fromLabel };
+  }
+  return { areaSlug: null, label: "Current location" };
 }
 
 /** City-wide Pune hubs plus the live neighbourhoods. */
@@ -63,7 +125,11 @@ export function nearestAreaSlug(position: LatLng): string | null {
 
 /** Dropdown neighbourhood for a GPS fix — null when the pin is outside the live areas. */
 export function nearestDiscoveryArea(position: LatLng): DiscoveryAreaSlug | null {
-  const nearest = nearestAreaSlugAmong(position, DISCOVERY_AREA_SLUGS);
+  const nearest = nearestAreaSlugAmong(
+    position,
+    DISCOVERY_AREA_SLUGS,
+    DISCOVERY_AREA_SNAP_RADIUS_M,
+  );
   return nearest && isDiscoveryAreaSlug(nearest) ? nearest : null;
 }
 

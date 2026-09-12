@@ -9,5 +9,5 @@ export const metadata = buildPageMetadata({
 });
 
 export default function Page() {
-  return <AdminContentPage kind="photo" title="Photos" path="/admin/photos" />;
+  return <AdminContentPage kind="photo" title="Photos" />;
 }

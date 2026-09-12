@@ -9,11 +9,5 @@ export const metadata = buildPageMetadata({
 });
 
 export default function Page() {
-  return (
-    <AdminContentPage
-      kind="description"
-      title="Descriptions"
-      path="/admin/descriptions"
-    />
-  );
+  return <AdminContentPage kind="description" title="Descriptions" />;
 }

@@ -3,16 +3,11 @@
 import { Palette } from "lucide-react";
 import { ThemeControl } from "@/components/theme/theme-control";
 import { Badge } from "@/components/ui/badge";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { DEFAULT_FEATURE_FLAGS } from "@/config/feature-flags";
 
 export function AdminSettingsPage() {
   return (
-    <AdminShell
-      activePath="/admin/settings"
-      title="Settings"
-      description="Platform flags and admin policy. Authorization is always server-side."
-    >
+    <>
       <section className="ap-glass rounded-2xl p-5" aria-labelledby="admin-theme-heading">
         <div className="flex items-start gap-3">
           <span className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
@@ -66,6 +61,6 @@ export function AdminSettingsPage() {
           <li>Organic ranking is never influenced by paid placement.</li>
         </ul>
       </section>
-    </AdminShell>
+    </>
   );
 }

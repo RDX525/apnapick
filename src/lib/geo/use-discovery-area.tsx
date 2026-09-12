@@ -37,6 +37,7 @@ type DiscoveryAreaValue = {
   setArea: (next: string) => void;
   position: LatLng | null;
   locating: boolean;
+  placeLabel: string | null;
 };
 
 const DiscoveryAreaContext = createContext<DiscoveryAreaValue | null>(null);
@@ -58,12 +59,14 @@ function applyDeviceSession(
   setAreaState: (slug: string) => void,
   setPosition: (next: LatLng) => void,
   setLocating: (next: boolean) => void,
+  setPlaceLabel: (next: string | null) => void,
 ) {
   const slug =
     location.areaSlug && isDiscoveryAreaSlug(location.areaSlug)
       ? location.areaSlug
       : CURRENT_LOCATION_VALUE;
   setPosition(location.position);
+  setPlaceLabel(location.label);
   writeDiscoveryArea(slug);
   setAreaState(slug);
   setLocating(false);
@@ -75,6 +78,7 @@ function useDiscoveryAreaController(enableLocate: boolean) {
   const [area, setAreaState] = useState(startArea);
   const [position, setPosition] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(false);
+  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const aliveRef = useRef(true);
 
   useEffect(() => {
@@ -91,7 +95,10 @@ function useDiscoveryAreaController(enableLocate: boolean) {
         setAreaState(slug);
       }
       const saved = loadSessionLocation();
-      if (saved?.source === "device") setPosition(saved.position);
+      if (saved?.source === "device") {
+        setPosition(saved.position);
+        setPlaceLabel(saved.label);
+      }
     }
     window.addEventListener(DISCOVERY_AREA_EVENT, onArea);
     return () => window.removeEventListener(DISCOVERY_AREA_EVENT, onArea);
@@ -116,6 +123,7 @@ function useDiscoveryAreaController(enableLocate: boolean) {
         if (cancelled) return;
         setLocating(false);
         setAreaState(saved);
+        setPlaceLabel(AREA_CENTROIDS[saved]?.label ?? saved);
         if (centroid) setPosition(centroid);
         emitDiscoveryArea(saved);
       });
@@ -128,7 +136,13 @@ function useDiscoveryAreaController(enableLocate: boolean) {
     if (sessionLoc?.source === "device") {
       queueMicrotask(() => {
         if (cancelled) return;
-        applyDeviceSession(sessionLoc, setAreaState, setPosition, setLocating);
+        applyDeviceSession(
+          sessionLoc,
+          setAreaState,
+          setPosition,
+          setLocating,
+          setPlaceLabel,
+        );
       });
       return () => {
         cancelled = true;
@@ -143,13 +157,14 @@ function useDiscoveryAreaController(enableLocate: boolean) {
       emitDiscoveryArea(CURRENT_LOCATION_VALUE);
     });
 
-    void locateDevicePosition().then((result) => {
+    void locateDevicePosition().then(async (result) => {
       if (cancelled) return;
       const chosen = readSavedArea();
       if (chosen && isDiscoveryAreaSlug(chosen)) {
         const centroid = AREA_CENTROIDS[chosen]?.position;
         setLocating(false);
         setAreaState(chosen);
+        setPlaceLabel(AREA_CENTROIDS[chosen]?.label ?? chosen);
         if (centroid) setPosition(centroid);
         emitDiscoveryArea(chosen);
         return;
@@ -157,17 +172,22 @@ function useDiscoveryAreaController(enableLocate: boolean) {
       setLocating(false);
       if (result.ok) {
         setPosition(result.position);
-        persistCurrentLocation(result.position);
+        const resolved = await persistCurrentLocation(result.position);
+        if (cancelled) return;
+        setPlaceLabel(resolved.label);
+        setAreaState(resolved.areaSlug ?? CURRENT_LOCATION_VALUE);
         return;
       }
       if (result.reason === "denied") {
         keepCurrentLocationSelection();
         setAreaState(CURRENT_LOCATION_VALUE);
+        setPlaceLabel(null);
         openLocationAccess("denied");
         return;
       }
       keepCurrentLocationSelection();
       setAreaState(CURRENT_LOCATION_VALUE);
+      setPlaceLabel(null);
     });
 
     return () => {
@@ -184,7 +204,20 @@ function useDiscoveryAreaController(enableLocate: boolean) {
       void requestDeviceLocation().then((result) => {
         if (!aliveRef.current) return;
         setLocating(false);
-        if (result.ok) setPosition(result.position);
+        if (!result.ok) {
+          setPlaceLabel(null);
+          return;
+        }
+        setPosition(result.position);
+        const saved = loadSessionLocation();
+        if (saved?.source === "device") {
+          setPlaceLabel(saved.label);
+          setAreaState(
+            saved.areaSlug && isDiscoveryAreaSlug(saved.areaSlug)
+              ? saved.areaSlug
+              : CURRENT_LOCATION_VALUE,
+          );
+        }
       });
       return;
     }
@@ -193,6 +226,7 @@ function useDiscoveryAreaController(enableLocate: boolean) {
     writeDiscoveryArea(next);
     setAreaState(next);
     setLocating(false);
+    setPlaceLabel(centroid?.label ?? next);
     if (centroid) {
       setPosition(centroid.position);
       saveSessionLocation({
@@ -206,8 +240,8 @@ function useDiscoveryAreaController(enableLocate: boolean) {
   }, []);
 
   return useMemo(
-    () => ({ area, setArea, position, locating }),
-    [area, setArea, position, locating],
+    () => ({ area, setArea, position, locating, placeLabel }),
+    [area, setArea, position, locating, placeLabel],
   );
 }
 
@@ -225,9 +259,9 @@ export function DiscoveryAreaProvider({
 }
 
 /**
- * Shared dropdown area. On load, request GPS (browser permission prompt)
- * and snap the picker to the nearest neighbourhood when GPS lands in
- * Kharadi, Wagholi, or Lohegaon. Otherwise the menu stays on Current location.
+ * Shared dropdown area. On load, request GPS and snap the picker to
+ * Kharadi, Wagholi, or Lohegaon when the place name or pin is in that
+ * neighbourhood. Otherwise the menu shows the current location name.
  */
 export function useDiscoveryArea() {
   const ctx = useContext(DiscoveryAreaContext);

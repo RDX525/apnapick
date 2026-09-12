@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   appendLocalAudit,
+  applyAdminWorkspaceSnapshot,
   applyBusinessAction,
   applyClaimAction,
   applyUserAction,
+  auditEntryFromAction,
+  mergeAuditLogs,
+  removeAdminContentItem,
 } from "@/services/admin/actions";
 import { createSeedAdminWorkspace } from "@/services/admin/workspace";
 
@@ -104,5 +108,72 @@ describe("admin audit append", () => {
       createdAt: new Date().toISOString(),
     });
     expect(next.auditLogs[0]!.id).toBe("audit-1");
+  });
+
+  it("merges server logs with recent local entries", () => {
+    const older = {
+      id: "old",
+      action: "claim_reject",
+      entityType: "business_claim",
+      entityId: "a",
+      actorEmail: "ops@example.com",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const newer = {
+      id: "new",
+      action: "claim_approve",
+      entityType: "business_claim",
+      entityId: "b",
+      actorEmail: "ops@example.com",
+      createdAt: "2026-01-02T00:00:00.000Z",
+    };
+    expect(mergeAuditLogs([newer, older], [newer])).toEqual([newer, older]);
+  });
+
+  it("keeps optimistic logs while an action is in flight", () => {
+    const previous = createSeedAdminWorkspace();
+    const local = {
+      id: "local-1",
+      action: "category_activate",
+      entityType: "category",
+      entityId: "c1",
+      actorEmail: "admin@example.com",
+      createdAt: new Date().toISOString(),
+    };
+    previous.auditLogs = [local];
+    const next = applyAdminWorkspaceSnapshot(
+      previous,
+      { auditLogs: [], claims: [] },
+      { hasPendingActions: true },
+    );
+    expect(next.claims).toEqual(previous.claims);
+    expect(next.auditLogs[0]!.id).toBe("local-1");
+  });
+
+  it("copies actor email from the server action result", () => {
+    expect(
+      auditEntryFromAction(
+        {
+          audit: {
+            id: "audit-9",
+            action: "claim_approve",
+            createdAt: "2026-09-12T00:00:00.000Z",
+            actorEmail: "admin@example.com",
+          },
+        },
+        { action: "claim_approve", entityType: "business_claim", entityId: "c1" },
+      ),
+    ).toMatchObject({
+      id: "audit-9",
+      actorEmail: "admin@example.com",
+    });
+  });
+
+  it("drops a photo from the workspace after a permanent delete", () => {
+    const ws = createSeedAdminWorkspace();
+    const photo = ws.content.find((item) => item.kind === "photo")!;
+    const next = removeAdminContentItem(ws, photo.id);
+    expect(next.content.some((item) => item.id === photo.id)).toBe(false);
+    expect(next.content.length).toBe(ws.content.length - 1);
   });
 });

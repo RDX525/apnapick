@@ -1,4 +1,5 @@
 import type { SessionUser } from "@/lib/auth/session";
+import { hasSupabaseConfig } from "@/config/env";
 
 export type AuditRecord = {
   id: string;
@@ -11,6 +12,22 @@ export type AuditRecord = {
   newData?: Record<string, unknown> | null;
   createdAt: string;
 };
+
+export function actorEmailFromAuditRow(
+  actorId: string | null | undefined,
+  emails: Map<string, string>,
+  newData: unknown,
+): string | null {
+  if (actorId) {
+    const email = emails.get(actorId);
+    if (email) return email;
+  }
+  if (newData && typeof newData === "object" && !Array.isArray(newData)) {
+    const email = (newData as Record<string, unknown>).actorEmail;
+    if (typeof email === "string" && email.includes("@")) return email;
+  }
+  return null;
+}
 
 export type AdminActionInput = {
   actor: SessionUser;
@@ -28,6 +45,10 @@ export type AdminActionInput = {
  * Persists to `audit_logs` when Supabase is available and propagates write failures.
  */
 export async function writeAdminAudit(input: AdminActionInput): Promise<AuditRecord> {
+  const newData: Record<string, unknown> = {
+    ...(input.newData ?? {}),
+    ...(input.actor.email ? { actorEmail: input.actor.email } : {}),
+  };
   const record: AuditRecord = {
     id: crypto.randomUUID(),
     actorId: input.actor.id,
@@ -36,13 +57,19 @@ export async function writeAdminAudit(input: AdminActionInput): Promise<AuditRec
     entityType: input.entityType,
     entityId: input.entityId ?? null,
     oldData: input.oldData ?? null,
-    newData: input.newData ?? null,
+    newData,
     createdAt: new Date().toISOString(),
   };
 
+  const { createAdminDataClient } = await import("@/lib/db/supabase-admin");
   const { createServerSupabaseClient } = await import("@/lib/db/supabase-server");
-  const supabase = await createServerSupabaseClient();
-  if (supabase) {
+  const adminData = await createAdminDataClient();
+  const supabase = adminData?.supabase ?? (await createServerSupabaseClient());
+  if (!supabase) {
+    if (hasSupabaseConfig()) {
+      throw new Error("Could not persist admin audit log");
+    }
+  } else {
     const { error } = await supabase.from("audit_logs").insert({
       id: record.id,
       actor_id: input.actor.id.startsWith("00000000") ? null : input.actor.id,
@@ -50,7 +77,7 @@ export async function writeAdminAudit(input: AdminActionInput): Promise<AuditRec
       entity_type: input.entityType,
       entity_id: input.entityId ?? null,
       old_data: input.oldData ?? null,
-      new_data: input.newData ?? null,
+      new_data: record.newData ?? null,
       ip: input.ip ?? null,
       user_agent: input.userAgent ?? null,
     });

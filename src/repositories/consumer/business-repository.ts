@@ -9,7 +9,7 @@ import type {
 import { PUBLIC_DATA_REVALIDATE_SECONDS } from "@/lib/cache/public-data";
 import { createPublicSupabaseClient } from "@/lib/db/supabase-public";
 import { createLogger } from "@/lib/logging/logger";
-import { resolvePhotoUrl } from "@/lib/media/photo-url";
+import { pickCoverPhotoUrl, resolvePhotoUrl } from "@/lib/media/photo-url";
 import { hasSupabaseConfig } from "@/config/env";
 
 const log = createLogger({ module: "business-repository" });
@@ -109,14 +109,7 @@ async function queryPublishedBusinesses(
       deleted_at: string | null;
     }[];
     const livePhotos = photos.filter((p) => !p.deleted_at);
-    const orderedPhotos = [
-      ...livePhotos.filter((p) => p.is_cover),
-      ...livePhotos.filter((p) => !p.is_cover),
-    ];
-    const coverImageUrl =
-      orderedPhotos
-        .map((p) => resolvePhotoUrl(p.storage_path))
-        .find((url): url is string => Boolean(url)) ?? null;
+    const coverImageUrl = pickCoverPhotoUrl(livePhotos);
 
     return {
       id: row.id as string,

@@ -90,6 +90,68 @@ describe("ownerWorkspaceSavePayload", () => {
     expect(payload.photos[0]).not.toHaveProperty("previewUrl");
   });
 
+  it("dedupes weekday hours and normalizes clock strings", () => {
+    const workspace = createEmptyWorkspace();
+    workspace.profile.name = "Flow Kitchen";
+    workspace.hours = [
+      { dayOfWeek: 1, isClosed: false, opensAt: "9:00:00", closesAt: "17:30:00" },
+      { dayOfWeek: 1, isClosed: false, opensAt: "10:00", closesAt: "22:00" },
+      { dayOfWeek: 2, isClosed: false, opensAt: "bad", closesAt: "22:00" },
+    ];
+    const hours = ownerWorkspaceSavePayload(workspace).hours;
+    expect(hours).toHaveLength(7);
+    expect(hours[1]).toMatchObject({
+      dayOfWeek: 1,
+      isClosed: false,
+      opensAt: "10:00",
+      closesAt: "22:00",
+    });
+    expect(hours[2]).toMatchObject({
+      dayOfWeek: 2,
+      isClosed: true,
+      opensAt: null,
+      closesAt: null,
+    });
+  });
+
+  it("rounds catalog and menu prices to whole cents", () => {
+    const workspace = createEmptyWorkspace();
+    workspace.profile.name = "Flow Kitchen";
+    workspace.products = [
+      {
+        id: "11111111-1111-1111-1111-111111111201",
+        kind: "product",
+        name: "Curry",
+        description: "",
+        priceCents: 24900.7,
+        published: true,
+        sortOrder: 0,
+        attributes: [],
+      },
+    ];
+    workspace.menu = [
+      {
+        id: "menu-1",
+        name: "Mains",
+        sortOrder: 0,
+        items: [
+          {
+            id: "item-1",
+            name: "Thali",
+            description: "",
+            priceCents: 19999.4,
+            published: true,
+            sortOrder: 0,
+            dietary: [],
+          },
+        ],
+      },
+    ];
+    const payload = ownerWorkspaceSavePayload(workspace);
+    expect(payload.products[0]?.priceCents).toBe(24901);
+    expect(payload.menu[0]?.items[0]?.priceCents).toBe(19999);
+  });
+
   it("sends persisted photo object keys", () => {
     const workspace = createEmptyWorkspace();
     workspace.profile.name = "Flow Kitchen";

@@ -10,7 +10,6 @@ import {
   useOperationalQueue,
 } from "@/components/operations/queue-controls";
 import { StatusBadge } from "@/components/operations/status-badge";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { useAdmin } from "@/features/admin/admin-provider";
 import type { BusinessAdminAction } from "@/domain/admin/types";
 
@@ -45,11 +44,7 @@ export function AdminBusinessesPage() {
   });
 
   return (
-    <AdminShell
-      activePath="/admin/businesses"
-      title="Businesses"
-      description="Approve or accept owner edits to publish a listing. Reject, suspend, verify, or merge duplicates."
-    >
+    <>
       <QueueControls
         id="businesses"
         query={queue.query}
@@ -192,6 +187,6 @@ export function AdminBusinessesPage() {
           ))}
         </ul>
       )}
-    </AdminShell>
+    </>
   );
 }
