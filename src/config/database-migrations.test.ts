@@ -115,6 +115,7 @@ describe("Phase 2 database migrations", () => {
     expect(sql).toContain(
       "when v_old.status = 'PENDING_REVIEW' then 'PUBLISHED'::public.business_status",
     );
+    expect(sql).toContain("photos_enforce_single_cover");
   });
 
   it("dev seed is explicitly non-production", () => {

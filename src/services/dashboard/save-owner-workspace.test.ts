@@ -108,6 +108,36 @@ describe("ownerWorkspaceSavePayload", () => {
       "11111111-1111-1111-1111-111111111101/cover.jpg",
     );
   });
+
+  it("keeps a single cover when several photos are marked as cover", () => {
+    const workspace = createEmptyWorkspace();
+    workspace.profile.name = "Flow Kitchen";
+    workspace.photos = [
+      {
+        id: "11111111-1111-1111-1111-111111111301",
+        role: "cover",
+        name: "Storefront",
+        previewUrl: null,
+        storagePath: "biz/cover.jpg",
+        sortOrder: 0,
+        isCover: true,
+      },
+      {
+        id: "11111111-1111-1111-1111-111111111302",
+        role: "cover",
+        name: "Gallery",
+        previewUrl: null,
+        storagePath: "biz/gallery.jpg",
+        sortOrder: 1,
+        isCover: true,
+      },
+    ];
+    const photos = ownerWorkspaceSavePayload(workspace).photos;
+    expect(photos.filter((photo) => photo.isCover)).toHaveLength(1);
+    expect(photos[0]?.isCover).toBe(true);
+    expect(photos[1]?.isCover).toBe(false);
+    expect(photos[1]?.role).toBe("gallery");
+  });
 });
 
 describe("ownerEditPendingFromMetadata", () => {

@@ -33,6 +33,12 @@ describe("publicMutationMessage", () => {
     expect(
       publicMutationMessage("row-level security policy", "Couldn’t save."),
     ).toBe("Your session doesn’t have permission to submit this claim. Log in again and retry.");
+    expect(
+      publicMutationMessage(
+        'duplicate key value violates unique constraint "photos_one_cover_uidx"',
+        "Couldn’t save.",
+      ),
+    ).toMatch(/cover photo/i);
   });
 });
 

@@ -3,6 +3,10 @@ import type { LatLng } from "@/domain/geo/types";
 export const CURRENT_LOCATION_VALUE = "current";
 export const CURRENT_LOCATION_LABEL = "Current location";
 
+/** Coarse Wi‑Fi/IP fix. 15s made the header sit on “Locating…” for a full GPS wait. */
+export const COARSE_LOCATE_TIMEOUT_MS = 7_000;
+export const COARSE_LOCATE_MAX_AGE_MS = 300_000;
+
 export function isCurrentLocationValue(value: string) {
   return value === CURRENT_LOCATION_VALUE;
 }
@@ -47,12 +51,8 @@ export async function queryGeolocationPermission(): Promise<GeolocationPermissio
   }
 }
 
-let locatePromise: Promise<LocateResult> | null = null;
-
-/** Shared in-flight GPS read so header, search, and filters prompt once. */
-export function locateDevicePosition(): Promise<LocateResult> {
-  if (locatePromise) return locatePromise;
-  locatePromise = new Promise((resolve) => {
+function readDevicePosition(options: PositionOptions): Promise<LocateResult> {
+  return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve({ ok: false, reason: "unsupported" });
       return;
@@ -71,9 +71,27 @@ export function locateDevicePosition(): Promise<LocateResult> {
           ok: false,
           reason: locateFailureReasonFromCode(error?.code),
         }),
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300_000 },
+      options,
     );
   });
+}
+
+let locatePromise: Promise<LocateResult> | null = null;
+
+/** Shared in-flight GPS read so header, search, and filters prompt once. */
+export function locateDevicePosition(): Promise<LocateResult> {
+  if (locatePromise) return locatePromise;
+  locatePromise = (async () => {
+    const permission = await queryGeolocationPermission();
+    if (permission === "denied") {
+      return { ok: false, reason: "denied" };
+    }
+    return readDevicePosition({
+      enableHighAccuracy: false,
+      timeout: COARSE_LOCATE_TIMEOUT_MS,
+      maximumAge: COARSE_LOCATE_MAX_AGE_MS,
+    });
+  })();
   return locatePromise;
 }
 

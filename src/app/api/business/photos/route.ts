@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { BUSINESS_PHOTOS_BUCKET, ownerPhotoObjectPath } from "@/lib/media/photo-storage";
 import { resolvePhotoUrl } from "@/lib/media/photo-url";
+import { createLogger } from "@/lib/logging/logger";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { canManageBusiness } from "@/services/business/ownership";
 import { getBusinessEntitlements } from "@/services/billing/subscription-service";
@@ -16,12 +17,14 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const log = createLogger({ module: "business-photos" });
+
 const BUSINESS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Upload a listing photo into the business-photos bucket.
- * The workspace save then inserts/updates the photos row.
+ * Upload a listing photo into the business-photos bucket and insert the
+ * photos row immediately so gallery files are not lost if section save fails.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -150,6 +153,30 @@ export async function POST(request: NextRequest) {
         status: 400,
         expose: true,
         cause: upload.error,
+      });
+    }
+
+    const { data: coverRows } = await supabase
+      .from("photos")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("is_cover", true)
+      .is("deleted_at", null)
+      .limit(1);
+
+    const { error: rowError } = await supabase.from("photos").insert({
+      id: photoId,
+      business_id: businessId,
+      storage_path: objectPath,
+      alt_text: fileName.slice(0, 200) || "Photo",
+      sort_order: count ?? 0,
+      is_cover: !coverRows?.length,
+    });
+    if (rowError) {
+      log.warn("photo_row_insert_failed", {
+        businessId,
+        photoId,
+        message: rowError.message,
       });
     }
 

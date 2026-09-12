@@ -64,6 +64,30 @@ function sanitizeHours(hours: DayHours[]): DayHours[] {
   });
 }
 
+function photosForSave(photos: DashboardWorkspace["photos"]) {
+  const rows = photos.map((photo) => ({
+    id: photo.id,
+    name: photo.name,
+    isCover: photo.isCover,
+    role: photo.role,
+    sortOrder: photo.sortOrder,
+    storagePath: isPersistedStoragePath(photo.storagePath)
+      ? photo.storagePath.trim()
+      : null,
+  }));
+  const coverId =
+    rows.find((photo) => photo.isCover || photo.role === "cover")?.id ??
+    rows[0]?.id;
+  return rows.map((photo) => {
+    const isCover = photo.id === coverId;
+    return {
+      ...photo,
+      isCover,
+      role: photo.role === "logo" ? "logo" : isCover ? "cover" : "gallery",
+    };
+  });
+}
+
 function sanitizeSpecialHours(entries: SpecialHoursEntry[]): SpecialHoursEntry[] {
   return entries
     .filter((entry) => Boolean(entry.date?.trim()))
@@ -125,16 +149,7 @@ export function ownerWorkspaceSavePayload(
         name: category.name.trim(),
         items: category.items.filter((item) => item.name.trim().length > 0),
       })),
-    photos: workspace.photos.map((photo) => ({
-      id: photo.id,
-      name: photo.name,
-      isCover: photo.isCover,
-      role: photo.role,
-      sortOrder: photo.sortOrder,
-      storagePath: isPersistedStoragePath(photo.storagePath)
-        ? photo.storagePath.trim()
-        : null,
-    })),
+    photos: photosForSave(workspace.photos),
     offers: workspace.offers
       .filter((offer) => offer.title.trim().length > 0)
       .map((offer) => ({

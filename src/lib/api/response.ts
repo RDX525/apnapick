@@ -22,11 +22,22 @@ export function jsonOk<T>(data: T, init?: ResponseInit) {
 export function jsonError(error: unknown, init?: ResponseInit) {
   const requestId = createRequestId();
   const mapped = toErrorResponse(error);
+  const cause =
+    error instanceof Error && error.cause != null
+      ? error.cause instanceof Error
+        ? error.cause.message
+        : typeof error.cause === "object" &&
+            error.cause &&
+            "message" in error.cause
+          ? String((error.cause as { message?: unknown }).message ?? error.cause)
+          : String(error.cause)
+      : undefined;
   log.error("api_error", {
     requestId,
     status: mapped.status,
     code: mapped.body.code,
     message: error instanceof Error ? error.message : String(error),
+    cause,
   });
   if (mapped.status >= 500) {
     reportException(error, { requestId, code: mapped.body.code, status: mapped.status });

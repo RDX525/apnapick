@@ -74,7 +74,7 @@ function useDiscoveryAreaController(enableLocate: boolean) {
   const startArea = CURRENT_LOCATION_VALUE;
   const [area, setAreaState] = useState(startArea);
   const [position, setPosition] = useState<LatLng | null>(null);
-  const [locating, setLocating] = useState(() => enableLocate);
+  const [locating, setLocating] = useState(false);
   const aliveRef = useRef(true);
 
   useEffect(() => {
