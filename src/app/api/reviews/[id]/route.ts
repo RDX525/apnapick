@@ -61,6 +61,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       rating: body.data.rating,
       title: body.data.title,
       body: body.data.body,
+      displayName: body.data.displayName,
       ...meta,
     });
 

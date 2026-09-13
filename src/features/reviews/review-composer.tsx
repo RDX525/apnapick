@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Flag, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,20 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const json = (await res.json().catch(() => ({}))) as {
     data?: T;
     error?: string;
+    code?: string;
+    details?: unknown;
   };
-  if (!res.ok) throw new Error(json.error ?? "Request failed");
+  if (!res.ok) {
+    const err = new Error(json.error ?? "Request failed") as Error & {
+      code?: string;
+      details?: unknown;
+      status?: number;
+    };
+    err.code = json.code;
+    err.details = json.details;
+    err.status = res.status;
+    throw err;
+  }
   return json.data as T;
 }
 
@@ -90,19 +102,31 @@ export function ReviewComposer({
   loginNext,
   existing,
   signedIn,
+  viewerEmail,
+  viewerDisplayName,
+  onIdentitySaved,
   onSaved,
 }: {
   businessId: string;
   loginNext: string;
   existing: PublicReview | null;
   signedIn: boolean;
+  viewerEmail?: string | null;
+  viewerDisplayName?: string | null;
+  onIdentitySaved?: (displayName: string) => void;
   onSaved: (payload: { review: PublicReview; summary: RatingSummary }) => void;
 }) {
   const [rating, setRating] = useState(existing?.rating ?? 5);
   const [title, setTitle] = useState(existing?.title ?? "");
   const [body, setBody] = useState(existing?.body ?? "");
+  const [displayName, setDisplayName] = useState(viewerDisplayName ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const needsPublicName = !(viewerDisplayName ?? "").trim();
+
+  useEffect(() => {
+    setDisplayName(viewerDisplayName ?? "");
+  }, [viewerDisplayName]);
 
   if (!signedIn) {
     return (
@@ -112,7 +136,9 @@ export function ReviewComposer({
           Sign in to rate and review. One review per business.
         </p>
         <Button asChild className="mt-4 min-h-10">
-          <Link href={`/login?next=${encodeURIComponent(loginNext)}`}>
+          <Link
+            href={`/login?next=${encodeURIComponent(loginNext)}&intent=review`}
+          >
             Sign in to review
           </Link>
         </Button>
@@ -128,24 +154,63 @@ export function ReviewComposer({
         setError(null);
         startTransition(async () => {
           try {
+            const payload = {
+              rating,
+              title,
+              body,
+              displayName: displayName.trim() || null,
+            };
+            if (needsPublicName && !displayName.trim()) {
+              setError(
+                "Add a public name so others know who wrote the review. Your email stays private.",
+              );
+              return;
+            }
             if (existing) {
               const data = await api<{
                 review: PublicReview;
                 summary: RatingSummary;
               }>(`/api/reviews/${existing.id}`, {
                 method: "PATCH",
-                body: JSON.stringify({ rating, title, body }),
+                body: JSON.stringify(payload),
               });
+              if (data.review.authorName) onIdentitySaved?.(data.review.authorName);
               onSaved(data);
             } else {
-              const data = await api<{
-                review: PublicReview;
-                summary: RatingSummary;
-              }>("/api/reviews", {
-                method: "POST",
-                body: JSON.stringify({ businessId, rating, title, body }),
-              });
-              onSaved(data);
+              try {
+                const data = await api<{
+                  review: PublicReview;
+                  summary: RatingSummary;
+                }>("/api/reviews", {
+                  method: "POST",
+                  body: JSON.stringify({ businessId, ...payload }),
+                });
+                if (data.review.authorName) onIdentitySaved?.(data.review.authorName);
+                onSaved(data);
+              } catch (err) {
+                const typed = err as Error & {
+                  code?: string;
+                  details?: { review?: PublicReview };
+                };
+                if (typed.code === "DUPLICATE_REVIEW" && typed.details?.review) {
+                  onSaved({
+                    review: typed.details.review,
+                    summary: {
+                      average: 0,
+                      count: 0,
+                      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                    },
+                  });
+                  setRating(typed.details.review.rating);
+                  setTitle(typed.details.review.title ?? "");
+                  setBody(typed.details.review.body ?? "");
+                  setError(
+                    "You already have a review for this business — update it below.",
+                  );
+                  return;
+                }
+                throw err;
+              }
             }
           } catch (err) {
             setError(err instanceof Error ? err.message : "Could not save");
@@ -160,8 +225,40 @@ export function ReviewComposer({
         <p className="text-muted-foreground mt-1 text-xs">
           Share specific, respectful feedback from your genuine experience.
         </p>
+        {viewerEmail ? (
+          <p className="text-muted-foreground mt-2 text-xs">
+            Signed in as <span className="text-ink font-medium">{viewerEmail}</span>
+            {viewerDisplayName?.trim() ? (
+              <>
+                {" · "}
+                Appears publicly as{" "}
+                <span className="text-ink font-medium">{viewerDisplayName.trim()}</span>
+              </>
+            ) : (
+              <> · Your email stays private on the public review.</>
+            )}
+          </p>
+        ) : null}
       </div>
       <StarPicker value={rating} onChange={setRating} />
+      {needsPublicName ? (
+        <div className="space-y-1">
+          <Label htmlFor="review-display-name">Public name (required)</Label>
+          <Input
+            id="review-display-name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="How your name appears on this review"
+            maxLength={80}
+            className="min-h-10"
+            required
+            autoComplete="nickname"
+          />
+          <p className="text-muted-foreground text-xs">
+            Shown on your review instead of your email.
+          </p>
+        </div>
+      ) : null}
       <Label htmlFor="review-title">Review title (optional)</Label>
       <Input
         id="review-title"
@@ -189,7 +286,11 @@ export function ReviewComposer({
         {pending ? "Saving…" : existing ? "Update review" : "Post review"}
       </Button>
       {existing?.status === "PENDING" ? (
-        <Badge variant="outline">Pending moderation</Badge>
+        <Badge variant="outline">
+          {existing.verificationRequested
+            ? "Verification requested — update your review to continue"
+            : "Pending moderation — only you can see this until it’s approved"}
+        </Badge>
       ) : null}
     </form>
   );
@@ -217,8 +318,13 @@ export function ReviewCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <RatingStars value={review.rating} size="sm" />
-            <span className="text-sm font-medium">{review.authorName ?? "Guest"}</span>
+            <span className="text-sm font-medium">
+              {review.authorName?.trim() || "ApnaPick member"}
+            </span>
             {review.isOwn ? <Badge variant="outline">You</Badge> : null}
+            {review.isOwn && review.status === "PENDING" ? (
+              <Badge variant="outline">Pending moderation</Badge>
+            ) : null}
           </div>
           <p className="text-muted-foreground mt-1 text-xs">
             {new Date(review.createdAt).toLocaleDateString("en-IN", {
@@ -242,9 +348,9 @@ export function ReviewCard({
               </Button>
               <ConfirmationDialog
                 disabled={pending}
-                title="Delete your review?"
-                description="This permanently removes your rating and review from this business."
-                confirmLabel="Delete review"
+                title="Delete your review permanently?"
+                description="This permanently removes your rating and review from this business. You can write a new review later if you change your mind."
+                confirmLabel="Delete permanently"
                 onConfirm={async () => {
                   await api(`/api/reviews/${review.id}`, {
                     method: "DELETE",

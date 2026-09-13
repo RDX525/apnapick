@@ -51,6 +51,12 @@ export async function GET(request: NextRequest) {
         signedIn: Boolean(user),
         canReply: owner || Boolean(user?.roles.some(isAdminRole)),
         isOwner: owner,
+        viewer: user
+          ? {
+              email: user.email,
+              displayName: user.displayName,
+            }
+          : null,
       },
     });
   } catch (error) {
@@ -98,6 +104,7 @@ export async function POST(request: NextRequest) {
       rating: body.data.rating,
       title: body.data.title,
       body: body.data.body,
+      displayName: body.data.displayName,
       ...meta,
     });
 

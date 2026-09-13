@@ -163,8 +163,11 @@ export async function GET() {
         .limit(QUEUE_LIMIT),
       supabase
         .from("reviews")
-        .select("id, title, body, status, businesses(id, name, metadata)")
+        .select(
+          "id, title, body, status, rating, created_at, moderation, profiles!reviews_user_id_fkey(display_name), businesses(id, name, metadata)",
+        )
         .is("deleted_at", null)
+        .order("created_at", { ascending: false })
         .limit(QUEUE_LIMIT),
       supabase
         .from("searches")
@@ -527,19 +530,46 @@ export async function GET() {
         })),
       ...(reviewsResult.data ?? [])
         .filter((row) => isRealBusinessRelation(row.businesses))
-        .map((row) => ({
-          id: String(row.id),
-          kind: "review" as const,
-          businessName: businessName(row.businesses),
-          title: String(row.title ?? "Review"),
-          body: (row.body as string | null) ?? null,
-          status:
-            row.status === "PENDING"
-              ? ("flagged" as const)
-              : row.status === "PUBLISHED"
-                ? ("visible" as const)
-                : ("hidden" as const),
-        })),
+        .map((row) => {
+          const moderation =
+            row.moderation &&
+            typeof row.moderation === "object" &&
+            !Array.isArray(row.moderation)
+              ? (row.moderation as Record<string, unknown>)
+              : {};
+          const flags = Array.isArray(moderation.flags)
+            ? moderation.flags.map(String).filter(Boolean)
+            : [];
+          const profile = Array.isArray(row.profiles)
+            ? row.profiles[0]
+            : row.profiles;
+          return {
+            id: String(row.id),
+            kind: "review" as const,
+            businessName: businessName(row.businesses),
+            title: String(row.title ?? `★ ${row.rating ?? ""} Review`.trim()),
+            body: (row.body as string | null) ?? null,
+            status:
+              row.status === "PENDING"
+                ? ("flagged" as const)
+                : row.status === "PUBLISHED"
+                  ? ("visible" as const)
+                  : ("hidden" as const),
+            rating: Number(row.rating ?? 0) || undefined,
+            authorName: profile?.display_name
+              ? String(profile.display_name)
+              : null,
+            createdAt: row.created_at ? String(row.created_at) : undefined,
+            moderationFlags: flags,
+            moderationRisk:
+              moderation.risk === "low" ||
+              moderation.risk === "medium" ||
+              moderation.risk === "high"
+                ? moderation.risk
+                : undefined,
+            verificationRequested: Boolean(moderation.verificationRequested),
+          };
+        }),
     ];
 
     return jsonOk({

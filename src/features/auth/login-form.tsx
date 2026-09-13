@@ -14,11 +14,24 @@ import {
   navigateAfterAuth,
   resolveOwnerHome,
 } from "@/features/auth/auth-redirect";
+import { isReviewerAuthIntent } from "@/features/auth/auth-intent";
 
-export function LoginForm({ configured }: { configured: boolean }) {
+export function LoginForm({
+  configured,
+  mode = "owner",
+}: {
+  configured: boolean;
+  mode?: "owner" | "reviewer";
+}) {
   const params = useSearchParams();
   const requestedNext = params.get("next");
-  const next = safeAuthNextPath(requestedNext, "/business/onboarding");
+  const reviewer =
+    mode === "reviewer" ||
+    isReviewerAuthIntent({ next: requestedNext, intent: params.get("intent") });
+  const next = safeAuthNextPath(
+    requestedNext,
+    reviewer ? "/" : "/business/onboarding",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -98,8 +111,8 @@ export function LoginForm({ configured }: { configured: boolean }) {
     >
       {process.env.NODE_ENV === "development" && !configured ? (
         <p className="ap-inset text-muted-foreground rounded-xl px-3 py-2.5 text-xs leading-relaxed">
-          Supabase Auth is not configured. Continue opens the business area for local
-          development.
+          Supabase Auth is not configured. Continue opens{" "}
+          {reviewer ? "the listing" : "the business area"} for local development.
         </p>
       ) : null}
       {error ? (
@@ -173,21 +186,35 @@ export function LoginForm({ configured }: { configured: boolean }) {
         </div>
       </div>
       <Button type="submit" size="lg" className="ap-cta-glow w-full" disabled={pending}>
-        {pending ? "Signing in…" : "Sign in securely"}
+        {pending
+          ? "Signing in…"
+          : reviewer
+            ? "Sign in to leave a review"
+            : "Sign in securely"}
       </Button>
       <p className="text-muted-foreground flex items-center justify-center gap-2 text-xs">
         <ShieldCheck className="text-sea size-3.5" aria-hidden />
-        Encrypted authentication · no password sharing
+        {reviewer
+          ? "Encrypted sign-in · return to the listing after login"
+          : "Encrypted authentication · no password sharing"}
       </p>
       <p className="border-border/70 text-muted-foreground border-t pt-5 text-center text-sm">
         New here?{" "}
         <Link
-          href={`/signup?next=${encodeURIComponent(next)}`}
+          href={`/signup?next=${encodeURIComponent(next)}${reviewer ? "&intent=review" : ""}`}
           className="text-sea hover:underline"
         >
-          Create an account
+          {reviewer ? "Create a free account" : "Create an account"}
         </Link>
       </p>
+      {reviewer ? (
+        <p className="text-muted-foreground text-center text-xs">
+          Want to list a business instead?{" "}
+          <Link href="/login" className="text-sea hover:underline">
+            Owner sign in
+          </Link>
+        </p>
+      ) : null}
     </form>
   );
 }

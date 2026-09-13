@@ -132,6 +132,24 @@ describe("Phase 2 database migrations", () => {
     );
   });
 
+  it("stores review moderation metadata", () => {
+    expect(sql).toContain("add column if not exists moderation jsonb");
+    expect(sql).toContain("reviews_pending_moderation_idx");
+  });
+
+  it("allows permanent author review deletion", () => {
+    expect(sql).toContain("reviews_delete_own_or_admin");
+    expect(sql).toContain("delete from public.reviews");
+  });
+
+  it("allows authors to update their own review moderation signals", () => {
+    const guard = readFileSync(
+      path.join(migrationsDir, "0034_review_author_update_guard.sql"),
+      "utf8",
+    );
+    expect(guard).toContain("Review authors may update their own row");
+  });
+
   it("dev seed is explicitly non-production", () => {
     const seed = readFileSync(
       path.join(process.cwd(), "supabase", "seed", "pune_dev.sql"),

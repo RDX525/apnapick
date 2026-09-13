@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { RatingSummaryPanel } from "@/components/trust/rating-summary";
 import { ReviewCard, ReviewComposer } from "@/features/reviews/review-composer";
-import { loadBusinessViewer } from "@/features/consumer/business-viewer";
+import {
+  loadBusinessViewer,
+  type ReviewViewerIdentity,
+} from "@/features/consumer/business-viewer";
 import type { PublicReview, RatingSummary } from "@/domain/reviews/types";
 
 type Bundle = {
@@ -36,7 +39,21 @@ export function BusinessReviewsSection({
   });
   const [viewerSignedIn, setViewerSignedIn] = useState(signedIn);
   const [viewerCanReply, setViewerCanReply] = useState(canReply);
+  const [viewer, setViewer] = useState<ReviewViewerIdentity | null>(null);
   const [, startTransition] = useTransition();
+
+  const applyViewerMeta = useCallback(
+    (data: {
+      signedIn?: boolean;
+      canReply?: boolean;
+      viewer?: ReviewViewerIdentity | null;
+    }) => {
+      if (typeof data.signedIn === "boolean") setViewerSignedIn(data.signedIn);
+      if (typeof data.canReply === "boolean") setViewerCanReply(data.canReply);
+      if (data.viewer !== undefined) setViewer(data.viewer);
+    },
+    [],
+  );
 
   const refresh = useCallback(
     (signal?: AbortSignal) => {
@@ -45,7 +62,11 @@ export function BusinessReviewsSection({
           const res = await fetch(`/api/reviews?businessId=${businessId}`, { signal });
           if (!res.ok) return;
           const json = (await res.json()) as {
-            data: Bundle & { signedIn?: boolean; canReply?: boolean };
+            data: Bundle & {
+              signedIn?: boolean;
+              canReply?: boolean;
+              viewer?: ReviewViewerIdentity | null;
+            };
           };
           if (!json.data) return;
           setBundle({
@@ -53,31 +74,27 @@ export function BusinessReviewsSection({
             reviews: json.data.reviews,
             ownReview: json.data.ownReview,
           });
-          if (typeof json.data.signedIn === "boolean") {
-            setViewerSignedIn(json.data.signedIn);
-          }
-          if (typeof json.data.canReply === "boolean") {
-            setViewerCanReply(json.data.canReply);
-          }
+          applyViewerMeta(json.data);
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
         }
       });
     },
-    [businessId],
+    [applyViewerMeta, businessId],
   );
 
   useEffect(() => {
     let cancelled = false;
-    loadBusinessViewer(businessId).then((viewer) => {
-      if (cancelled || !viewer) return;
+    loadBusinessViewer(businessId).then((payload) => {
+      if (cancelled || !payload) return;
       setBundle({
-        summary: viewer.summary,
-        reviews: viewer.reviews,
-        ownReview: viewer.ownReview,
+        summary: payload.summary,
+        reviews: payload.reviews,
+        ownReview: payload.ownReview,
       });
-      setViewerSignedIn(viewer.signedIn);
-      setViewerCanReply(viewer.canReply);
+      setViewerSignedIn(payload.signedIn);
+      setViewerCanReply(payload.canReply);
+      setViewer(payload.viewer);
     });
     return () => {
       cancelled = true;
@@ -103,23 +120,31 @@ export function BusinessReviewsSection({
         loginNext={`/b/${businessSlug}`}
         existing={bundle.ownReview}
         signedIn={viewerSignedIn}
+        viewerEmail={viewer?.email ?? null}
+        viewerDisplayName={viewer?.displayName ?? null}
+        onIdentitySaved={(displayName) =>
+          setViewer((prev) => (prev ? { ...prev, displayName } : prev))
+        }
         onSaved={({ review, summary }) => {
           setBundle((prev) => ({
-            summary,
+            summary: summary.count > 0 || summary.average > 0 ? summary : prev.summary,
             ownReview: review,
-            reviews:
-              review.status === "PUBLISHED"
-                ? [
-                    { ...review, isOwn: true },
-                    ...prev.reviews.filter((r) => r.id !== review.id),
-                  ]
-                : prev.reviews.filter((r) => r.id !== review.id),
+            reviews: [
+              { ...review, isOwn: true },
+              ...prev.reviews.filter((r) => r.id !== review.id),
+            ].filter((r) => r.status === "PUBLISHED" || r.isOwn),
           }));
+          if (review.authorName) {
+            setViewer((prev) =>
+              prev ? { ...prev, displayName: review.authorName } : prev,
+            );
+          }
+          refresh();
         }}
       />
 
       <ul className="space-y-4">
-        {bundle.reviews.length === 0 ? (
+        {bundle.reviews.length === 0 && !bundle.ownReview ? (
           <li className="border-border/80 text-muted-foreground rounded-2xl border border-dashed px-5 py-8 text-center text-sm">
             Be the first to review this place.
           </li>

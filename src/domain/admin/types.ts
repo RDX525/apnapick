@@ -57,6 +57,13 @@ export type AdminContentItem = {
   title: string;
   body: string | null;
   status: "visible" | "hidden" | "flagged";
+  /** Review-only enrichment for the moderation queue */
+  rating?: number;
+  authorName?: string | null;
+  createdAt?: string;
+  moderationFlags?: string[];
+  moderationRisk?: "low" | "medium" | "high";
+  verificationRequested?: boolean;
 };
 
 export type AdminSeoPage = {

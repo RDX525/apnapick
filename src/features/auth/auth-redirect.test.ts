@@ -39,6 +39,16 @@ describe("resolveOwnerHome", () => {
       }),
     ).toBe("/business/onboarding");
   });
+
+  it("returns reviewers to the business page they came from", () => {
+    expect(
+      resolveOwnerHome({
+        requestedNext: "/b/spice-route-kitchen",
+        roles: ["USER"],
+        hasListing: false,
+      }),
+    ).toBe("/b/spice-route-kitchen");
+  });
 });
 
 describe("navigateAfterAuth", () => {

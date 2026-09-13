@@ -39,6 +39,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     const result = await moderateReview({
       user: actor,
       reviewId: id,
+      action: body.data.action,
       status: body.data.status,
       note: body.data.note,
       ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,

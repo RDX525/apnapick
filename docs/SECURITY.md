@@ -7,6 +7,7 @@
 3. **Secrets stay server-side** — `SUPABASE_SERVICE_ROLE_KEY` never in the browser
 4. **Validate inputs** with Zod at action/API boundaries
 5. **Audit privileged mutations** into `audit_logs`
+6. **Review integrity** — business owners may reply to reviews but cannot hide/delete them; only ApnaPick moderation removes reviews (see `docs/REVIEWS.md`)
 
 ## RBAC
 

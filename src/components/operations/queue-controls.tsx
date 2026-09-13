@@ -23,12 +23,13 @@ type QueueConfig<T> = {
   filterValue?: (item: T) => string;
   sorters: Record<string, (a: T, b: T) => number>;
   defaultSort: string;
+  defaultFilter?: string;
   pageSize?: number;
 };
 
 export function useOperationalQueue<T>(items: readonly T[], config: QueueConfig<T>) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(config.defaultFilter ?? "all");
   const [sort, setSort] = useState(config.defaultSort);
   const [page, setPage] = useState(1);
   const pageSize = config.pageSize ?? 8;
@@ -87,7 +88,7 @@ export function useOperationalQueue<T>(items: readonly T[], config: QueueConfig<
     totalCount: items.length,
     reset: () => {
       setQuery("");
-      setFilter("all");
+      setFilter(config.defaultFilter ?? "all");
       setSort(config.defaultSort);
       setPage(1);
     },

@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
               ? "PUBLISHED"
               : body.status === "flagged"
                 ? "PENDING"
-                : "HIDDEN";
+                : "REJECTED";
           const result = await adminSupabase
             .from("reviews")
             .update({ status: reviewStatus })

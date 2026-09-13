@@ -39,6 +39,8 @@ PostgreSQL via Supabase with **PostGIS**. Initial market: **Pune, India** (`INR`
 
 `reviews`, `ratings` (synced from reviews), `favorites`, `leads`, `notifications`, `reports`
 
+Reviews store trust state in `reviews.moderation` (jsonb): abuse `risk` / `signals` / `flags`, plus verification request fields. See `docs/REVIEWS.md`.
+
 ### Search & analytics
 
 `searches`, `search_events` (**no precise GPS by default**), `business_metrics_daily`

@@ -26,6 +26,7 @@ import type {
   ClaimAdminAction,
   UserAdminAction,
 } from "@/domain/admin/types";
+import type { ReviewModerationAction } from "@/domain/reviews/types";
 
 type AdminContextValue = {
   workspace: AdminWorkspace;
@@ -50,6 +51,7 @@ type AdminContextValue = {
     kind: "product" | "service" | "photo" | "description" | "review",
     status: "visible" | "hidden" | "flagged" | "deleted",
   ) => Promise<void>;
+  moderateReview: (id: string, action: ReviewModerationAction, note?: string) => Promise<void>;
   resolveReport: (
     id: string,
     status: "RESOLVED" | "DISMISSED" | "IN_REVIEW",
@@ -342,6 +344,64 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     [runTracked],
   );
 
+  const moderateReview = useCallback(
+    async (id: string, action: ReviewModerationAction, note?: string) => {
+      await runTracked(`review:${id}:${action}`, async () => {
+        const res = await fetch(`/api/reviews/${id}/moderate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, note }),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(data.error ?? "Review moderation failed");
+        }
+
+        setWorkspace((prev) => {
+          const nextStatus =
+            action === "approve"
+              ? ("visible" as const)
+              : action === "reject"
+                ? ("hidden" as const)
+                : ("flagged" as const);
+          let next: AdminWorkspace = {
+            ...prev,
+            content: prev.content.map((c) =>
+              c.id === id
+                ? {
+                    ...c,
+                    status: nextStatus,
+                    verificationRequested: action === "request_verification",
+                    moderationFlags:
+                      action === "request_verification"
+                        ? [
+                            ...new Set([
+                              ...(c.moderationFlags ?? []),
+                              "Verification requested",
+                            ]),
+                          ]
+                        : action === "approve"
+                          ? []
+                          : c.moderationFlags,
+                  }
+                : c,
+            ),
+          };
+          next = appendLocalAudit(next, {
+            id: crypto.randomUUID(),
+            action: `review_${action}`,
+            entityType: "review",
+            entityId: id,
+            actorEmail: null,
+            createdAt: new Date().toISOString(),
+          });
+          return next;
+        });
+      });
+    },
+    [runTracked],
+  );
+
   const resolveReport = useCallback(
     async (id: string, status: "RESOLVED" | "DISMISSED" | "IN_REVIEW") => {
       await runTracked(`report:${id}:${status}`, async () => {
@@ -449,6 +509,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       runBusinessAction,
       runUserAction,
       moderateContent,
+      moderateReview,
       resolveReport,
       toggleCategory,
       toggleSeoIndex,
@@ -463,6 +524,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       runBusinessAction,
       runUserAction,
       moderateContent,
+      moderateReview,
       resolveReport,
       toggleCategory,
       toggleSeoIndex,

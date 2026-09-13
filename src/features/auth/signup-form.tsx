@@ -11,10 +11,21 @@ import { safeAuthNextPath } from "@/lib/security/safe-redirect";
 import { friendlyAuthError } from "@/features/auth/auth-errors";
 import { establishEmailPasswordSession } from "@/features/auth/email-password-auth";
 import { navigateAfterAuth, resolveOwnerHome } from "@/features/auth/auth-redirect";
+import { isReviewerAuthIntent } from "@/features/auth/auth-intent";
 
-export function SignupForm({ configured }: { configured: boolean }) {
+export function SignupForm({
+  configured,
+  mode = "owner",
+}: {
+  configured: boolean;
+  mode?: "owner" | "reviewer";
+}) {
   const params = useSearchParams();
-  const next = safeAuthNextPath(params.get("next"));
+  const requestedNext = params.get("next");
+  const reviewer =
+    mode === "reviewer" ||
+    isReviewerAuthIntent({ next: requestedNext, intent: params.get("intent") });
+  const next = safeAuthNextPath(requestedNext, reviewer ? "/" : "/business/onboarding");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -111,8 +122,8 @@ export function SignupForm({ configured }: { configured: boolean }) {
     >
       {process.env.NODE_ENV === "development" && !configured ? (
         <p className="ap-inset text-muted-foreground rounded-xl px-3 py-2.5 text-xs leading-relaxed">
-          Supabase Auth is not configured. Continue starts onboarding for local
-          development.
+          Supabase Auth is not configured. Continue opens{" "}
+          {reviewer ? "the listing" : "onboarding"} for local development.
         </p>
       ) : null}
       {error ? (
@@ -127,7 +138,7 @@ export function SignupForm({ configured }: { configured: boolean }) {
       ) : null}
       <div className="space-y-2">
         <Label htmlFor="name" className="font-semibold">
-          Your name
+          {reviewer ? "Public name" : "Your name"}
         </Label>
         <div className="relative">
           <UserRound
@@ -139,10 +150,16 @@ export function SignupForm({ configured }: { configured: boolean }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="min-h-12 pl-10"
-            placeholder="Your full name"
+            placeholder={reviewer ? "Shown on your reviews" : "Your full name"}
             autoComplete="name"
+            required={reviewer}
           />
         </div>
+        {reviewer ? (
+          <p className="text-muted-foreground text-xs">
+            Appears on reviews. Your email stays private.
+          </p>
+        ) : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="email" className="font-semibold">
@@ -212,17 +229,29 @@ export function SignupForm({ configured }: { configured: boolean }) {
         </p>
       </div>
       <Button type="submit" size="lg" className="ap-cta-glow w-full" disabled={pending}>
-        {pending ? "Creating…" : "Create account"}
+        {pending
+          ? "Creating…"
+          : reviewer
+            ? "Create account to leave a review"
+            : "Create account"}
       </Button>
       <p className="border-border/70 text-muted-foreground border-t pt-5 text-center text-sm">
         Already have an account?{" "}
         <Link
-          href={`/login?next=${encodeURIComponent(next)}`}
+          href={`/login?next=${encodeURIComponent(next)}${reviewer ? "&intent=review" : ""}`}
           className="text-sea hover:underline"
         >
           Log in
         </Link>
       </p>
+      {reviewer ? (
+        <p className="text-muted-foreground text-center text-xs">
+          Want to list a business instead?{" "}
+          <Link href="/signup" className="text-sea hover:underline">
+            Owner sign up
+          </Link>
+        </p>
+      ) : null}
     </form>
   );
 }

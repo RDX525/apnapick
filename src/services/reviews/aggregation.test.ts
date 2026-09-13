@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assessReviewAbuse } from "@/services/reviews/abuse";
+import {
+  assessReviewAbuse,
+  reviewTextSimilarity,
+} from "@/services/reviews/abuse";
 import {
   aggregateRatings,
   aggregateFromReviews,
@@ -14,6 +17,8 @@ describe("review abuse detection", () => {
     });
     expect(result.signals.length).toBeGreaterThan(0);
     expect(result.risk).not.toBe("low");
+    expect(result.holdForModeration).toBe(true);
+    expect(result.flags.some((f) => /promotional|spam|link/i.test(f))).toBe(true);
   });
 
   it("holds rapid posters for moderation", () => {
@@ -26,6 +31,52 @@ describe("review abuse detection", () => {
     expect(result.holdForModeration).toBe(true);
   });
 
+  it("holds reviews with contact details", () => {
+    const result = assessReviewAbuse({
+      rating: 5,
+      body: "Great food, WhatsApp me on 9876543210 for deals",
+    });
+    expect(result.signals).toContain("contains_contact_details");
+    expect(result.holdForModeration).toBe(true);
+  });
+
+  it("detects similar wording against prior reviews", () => {
+    const body =
+      "Absolutely loved the paneer butter masala and the service was wonderful tonight.";
+    const result = assessReviewAbuse({
+      rating: 5,
+      body,
+      compareBodies: [
+        "Absolutely loved the paneer butter masala and the service was wonderful tonight!",
+      ],
+    });
+    expect(result.signals).toContain("similar_wording");
+    expect(result.holdForModeration).toBe(true);
+    expect(result.flags).toContain("Similar wording detected");
+  });
+
+  it("does not hold on related accounts alone (soft IP signal)", () => {
+    const result = assessReviewAbuse({
+      rating: 4,
+      body: "Loved the misal pav and service was quick on a weekday evening.",
+      relatedAccountCount: 2,
+    });
+    expect(result.signals).toContain("related_accounts");
+    expect(result.holdForModeration).toBe(false);
+    expect(result.flags).toContain("Multiple reviews from related accounts");
+  });
+
+  it("holds when related accounts combine with another signal", () => {
+    const result = assessReviewAbuse({
+      rating: 1,
+      body: "Bad",
+      relatedAccountCount: 1,
+    });
+    expect(result.signals).toContain("related_accounts");
+    expect(result.signals).toContain("short_negative_body");
+    expect(result.holdForModeration).toBe(true);
+  });
+
   it("allows a normal review", () => {
     const result = assessReviewAbuse({
       rating: 4,
@@ -34,6 +85,19 @@ describe("review abuse detection", () => {
     });
     expect(result.holdForModeration).toBe(false);
     expect(result.risk).toBe("low");
+    expect(result.flags).toEqual([]);
+  });
+
+  it("scores review text similarity", () => {
+    expect(
+      reviewTextSimilarity(
+        "The food was excellent and staff were friendly",
+        "The food was excellent and staff were very friendly",
+      ),
+    ).toBeGreaterThan(0.8);
+    expect(
+      reviewTextSimilarity("Completely different sentence here", "Unrelated blah"),
+    ).toBeLessThan(0.4);
   });
 });
 

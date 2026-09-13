@@ -3,6 +3,11 @@
 import { hasBrowserAuthCookie } from "@/lib/auth/browser-session";
 import type { PublicReview, RatingSummary } from "@/domain/reviews/types";
 
+export type ReviewViewerIdentity = {
+  email: string | null;
+  displayName: string | null;
+};
+
 export type BusinessViewerPayload = {
   summary: RatingSummary;
   reviews: PublicReview[];
@@ -10,6 +15,7 @@ export type BusinessViewerPayload = {
   signedIn: boolean;
   canReply: boolean;
   isOwner: boolean;
+  viewer: ReviewViewerIdentity | null;
 };
 
 const inflight = new Map<string, Promise<BusinessViewerPayload | null>>();

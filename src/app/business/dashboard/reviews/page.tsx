@@ -3,7 +3,7 @@ import { ReviewsManagerPage } from "@/features/dashboard/reviews-manager";
 
 export const metadata = buildPageMetadata({
   title: "Reviews · Dashboard",
-  description: "Manage business reviews",
+  description: "Respond to customer reviews",
   path: "/business/dashboard/reviews",
   noIndex: true,
 });

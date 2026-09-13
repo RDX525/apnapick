@@ -133,7 +133,8 @@ export const ADMIN_PAGE_COPY: Record<string, { title: string; description: strin
   },
   "/admin/reviews": {
     title: "Reviews",
-    description: "Content moderation — hide or flag items. Actions are audited server-side.",
+    description:
+      "Auto-published reviews with automated holds. Approve, reject, or request verification — actions are audited.",
   },
   "/admin/reports": {
     title: "Reports",
