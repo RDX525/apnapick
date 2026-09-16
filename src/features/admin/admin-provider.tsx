@@ -34,6 +34,7 @@ type AdminContextValue = {
   saving: boolean;
   actionError: string | null;
   pendingActions: ReadonlySet<string>;
+  lastSyncedAt: number | null;
   clearActionError: () => void;
   runClaimAction: (
     claimId: string,
@@ -107,6 +108,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [pendingActions, setPendingActions] = useState<Set<string>>(() => new Set());
   const [actionError, setActionError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const saving = pendingActions.size > 0;
   const pendingActionsRef = useRef(pendingActions);
   pendingActionsRef.current = pendingActions;
@@ -136,6 +138,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         if (!response.ok) throw new Error(body.error ?? "Could not load approval queues");
         if (cancelled) return;
         setActionError(null);
+        setLastSyncedAt(Date.now());
         const stale =
           pendingActionsRef.current.size > 0 ||
           epochAtStart !== mutationEpochRef.current;
@@ -504,6 +507,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       saving,
       actionError,
       pendingActions,
+      lastSyncedAt,
       clearActionError: () => setActionError(null),
       runClaimAction,
       runBusinessAction,
@@ -520,6 +524,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       saving,
       actionError,
       pendingActions,
+      lastSyncedAt,
       runClaimAction,
       runBusinessAction,
       runUserAction,

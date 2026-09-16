@@ -32,6 +32,9 @@ const STATUS_LABELS: Record<string, string> = {
   under_review: "Under review",
   unclaimed: "Unclaimed",
   verified: "Verified",
+  trialing: "Trialing",
+  expired: "Expired",
+  indexable: "Indexable",
   visible: "Visible",
 };
 

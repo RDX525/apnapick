@@ -104,10 +104,12 @@ type QueueControlsProps = {
   sort: string;
   onSortChange: (value: string) => void;
   filterOptions?: readonly QueueOption[];
+  filterLabel?: string;
   sortOptions: readonly QueueOption[];
   filteredCount: number;
   totalCount: number;
   resultLabel: string;
+  resultLabelPlural?: string;
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
@@ -124,10 +126,12 @@ export function QueueControls({
   sort,
   onSortChange,
   filterOptions = [],
+  filterLabel = "Status",
   sortOptions,
   filteredCount,
   totalCount,
   resultLabel,
+  resultLabelPlural,
   page,
   pageCount,
   onPageChange,
@@ -135,7 +139,8 @@ export function QueueControls({
   searchPlaceholder = "Search queue",
 }: QueueControlsProps) {
   const hasFilters = Boolean(query || filter !== "all");
-  const resultWord = filteredCount === 1 ? resultLabel : `${resultLabel}s`;
+  const resultWord =
+    filteredCount === 1 ? resultLabel : (resultLabelPlural ?? `${resultLabel}s`);
 
   return (
     <div className="ap-surface space-y-3 rounded-2xl p-4">
@@ -159,13 +164,13 @@ export function QueueControls({
         </div>
         {filterOptions.length ? (
           <div className="space-y-1.5">
-            <Label htmlFor={`${id}-filter`}>Status</Label>
+            <Label htmlFor={`${id}-filter`}>{filterLabel}</Label>
             <Select value={filter} onValueChange={onFilterChange}>
               <SelectTrigger id={`${id}-filter`} className="w-full md:w-44">
-                <SelectValue placeholder="All statuses" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 {filterOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}

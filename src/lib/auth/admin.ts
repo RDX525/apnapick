@@ -4,7 +4,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { getSessionUser, type SessionUser } from "@/lib/auth/session";
 import { hasAnyAdminRole } from "@/domain/roles";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
-import { hasSupabaseConfig } from "@/config/env";
+import { hasSupabaseConfig, isE2EAuthBypass } from "@/config/env";
 import { isFeatureEnabled } from "@/config/feature-flags";
 
 /**
@@ -26,6 +26,15 @@ export async function requireAdminSession(
   const user = await getSessionUser();
   if (user && hasAnyAdminRole(user.roles) && hasPermission(user.roles, permission)) {
     return user;
+  }
+
+  if (isE2EAuthBypass()) {
+    return {
+      id: "00000000-0000-4000-8000-000000000001",
+      email: "admin@localhost",
+      displayName: "Dev Admin",
+      roles: ["SUPER_ADMIN"],
+    };
   }
 
   // Local development without Supabase — server-controlled only (not client roles)

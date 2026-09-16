@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdmin } from "@/features/admin/admin-provider";
+import { AdminLiveStats } from "@/features/admin/admin-live-stats";
 import { EmptyState } from "@/components/states/empty-state";
 import {
   QueueControls,
@@ -18,6 +19,13 @@ function formatInr(cents: number) {
 
 export function AdminSubscriptionsPage() {
   const { workspace } = useAdmin();
+  const active = workspace.subscriptions.filter(
+    (subscription) =>
+      subscription.status === "active" || subscription.status === "trialing",
+  );
+  const pastDue = workspace.subscriptions.filter(
+    (subscription) => subscription.status === "past_due",
+  ).length;
   const queue = useOperationalQueue(workspace.subscriptions, {
     searchText: (subscription) =>
       [subscription.businessName, subscription.plan].join(" "),
@@ -33,6 +41,19 @@ export function AdminSubscriptionsPage() {
 
   return (
     <>
+      <AdminLiveStats
+        items={[
+          { label: "Subscriptions", value: workspace.subscriptions.length },
+          { label: "Active / trial", value: active.length },
+          { label: "Past due", value: pastDue },
+          {
+            label: "Active value",
+            value: formatInr(
+              active.reduce((sum, subscription) => sum + subscription.amountCents, 0),
+            ),
+          },
+        ]}
+      />
       <QueueControls
         id="subscriptions"
         query={queue.query}

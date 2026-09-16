@@ -19,6 +19,7 @@ describe("requireAdminSession", () => {
     }));
     vi.doMock("@/config/env", () => ({
       hasSupabaseConfig: () => true,
+      isE2EAuthBypass: () => false,
     }));
     vi.doMock("@/lib/auth/session", () => ({
       getSessionUser: async () => ({
@@ -41,6 +42,7 @@ describe("requireAdminSession", () => {
     }));
     vi.doMock("@/config/env", () => ({
       hasSupabaseConfig: () => true,
+      isE2EAuthBypass: () => false,
     }));
     vi.doMock("@/lib/auth/session", () => ({
       getSessionUser: async () => ({
@@ -56,5 +58,24 @@ describe("requireAdminSession", () => {
       code: "FORBIDDEN",
       status: 403,
     });
+  });
+
+  it("allows the e2e auth bypass in non-production", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.doMock("@/config/feature-flags", () => ({
+      isFeatureEnabled: () => true,
+    }));
+    vi.doMock("@/config/env", () => ({
+      hasSupabaseConfig: () => true,
+      isE2EAuthBypass: () => true,
+    }));
+    vi.doMock("@/lib/auth/session", () => ({
+      getSessionUser: async () => null,
+    }));
+
+    const { requireAdminSession } = await import("@/lib/auth/admin");
+    const user = await requireAdminSession("admin:moderate");
+    expect(user.email).toBe("admin@localhost");
+    expect(user.roles).toContain("SUPER_ADMIN");
   });
 });

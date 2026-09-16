@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/features/admin/admin-provider";
+import { AdminLiveStats } from "@/features/admin/admin-live-stats";
 import { EmptyState } from "@/components/states/empty-state";
 import {
   QueueControls,
@@ -11,6 +12,7 @@ import { StatusBadge } from "@/components/operations/status-badge";
 
 export function AdminSeoPage() {
   const { workspace, toggleSeoIndex, pendingActions } = useAdmin();
+  const indexableCount = workspace.seoPages.filter((page) => page.indexable).length;
   const queue = useOperationalQueue(workspace.seoPages, {
     searchText: (page) => `${page.title} ${page.path}`,
     filterValue: (page) => (page.indexable ? "indexable" : "noindex"),
@@ -24,6 +26,17 @@ export function AdminSeoPage() {
 
   return (
     <>
+      <AdminLiveStats
+        items={[
+          { label: "Pages", value: workspace.seoPages.length },
+          { label: "Indexable", value: indexableCount },
+          { label: "Not indexed", value: workspace.seoPages.length - indexableCount },
+          {
+            label: "Businesses",
+            value: workspace.seoPages.reduce((sum, page) => sum + page.businessCount, 0),
+          },
+        ]}
+      />
       <QueueControls
         id="seo-pages"
         query={queue.query}

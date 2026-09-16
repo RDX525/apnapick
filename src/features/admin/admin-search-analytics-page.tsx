@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { useAdmin } from "@/features/admin/admin-provider";
+import { AdminLiveStats } from "@/features/admin/admin-live-stats";
 import { EmptyState } from "@/components/states/empty-state";
 import {
   QueueControls,
@@ -9,18 +11,56 @@ import {
 
 export function AdminSearchAnalyticsPage() {
   const { workspace } = useAdmin();
+  const areaOptions = useMemo(() => {
+    const areas = [
+      ...new Set(
+        workspace.searchAnalytics
+          .map((row) => row.area)
+          .filter((area): area is string => Boolean(area)),
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+    return [
+      { value: "unspecified", label: "No area" },
+      ...areas.map((area) => ({ value: area, label: area })),
+    ];
+  }, [workspace.searchAnalytics]);
+  const totalHits = workspace.searchAnalytics.reduce((sum, row) => sum + row.count, 0);
+  const latest = workspace.searchAnalytics[0]?.lastSeen;
   const queue = useOperationalQueue(workspace.searchAnalytics, {
     searchText: (row) => `${row.query} ${row.area ?? ""}`,
+    filterValue: (row) => row.area ?? "unspecified",
     sorters: {
       count: (a, b) => b.count - a.count,
       recent: (a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen),
       query: (a, b) => a.query.localeCompare(b.query),
     },
-    defaultSort: "count",
+    defaultSort: "recent",
   });
 
   return (
     <>
+      <AdminLiveStats
+        items={[
+          { label: "Queries", value: workspace.searchAnalytics.length },
+          { label: "Searches", value: totalHits.toLocaleString("en-IN") },
+          {
+            label: "Areas",
+            value: new Set(
+              workspace.searchAnalytics.map((row) => row.area).filter(Boolean),
+            ).size,
+          },
+          {
+            label: "Last search",
+            value: latest
+              ? new Date(latest).toLocaleTimeString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—",
+          },
+        ]}
+      />
       <QueueControls
         id="search-analytics"
         query={queue.query}
@@ -29,14 +69,17 @@ export function AdminSearchAnalyticsPage() {
         onFilterChange={queue.setFilter}
         sort={queue.sort}
         onSortChange={queue.setSort}
+        filterOptions={areaOptions}
+        filterLabel="Area"
         sortOptions={[
-          { value: "count", label: "Highest count" },
           { value: "recent", label: "Most recent" },
+          { value: "count", label: "Highest count" },
           { value: "query", label: "Query" },
         ]}
         filteredCount={queue.filteredCount}
         totalCount={queue.totalCount}
-        resultLabel="query"
+        resultLabel="search"
+        resultLabelPlural="searches"
         page={queue.page}
         pageCount={queue.pageCount}
         onPageChange={queue.setPage}

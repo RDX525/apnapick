@@ -10,6 +10,13 @@ import {
 } from "@/services/admin/queue-visibility";
 import { actorEmailFromAuditRow } from "@/services/admin/audit";
 import { publicMutationMessage } from "@/lib/errors/public-message";
+import { createLogger } from "@/lib/logging/logger";
+import {
+  buildAdminSearchAnalytics,
+  mapAdminPayments,
+  mapAdminSeoPages,
+  mapAdminSubscriptions,
+} from "@/services/admin/growth";
 import type {
   AdminBusiness,
   AdminClaim,
@@ -18,6 +25,8 @@ import type {
 } from "@/domain/admin/types";
 
 export const dynamic = "force-dynamic";
+
+const log = createLogger({ route: "api.admin.approvals" });
 
 const QUEUE_LIMIT = 150;
 const LOOKUP_LIMIT = 200;
@@ -88,7 +97,9 @@ export async function GET() {
       servicesResult,
       photosResult,
       reviewsResult,
-      searchesResult,
+      popularSearchesResult,
+      recentSearchesResult,
+      searchEventsResult,
       seoPagesResult,
       subscriptionsResult,
       paymentsResult,
@@ -175,6 +186,16 @@ export async function GET() {
         .order("hit_count", { ascending: false })
         .limit(QUEUE_LIMIT),
       supabase
+        .from("searches")
+        .select("normalized_query, hit_count, last_seen_at")
+        .order("last_seen_at", { ascending: false })
+        .limit(QUEUE_LIMIT),
+      supabase
+        .from("search_events")
+        .select("normalized_query, coarse_area_slug, created_at")
+        .order("created_at", { ascending: false })
+        .limit(400),
+      supabase
         .from("seo_pages")
         .select("id, path, title, indexable, business_count")
         .order("updated_at", { ascending: false })
@@ -207,11 +228,7 @@ export async function GET() {
       productsResult.error ??
       servicesResult.error ??
       photosResult.error ??
-      reviewsResult.error ??
-      searchesResult.error ??
-      seoPagesResult.error ??
-      subscriptionsResult.error ??
-      paymentsResult.error;
+      reviewsResult.error;
     if (firstError) {
       throw new AppError({
         message: publicMutationMessage(
@@ -224,6 +241,20 @@ export async function GET() {
         cause: firstError,
       });
     }
+
+    const growthRows = <T,>(
+      result: { data: T[] | null; error: { message?: string } | null },
+      query: string,
+    ): T[] => {
+      if (result.error) {
+        log.warn("admin_growth_query_failed", {
+          query,
+          message: result.error.message,
+        });
+        return [];
+      }
+      return result.data ?? [];
+    };
 
     const authUsers = authUsersResult.data?.users ?? [];
     const emails = new Map(
@@ -596,46 +627,18 @@ export async function GET() {
         createdAt: String(row.created_at),
       })),
       content,
-      searchAnalytics: (searchesResult.data ?? []).map((row) => ({
-        query: String(row.normalized_query),
-        count: Number(row.hit_count ?? 0),
-        area: null,
-        lastSeen: String(row.last_seen_at),
-      })),
-      seoPages: (seoPagesResult.data ?? []).map((row) => ({
-        id: String(row.id),
-        path: String(row.path),
-        title: String(row.title),
-        indexable: Boolean(row.indexable),
-        businessCount: Number(row.business_count ?? 0),
-      })),
-      subscriptions: (subscriptionsResult.data ?? [])
-        .filter((row) => isRealBusinessRelation(row.businesses))
-        .map((row) => {
-          const plan = row.plans as unknown as {
-            name?: string;
-            price_cents?: number;
-          } | null;
-          return {
-            id: String(row.id),
-            businessName: businessName(row.businesses),
-            plan: plan?.name ?? "Unknown",
-            status: String(row.status).toLowerCase() as
-              "trialing" | "active" | "canceled" | "past_due" | "expired",
-            amountCents: Number(plan?.price_cents ?? 0),
-            renewsAt: (row.current_period_end as string | null) ?? null,
-          };
-        }),
-      payments: (paymentsResult.data ?? [])
-        .filter((row) => isRealBusinessRelation(row.businesses))
-        .map((row) => ({
-          id: String(row.id),
-          businessName: businessName(row.businesses),
-          amountCents: Number(row.amount_cents ?? 0),
-          status: String(row.status).toLowerCase() as
-            "pending" | "succeeded" | "failed" | "refunded",
-          createdAt: String(row.created_at),
-        })),
+      searchAnalytics: buildAdminSearchAnalytics(
+        [
+          ...growthRows(popularSearchesResult, "searches.popular"),
+          ...growthRows(recentSearchesResult, "searches.recent"),
+        ],
+        growthRows(searchEventsResult, "search_events"),
+      ),
+      seoPages: mapAdminSeoPages(growthRows(seoPagesResult, "seo_pages")),
+      subscriptions: mapAdminSubscriptions(
+        growthRows(subscriptionsResult, "subscriptions"),
+      ),
+      payments: mapAdminPayments(growthRows(paymentsResult, "payments")),
     });
   } catch (error) {
     return jsonError(error);

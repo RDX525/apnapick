@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdmin } from "@/features/admin/admin-provider";
+import { AdminLiveStats } from "@/features/admin/admin-live-stats";
 import { EmptyState } from "@/components/states/empty-state";
 import {
   QueueControls,
@@ -18,6 +19,12 @@ function formatInr(cents: number) {
 
 export function AdminPaymentsPage() {
   const { workspace } = useAdmin();
+  const succeeded = workspace.payments.filter(
+    (payment) => payment.status === "succeeded",
+  );
+  const failed = workspace.payments.filter(
+    (payment) => payment.status === "failed",
+  ).length;
   const queue = useOperationalQueue(workspace.payments, {
     searchText: (payment) => payment.businessName,
     filterValue: (payment) => payment.status,
@@ -31,6 +38,19 @@ export function AdminPaymentsPage() {
 
   return (
     <>
+      <AdminLiveStats
+        items={[
+          { label: "Payments", value: workspace.payments.length },
+          { label: "Succeeded", value: succeeded.length },
+          { label: "Failed", value: failed },
+          {
+            label: "Captured",
+            value: formatInr(
+              succeeded.reduce((sum, payment) => sum + payment.amountCents, 0),
+            ),
+          },
+        ]}
+      />
       <QueueControls
         id="payments"
         query={queue.query}
