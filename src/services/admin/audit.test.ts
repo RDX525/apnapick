@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AdminDataClient } from "@/lib/db/supabase-admin";
 
 const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
-  createAdminDataClient: vi.fn(async () => null),
+  createAdminDataClient: vi.fn(async (): Promise<AdminDataClient | null> => null),
 }));
 
 vi.mock("@/lib/db/supabase-admin", () => ({
@@ -59,7 +60,7 @@ describe("writeAdminAudit", () => {
   it("prefers the admin data client when it is available", async () => {
     const adminInsert = vi.fn().mockResolvedValue({ error: null });
     mocks.createAdminDataClient.mockResolvedValue({
-      supabase: { from: () => ({ insert: adminInsert }) },
+      supabase: { from: () => ({ insert: adminInsert }) } as unknown as AdminDataClient["supabase"],
       canManageAuthUsers: true,
     });
 

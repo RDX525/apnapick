@@ -103,7 +103,9 @@ function sanitizeHours(hours: DayHours[]): DayHours[] {
   });
 }
 
-function photosForSave(photos: DashboardWorkspace["photos"]) {
+function photosForSave(
+  photos: DashboardWorkspace["photos"],
+): OwnerWorkspaceSavePayload["photos"] {
   const rows = photos.map((photo) => ({
     id: photo.id,
     name: photo.name,
@@ -119,10 +121,15 @@ function photosForSave(photos: DashboardWorkspace["photos"]) {
     rows[0]?.id;
   return rows.map((photo) => {
     const isCover = photo.id === coverId;
+    const role: OwnerWorkspaceSavePayload["photos"][number]["role"] =
+      photo.role === "logo" ? "logo" : isCover ? "cover" : "gallery";
     return {
-      ...photo,
+      id: photo.id,
+      name: photo.name,
+      sortOrder: photo.sortOrder,
+      storagePath: photo.storagePath,
       isCover,
-      role: photo.role === "logo" ? "logo" : isCover ? "cover" : "gallery",
+      role,
     };
   });
 }
