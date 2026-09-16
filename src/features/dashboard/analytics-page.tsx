@@ -28,8 +28,8 @@ export function AnalyticsPage() {
     >
       <div className="border-border/70 bg-card rounded-2xl border p-6">
         <p className="text-muted-foreground text-sm">
-          Live metrics load from `business_metrics_daily` when Supabase is connected. Demo
-          figures shown for local development.
+          Counts for this month from live customer activity on ApnaPick — profile
+          views, search appearances, clicks, calls, website visits, and more.
         </p>
         <ul className="mt-6 space-y-4">
           {rows.map(([label, value]) => (

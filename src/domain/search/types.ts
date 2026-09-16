@@ -148,4 +148,10 @@ export type SearchResponse = {
 };
 
 export type SearchActionType =
-  "click" | "call" | "directions" | "website" | "save" | "share";
+  | "click"
+  | "call"
+  | "directions"
+  | "website"
+  | "save"
+  | "share"
+  | "view";

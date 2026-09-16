@@ -1,4 +1,4 @@
-export type PlanCode = "free" | "premium" | "business";
+export type PlanCode = "free" | "business";
 
 export type SubscriptionStatus =
   "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";

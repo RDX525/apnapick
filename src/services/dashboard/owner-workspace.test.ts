@@ -63,6 +63,7 @@ function snapshot(
       directions: 0,
       leads: 0,
       favorites: 0,
+      websiteVisits: 0,
     },
   };
 }

@@ -89,6 +89,7 @@ export type OwnerListingSnapshot = {
     directions: number;
     leads: number;
     favorites: number;
+    websiteVisits: number;
   };
 };
 
@@ -197,7 +198,7 @@ export function workspaceFromOwnerListing(
       searchAppearances: snapshot.metrics.searchImpressions,
       clicks: snapshot.metrics.clicks,
       calls: snapshot.metrics.calls,
-      websiteVisits: 0,
+      websiteVisits: snapshot.metrics.websiteVisits,
       directions: snapshot.metrics.directions,
       enquiries: snapshot.metrics.leads,
       saves: snapshot.metrics.favorites,

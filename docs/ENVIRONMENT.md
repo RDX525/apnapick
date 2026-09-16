@@ -31,8 +31,8 @@ Never import into Client Components. Validated by `serverEnvSchema`.
 | `RAZORPAY_KEY_ID`           | Razorpay key id                        |
 | `RAZORPAY_KEY_SECRET`       | Razorpay key secret                    |
 | `RAZORPAY_WEBHOOK_SECRET`   | Razorpay webhook HMAC secret           |
-| `RAZORPAY_PLAN_PREMIUM`     | Razorpay Plan id for Premium           |
-| `RAZORPAY_PLAN_BUSINESS`    | Razorpay Plan id for Business          |
+| `RAZORPAY_PLAN_BUSINESS`    | Razorpay Plan id for Business (combined paid plan) |
+| `RAZORPAY_PLAN_PREMIUM`     | Optional legacy fallback for Business checkout     |
 | `SENTRY_DSN`                | Optional Sentry DSN for server errors  |
 
 ## Rules

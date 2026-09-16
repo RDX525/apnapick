@@ -19,6 +19,8 @@ export type SearchAnalyticsRecordInput = {
   sort?: SearchSort;
   sessionId?: string | null;
   radiusM?: number | null;
+  /** Businesses shown on this results page (for impression rollups). */
+  impressionBusinessIds?: string[];
 };
 
 export type SearchActionInput = {
@@ -112,6 +114,19 @@ export class SearchAnalyticsService {
         return { searchEventId: null };
       }
 
+      const ids = (event.impressionBusinessIds ?? []).filter(Boolean);
+      if (ids.length > 0) {
+        const { error: impressionError } = await supabase.rpc(
+          "bump_search_impressions",
+          { p_business_ids: ids },
+        );
+        if (impressionError) {
+          log.warn("search_impressions_failed", {
+            message: impressionError.message,
+          });
+        }
+      }
+
       return { searchEventId: (eventId as string | null) ?? null };
     } catch (err) {
       log.warn("search_analytics_unavailable", {
@@ -135,22 +150,17 @@ export class SearchAnalyticsService {
       const supabase = await trySupabase();
       if (!supabase) return;
 
-      await supabase.from("search_actions").insert({
-        search_event_id: input.searchEventId ?? null,
-        business_id: input.businessId,
-        action: input.action,
-        coarse_area_slug: input.areaSlug ?? null,
-        session_id: input.sessionId ?? null,
-        query_normalized: input.queryNormalized ?? null,
+      const { error } = await supabase.rpc("record_business_engagement", {
+        p_business_id: input.businessId,
+        p_action: input.action,
+        p_search_event_id: input.searchEventId ?? null,
+        p_coarse_area_slug: input.areaSlug ?? null,
+        p_session_id: input.sessionId ?? null,
+        p_query_normalized: input.queryNormalized ?? null,
       });
 
-      if (input.searchEventId && input.action === "click") {
-        // Atomic append — concurrent clicks on one search event used to
-        // overwrite each other via read-then-update.
-        await supabase.rpc("append_search_event_selection", {
-          p_event_id: input.searchEventId,
-          p_business_id: input.businessId,
-        });
+      if (error) {
+        log.warn("search_action_failed", { message: error.message });
       }
     } catch (err) {
       log.warn("search_action_failed", {

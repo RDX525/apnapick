@@ -150,6 +150,14 @@ describe("Phase 2 database migrations", () => {
     expect(guard).toContain("Review authors may update their own row");
   });
 
+  it("records business engagement for dashboard metrics and leads", () => {
+    expect(sql).toContain("record_business_engagement");
+    expect(sql).toContain("bump_search_impressions");
+    expect(sql).toContain("website_visits");
+    expect(sql).toContain("leads_update_member");
+    expect(sql).toContain("search_actions_select_member");
+  });
+
   it("dev seed is explicitly non-production", () => {
     const seed = readFileSync(
       path.join(process.cwd(), "supabase", "seed", "pune_dev.sql"),

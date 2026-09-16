@@ -543,7 +543,12 @@ export function SearchResultsView({
                 onMouseEnter={() => selectBusinessSoon(result.businessId)}
                 onFocus={() => selectBusiness(result.businessId)}
               >
-                <BusinessResultCard result={result} priority={index === 0} />
+                <BusinessResultCard
+                  result={result}
+                  priority={index === 0}
+                  searchEventId={response.searchEventId}
+                  queryNormalized={response.query.normalized}
+                />
               </div>
             ))
           )}

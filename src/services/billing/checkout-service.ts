@@ -9,7 +9,11 @@ import {
   getPlanByCode,
   resolveExternalPlanId,
 } from "@/services/billing/subscription-service";
-import { isPlanCode, BILLING_CHECKOUT_ENABLED } from "@/config/billing-plans";
+import {
+  isPaidPlanCode,
+  normalizePlanCode,
+  BILLING_CHECKOUT_ENABLED,
+} from "@/config/billing-plans";
 
 export function assertPaidBillingEnabled() {
   if (BILLING_CHECKOUT_ENABLED) return;
@@ -33,16 +37,17 @@ export async function createCheckoutForBusiness(input: {
   cancelPath?: string;
 }) {
   assertPaidBillingEnabled();
-  if (!isPlanCode(input.planCode) || input.planCode === "free") {
+  if (!isPaidPlanCode(input.planCode)) {
     throw new AppError({
-      message: "Select Premium or Business to checkout",
+      message: "Select the Business plan to checkout",
       code: "INVALID_PLAN",
       status: 400,
       expose: true,
     });
   }
 
-  const plan = await getPlanByCode(input.planCode);
+  const planCode = normalizePlanCode(input.planCode);
+  const plan = await getPlanByCode(planCode);
   if (!plan) {
     throw new AppError({
       message: "Plan not found",
@@ -58,7 +63,7 @@ export async function createCheckoutForBusiness(input: {
   if (provider.id === "razorpay" && !priceId) {
     throw new AppError({
       message:
-        "Razorpay plan is not configured for this listing plan (plans.external_price_id or RAZORPAY_PLAN_*)",
+        "Razorpay plan is not configured for this listing plan (plans.external_price_id or RAZORPAY_PLAN_BUSINESS)",
       code: "BILLING_PRICE_MISSING",
       status: 503,
       expose: true,
@@ -77,7 +82,7 @@ export async function createCheckoutForBusiness(input: {
 
   const session = await provider.createCheckoutSession({
     businessId: input.businessId,
-    planCode: plan.code as PaidPlanCode,
+    planCode: "business" satisfies PaidPlanCode,
     priceId: priceId ?? `price_stub_${plan.code}`,
     expectedAmountCents: plan.priceCents,
     expectedCurrency: plan.currency,

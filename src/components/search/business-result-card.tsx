@@ -1,3 +1,5 @@
+"use client";
+
 import { memo } from "react";
 import Link from "next/link";
 import { Eye, MapPin, MessageCircle, Navigation, Phone, Star } from "lucide-react";
@@ -11,6 +13,7 @@ import {
   telHref,
   whatsappHref,
 } from "@/lib/contact/phone";
+import { trackBusinessAction } from "@/lib/search/track-business-action";
 import { cn } from "@/lib/utils";
 import type { RankedSearchResult } from "@/domain/search/types";
 import type { ConsumerBusinessCard } from "@/domain/consumer/types";
@@ -20,6 +23,7 @@ import { categoryCover } from "@/config/visual-media";
 import { pickImageSrc } from "@/lib/media/photo-url";
 
 type CardModel = {
+  businessId: string;
   slug: string;
   name: string;
   description?: string | null;
@@ -42,6 +46,7 @@ type CardModel = {
 
 function fromSearchResult(result: RankedSearchResult): CardModel {
   return {
+    businessId: result.businessId,
     slug: result.slug,
     name: result.name,
     description: result.description,
@@ -65,6 +70,7 @@ function fromSearchResult(result: RankedSearchResult): CardModel {
 
 function fromConsumerCard(card: ConsumerBusinessCard): CardModel {
   return {
+    businessId: card.id,
     slug: card.slug,
     name: card.name,
     description: card.description,
@@ -100,6 +106,8 @@ type Props = {
   priority?: boolean;
   selected?: boolean;
   onSelect?: () => void;
+  searchEventId?: string | null;
+  queryNormalized?: string | null;
 };
 
 export const BusinessResultCard = memo(function BusinessResultCard({
@@ -109,6 +117,8 @@ export const BusinessResultCard = memo(function BusinessResultCard({
   priority = false,
   selected,
   onSelect,
+  searchEventId,
+  queryNormalized,
 }: Props) {
   const model = result
     ? fromSearchResult(result)
@@ -116,6 +126,17 @@ export const BusinessResultCard = memo(function BusinessResultCard({
       ? fromConsumerCard(business)
       : null;
   if (!model) return null;
+
+  const track = (
+    action: "click" | "call" | "directions" | "website" | "save" | "share" | "view",
+  ) => {
+    trackBusinessAction({
+      businessId: model.businessId,
+      action,
+      searchEventId,
+      queryNormalized,
+    });
+  };
 
   const imageSrc = pickImageSrc(
     model.coverImageUrl,
@@ -169,6 +190,7 @@ export const BusinessResultCard = memo(function BusinessResultCard({
               <Link
                 href={`/b/${model.slug}`}
                 className="hover:text-sea focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2"
+                onClick={() => track("click")}
               >
                 {model.name}
               </Link>
@@ -227,7 +249,12 @@ export const BusinessResultCard = memo(function BusinessResultCard({
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {wa ? (
             <Button asChild size="sm" className="min-h-10 sm:min-h-11">
-              <a href={wa} target="_blank" rel="noopener noreferrer">
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track("call")}
+              >
                 <MessageCircle className="size-4" aria-hidden />
                 WhatsApp
               </a>
@@ -235,20 +262,25 @@ export const BusinessResultCard = memo(function BusinessResultCard({
           ) : null}
           {callHref ? (
             <Button asChild size="sm" variant={wa ? "outline" : "default"} className="min-h-10 sm:min-h-11">
-              <a href={callHref}>
+              <a href={callHref} onClick={() => track("call")}>
                 <Phone className="size-4" aria-hidden />
                 Call
               </a>
             </Button>
           ) : null}
           <Button asChild size="sm" variant="outline" className="min-h-10 sm:min-h-11">
-            <a href={directionsHref(model)} target="_blank" rel="noopener noreferrer">
+            <a
+              href={directionsHref(model)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track("directions")}
+            >
               <Navigation className="size-4" aria-hidden />
               Directions
             </a>
           </Button>
           <Button asChild size="sm" variant="outline" className="min-h-10 sm:min-h-11">
-            <Link href={`/b/${model.slug}`}>
+            <Link href={`/b/${model.slug}`} onClick={() => track("click")}>
               <Eye className="size-4" aria-hidden />
               View
             </Link>

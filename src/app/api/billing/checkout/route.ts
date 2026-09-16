@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   businessId: z.string().uuid(),
-  planCode: z.enum(["premium", "business"]),
+  planCode: z.enum(["business", "premium"]),
 });
 
 /**

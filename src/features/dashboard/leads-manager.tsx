@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/empty-state";
 import { StatusBadge } from "@/components/operations/status-badge";
@@ -8,6 +9,41 @@ import { DashboardShell } from "@/features/dashboard/dashboard-shell";
 
 export function LeadsManagerPage() {
   const { workspace, update } = useDashboard();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  async function markRead(leadId: string) {
+    setPendingId(leadId);
+    update((w) => ({
+      ...w,
+      leads: w.leads.map((l) =>
+        l.id === leadId ? { ...l, status: "READ" as const } : l,
+      ),
+    }));
+    try {
+      const response = await fetch(`/api/business/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "READ" }),
+      });
+      if (!response.ok) {
+        update((w) => ({
+          ...w,
+          leads: w.leads.map((l) =>
+            l.id === leadId ? { ...l, status: "NEW" as const } : l,
+          ),
+        }));
+      }
+    } catch {
+      update((w) => ({
+        ...w,
+        leads: w.leads.map((l) =>
+          l.id === leadId ? { ...l, status: "NEW" as const } : l,
+        ),
+      }));
+    } finally {
+      setPendingId(null);
+    }
+  }
 
   return (
     <DashboardShell
@@ -47,14 +83,8 @@ export function LeadsManagerPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() =>
-                  update((w) => ({
-                    ...w,
-                    leads: w.leads.map((l) =>
-                      l.id === lead.id ? { ...l, status: "READ" } : l,
-                    ),
-                  }))
-                }
+                disabled={pendingId === lead.id}
+                onClick={() => void markRead(lead.id)}
               >
                 Mark read
               </Button>

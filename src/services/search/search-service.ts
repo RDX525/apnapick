@@ -91,7 +91,7 @@ export class SearchService {
     const latencyMs = Date.now() - started;
     const coarse = geoSearchService.coarsenForAnalytics(location);
 
-    void this.analytics.record({
+    const { searchEventId } = await this.analytics.record({
       query: parsed,
       resultCount: ranked.length,
       latencyMs,
@@ -100,6 +100,7 @@ export class SearchService {
       sort: request.sort ?? "recommended",
       sessionId: request.sessionId,
       radiusM: coarse.radiusM,
+      impressionBusinessIds: pageResults.map((r) => r.businessId),
     });
 
     return {
@@ -111,7 +112,7 @@ export class SearchService {
       page,
       pageSize,
       latencyMs,
-      searchEventId: null,
+      searchEventId,
     };
   }
 }

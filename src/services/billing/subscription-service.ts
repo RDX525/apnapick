@@ -3,8 +3,12 @@ import "server-only";
 import { createAdminClient } from "@/lib/db/supabase-admin";
 import { createServerSupabaseClient } from "@/lib/db/supabase-server";
 import { hasServiceRoleKey, hasSupabaseConfig } from "@/config/env";
-import { parsePlanFeatures, isPlanCode } from "@/config/billing-plans";
-import { PLAN_CATALOG } from "@/config/billing-plans";
+import {
+  parsePlanFeatures,
+  isPlanCode,
+  normalizePlanCode,
+  PLAN_CATALOG,
+} from "@/config/billing-plans";
 import type {
   Plan,
   PlanCode,
@@ -20,10 +24,10 @@ import { AppError } from "@/lib/errors/app-error";
 export { hasEntitlement };
 
 function mapPlan(row: Record<string, unknown>): Plan {
-  const code = String(row.code);
+  const rawCode = String(row.code);
   return {
     id: String(row.id),
-    code: isPlanCode(code) ? code : "free",
+    code: normalizePlanCode(rawCode),
     name: String(row.name),
     description: (row.description as string | null) ?? null,
     priceCents: Number(row.price_cents ?? 0),
@@ -67,12 +71,20 @@ export async function listPlans(): Promise<Plan[]> {
     .order("sort_order", { ascending: true });
 
   if (error || !data?.length) return catalogAsPlans();
-  return data.map((row) => mapPlan(row as Record<string, unknown>));
+
+  // Premium was merged into Business — never expose it as a separate plan.
+  return data
+    .filter((row) => String((row as { code?: string }).code) !== "premium")
+    .map((row) => mapPlan(row as Record<string, unknown>))
+    .filter(
+      (plan, index, all) => all.findIndex((p) => p.code === plan.code) === index,
+    );
 }
 
-export async function getPlanByCode(code: PlanCode): Promise<Plan | null> {
+export async function getPlanByCode(code: string): Promise<Plan | null> {
+  const normalized = normalizePlanCode(code);
   const plans = await listPlans();
-  return plans.find((p) => p.code === code) ?? null;
+  return plans.find((p) => p.code === normalized) ?? null;
 }
 
 const ACTIVE_STATUSES: SubscriptionStatus[] = ["TRIALING", "ACTIVE", "PAST_DUE"];
@@ -102,7 +114,9 @@ export async function getActiveSubscription(
 
   const planRel = data.plans as { code?: string } | { code?: string }[] | null;
   const planCodeRaw = Array.isArray(planRel) ? planRel[0]?.code : planRel?.code;
-  const planCode = planCodeRaw && isPlanCode(planCodeRaw) ? planCodeRaw : "free";
+  const planCode = normalizePlanCode(
+    planCodeRaw && isPlanCode(planCodeRaw) ? planCodeRaw : "free",
+  );
 
   return {
     id: data.id as string,
@@ -140,10 +154,7 @@ export async function getBusinessEntitlements(businessId: string): Promise<{
   const plan = await getPlanByCode(sub.planCode);
   return {
     planCode: sub.planCode,
-    features: plan?.features ??
-      PLAN_CATALOG[sub.planCode]?.features ?? {
-        ...DEFAULT_FREE_FEATURES,
-      },
+    features: plan?.features ?? PLAN_CATALOG[sub.planCode].features,
     subscription: sub,
   };
 }
@@ -168,13 +179,14 @@ export async function assertBusinessEntitlement(
 /** Resolve Razorpay plan id: DB column, then env map. */
 export function resolveExternalPlanId(plan: Plan): string | null {
   if (plan.externalPriceId) return plan.externalPriceId;
-  const envKey =
-    plan.code === "premium"
-      ? process.env.RAZORPAY_PLAN_PREMIUM
-      : plan.code === "business"
-        ? process.env.RAZORPAY_PLAN_BUSINESS
-        : null;
-  return envKey || null;
+  if (plan.code === "business") {
+    return (
+      process.env.RAZORPAY_PLAN_BUSINESS ||
+      process.env.RAZORPAY_PLAN_PREMIUM ||
+      null
+    );
+  }
+  return null;
 }
 
 /** @deprecated Use resolveExternalPlanId */

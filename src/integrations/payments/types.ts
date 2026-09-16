@@ -3,7 +3,7 @@
  * Product code must never import Razorpay SDK types outside integrations/payments.
  */
 
-export type PaidPlanCode = "premium" | "business";
+export type PaidPlanCode = "business";
 
 export type CheckoutSessionInput = {
   businessId: string;

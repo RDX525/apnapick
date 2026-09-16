@@ -9,19 +9,18 @@ import { PLAN_CATALOG, parsePlanFeatures, BILLING_CHECKOUT_ENABLED } from "@/con
 import { DEFAULT_FREE_FEATURES } from "@/domain/billing/types";
 
 describe("billing plan catalog", () => {
-  it("defines free, premium, and business", () => {
-    expect(Object.keys(PLAN_CATALOG)).toEqual(["free", "premium", "business"]);
+  it("defines free and a single Business paid plan", () => {
+    expect(Object.keys(PLAN_CATALOG)).toEqual(["free", "business"]);
   });
 
-  it("uses the configured monthly INR prices", () => {
-    expect(PLAN_CATALOG.premium.priceCents).toBe(49_900);
-    expect(PLAN_CATALOG.business.priceCents).toBe(89_900);
+  it("uses the configured monthly INR price for Business", () => {
+    expect(PLAN_CATALOG.business.priceCents).toBe(49_900);
     expect(BILLING_CHECKOUT_ENABLED).toBe(false);
   });
 
   it("keeps free without sponsored eligibility", () => {
     expect(PLAN_CATALOG.free.features.sponsoredEligible).toBe(false);
-    expect(PLAN_CATALOG.premium.features.teamMembers).toBe(true);
+    expect(PLAN_CATALOG.business.features.teamMembers).toBe(true);
     expect(PLAN_CATALOG.business.features.sponsoredEligible).toBe(true);
   });
 
@@ -46,7 +45,7 @@ describe("Razorpay status mapping", () => {
 describe("entitlements helpers", () => {
   it("checks boolean and numeric features", () => {
     expect(hasEntitlement(PLAN_CATALOG.free.features, "teamMembers")).toBe(false);
-    expect(hasEntitlement(PLAN_CATALOG.premium.features, "teamMembers")).toBe(true);
+    expect(hasEntitlement(PLAN_CATALOG.business.features, "teamMembers")).toBe(true);
     expect(hasEntitlement(PLAN_CATALOG.free.features, "maxTeamMembers")).toBe(true);
   });
 });
@@ -83,7 +82,7 @@ describe("StubPaymentProvider webhook", () => {
     const provider = new StubPaymentProvider();
     const session = await provider.createCheckoutSession({
       businessId: "biz",
-      planCode: "premium",
+      planCode: "business",
       priceId: "plan_x",
       expectedAmountCents: 49_900,
       expectedCurrency: "INR",

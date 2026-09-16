@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/operations/status-badge";
 import { useDashboard } from "@/features/dashboard/dashboard-provider";
 import { DashboardShell } from "@/features/dashboard/dashboard-shell";
-import { PLAN_CATALOG } from "@/config/billing-plans";
+import { PLAN_CATALOG, SUBSCRIPTION_PLAN_CODES } from "@/config/billing-plans";
 import type { PlanCode, PlanFeatures, Subscription } from "@/domain/billing/types";
 
 function formatInr(cents: number) {
@@ -50,8 +50,6 @@ export function SubscriptionPage() {
     return () => controller.abort();
   }, [businessId]);
 
-  const codes = Object.keys(PLAN_CATALOG) as PlanCode[];
-
   return (
     <DashboardShell
       activePath="/business/dashboard/subscription"
@@ -79,8 +77,8 @@ export function SubscriptionPage() {
           </p>
         </div>
 
-        <ul className="grid gap-4 md:grid-cols-3">
-          {codes.map((code) => {
+        <ul className="grid gap-4 md:grid-cols-2">
+          {SUBSCRIPTION_PLAN_CODES.map((code) => {
             const plan = PLAN_CATALOG[code];
             const current = code === planCode;
             return (
@@ -106,11 +104,9 @@ export function SubscriptionPage() {
                   ) : (
                     <>
                       <li>Enhanced profile & media</li>
-                      <li>Offers, leads, team</li>
+                      <li>Offers, leads & team</li>
                       <li>Advanced analytics</li>
-                      {code === "business" ? (
-                        <li>Sponsored placement eligibility</li>
-                      ) : null}
+                      <li>Sponsored placement eligibility</li>
                     </>
                   )}
                 </ul>

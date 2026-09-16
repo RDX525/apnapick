@@ -4,6 +4,10 @@ import { DEFAULT_FREE_FEATURES } from "@/domain/billing/types";
 /** Paid Razorpay checkout is off until we turn this on. */
 export const BILLING_CHECKOUT_ENABLED = false;
 
+/**
+ * Public subscription catalog: Free + one paid Business plan
+ * (Premium and Business were combined into Business).
+ */
 export const PLAN_CATALOG: Record<
   PlanCode,
   { name: string; description: string; priceCents: number; features: PlanFeatures }
@@ -14,29 +18,11 @@ export const PLAN_CATALOG: Record<
     priceCents: 0,
     features: { ...DEFAULT_FREE_FEATURES },
   },
-  premium: {
-    name: "Premium",
-    description: "Enhanced profile, media, offers, advanced analytics, leads, and team",
-    priceCents: 49900,
-    features: {
-      ...DEFAULT_FREE_FEATURES,
-      enhancedProfile: true,
-      additionalMedia: true,
-      offers: true,
-      advancedAnalytics: true,
-      leadManagement: true,
-      teamMembers: true,
-      maxTeamMembers: 5,
-      maxPhotos: 40,
-      maxProducts: 100,
-      maxServices: 100,
-    },
-  },
   business: {
     name: "Business",
     description:
-      "Everything in Premium plus eligibility for clearly labeled sponsored placement",
-    priceCents: 89900,
+      "Enhanced profile, media, offers, analytics, leads, team, and sponsored placement eligibility",
+    priceCents: 49900,
     features: {
       ...DEFAULT_FREE_FEATURES,
       enhancedProfile: true,
@@ -54,6 +40,17 @@ export const PLAN_CATALOG: Record<
   },
 };
 
+/** Plans shown on the subscription page / public catalog. */
+export const SUBSCRIPTION_PLAN_CODES: PlanCode[] = ["free", "business"];
+
+/** Legacy DB/env code kept for older subscriptions and Razorpay plan ids. */
+export type LegacyPlanCode = "premium";
+
+export function normalizePlanCode(value: string | null | undefined): PlanCode {
+  if (value === "premium" || value === "business") return "business";
+  return "free";
+}
+
 export function parsePlanFeatures(raw: unknown): PlanFeatures {
   const obj = (raw ?? {}) as Partial<PlanFeatures>;
   return {
@@ -66,6 +63,10 @@ export function parsePlanFeatures(raw: unknown): PlanFeatures {
   };
 }
 
-export function isPlanCode(value: string): value is PlanCode {
+export function isPlanCode(value: string): value is PlanCode | LegacyPlanCode {
   return value === "free" || value === "premium" || value === "business";
+}
+
+export function isPaidPlanCode(value: string): value is "business" | LegacyPlanCode {
+  return value === "premium" || value === "business";
 }

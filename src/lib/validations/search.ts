@@ -58,7 +58,15 @@ export type SearchQueryInput = z.infer<typeof searchQuerySchema>;
 
 export const searchActionSchema = z.object({
   businessId: z.string().uuid(),
-  action: z.enum(["click", "call", "directions", "website", "save", "share"]),
+  action: z.enum([
+    "click",
+    "call",
+    "directions",
+    "website",
+    "save",
+    "share",
+    "view",
+  ]),
   searchEventId: z.string().uuid().optional().nullable(),
   areaSlug: z.string().max(80).optional().nullable(),
   sessionId: z.string().max(80).optional().nullable(),

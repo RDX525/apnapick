@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Clock, ExternalLink, Globe, MapPin, Navigation, Phone } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ClaimedBadge, VerifiedBadge } from "@/components/trust/verified-badge";
 import { RatingStars } from "@/components/trust/rating-summary";
 import { BusinessReviewsSection } from "@/features/reviews/business-reviews-section";
 import { BusinessOwnerPanel } from "@/features/consumer/business-owner-panel";
+import {
+  BusinessProfileActions,
+  BusinessProfileViewBeacon,
+} from "@/features/consumer/business-profile-actions";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import {
   breadcrumbListJsonLd,
@@ -164,6 +167,7 @@ export default async function BusinessProfilePage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 lg:pb-8">
+      <BusinessProfileViewBeacon businessId={business.id} />
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
 
       <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -289,37 +293,14 @@ export default async function BusinessProfilePage({ params }: Props) {
               ) : null}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {business.phone ? (
-                <Button asChild className="min-h-10">
-                  <a href={`tel:${business.phone}`}>
-                    <Phone className="size-4" aria-hidden />
-                    Call
-                  </a>
-                </Button>
-              ) : null}
-              <Button asChild variant="outline" className="min-h-10">
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${mapsQuery}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Navigation className="size-4" aria-hidden />
-                  Directions
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              </Button>
-              {business.website ? (
-                <Button asChild variant="outline" className="min-h-10">
-                  <a href={business.website} target="_blank" rel="noopener noreferrer">
-                    <Globe className="size-4" aria-hidden />
-                    Website
-                    <ExternalLink className="size-3.5 opacity-60" aria-hidden />
-                    <span className="sr-only"> (opens in a new tab)</span>
-                  </a>
-                </Button>
-              ) : null}
-            </div>
+            <BusinessProfileActions
+              businessId={business.id}
+              businessName={business.name}
+              phone={business.phone}
+              website={business.website}
+              suburb={business.suburb}
+              city={business.city}
+            />
           </div>
         </div>
       </div>
@@ -612,31 +593,15 @@ export default async function BusinessProfilePage({ params }: Props) {
           Explore more nearby
         </Link>
       </p>
-      <div className="bg-background/94 border-border fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t p-3 [padding-right:max(0.75rem,env(safe-area-inset-right))] [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))] [padding-left:max(0.75rem,env(safe-area-inset-left))] backdrop-blur lg:hidden">
-        {business.phone ? (
-          <Button asChild className="min-h-11 flex-1">
-            <a href={`tel:${business.phone}`}>
-              <Phone className="size-4" aria-hidden />
-              Call
-            </a>
-          </Button>
-        ) : null}
-        <Button
-          asChild
-          variant={business.phone ? "outline" : "default"}
-          className="min-h-11 flex-1"
-        >
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${mapsQuery}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Navigation className="size-4" aria-hidden />
-            Directions
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        </Button>
-      </div>
+      <BusinessProfileActions
+        businessId={business.id}
+        businessName={business.name}
+        phone={business.phone}
+        website={business.website}
+        suburb={business.suburb}
+        city={business.city}
+        mobileBar
+      />
     </main>
   );
 }

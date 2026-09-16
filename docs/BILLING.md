@@ -2,11 +2,12 @@
 
 ## Plans
 
-| Code       | Role                                                             |
-| ---------- | ---------------------------------------------------------------- |
-| `free`     | Basic profile, products/services, basic analytics                |
-| `premium`  | Enhanced profile, media, offers, advanced analytics, leads, team |
-| `business` | Everything in Premium + **sponsored placement eligibility**      |
+| Code       | Role                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `free`     | Basic profile, products/services, basic analytics                                             |
+| `business` | Enhanced profile, media, offers, analytics, leads, team + **sponsored placement eligibility** |
+
+Premium and Business were **combined** into a single paid `business` plan (₹499/mo). Legacy `premium` codes still normalize to `business` for existing subscriptions.
 
 Organic search ranking is **never** influenced by plan or payment.
 
@@ -21,7 +22,7 @@ Organic search ranking is **never** influenced by plan or payment.
 | `invoices`             | Razorpay invoices                                                  |
 | `sponsored_placements` | Paid slots — **separate** from organic ranking                     |
 
-Migration: `supabase/migrations/0014_monetization.sql`. Ledger apply status: `0016_launch_hardening.sql`.
+Migration: `supabase/migrations/0014_monetization.sql`. Ledger apply status: `0016_launch_hardening.sql`. Combined plan: `0036_combine_premium_business_plan.sql`.
 
 Checkout is currently **disabled** (`BILLING_CHECKOUT_ENABLED = false`). Dashboard copy is “coming soon”; `POST /api/billing/checkout` and `/portal` return 503.
 
@@ -46,7 +47,7 @@ Endpoint: `POST /api/billing/webhooks/razorpay`
 4. Mark `applied` (or `failed` and return non-2xx so Razorpay retries)
 5. Duplicate event ids retry apply unless status is already `applied` / `ignored`
 
-Missing service role fails closed (503). Unknown plan/business refs do **not** fall back to Premium.
+Missing service role fails closed (503). Unknown plan/business refs do **not** fall back to a paid plan.
 
 Razorpay has no hosted customer portal; `/api/billing/portal` returns the in-app subscription page.
 
@@ -65,7 +66,7 @@ Dashboard: `/business/dashboard/subscription`.
 
 `getBusinessEntitlements(businessId)` / `assertBusinessEntitlement(businessId, feature)`.
 
-Example gate: team invites require `teamMembers` (Premium+).
+Example gate: team invites require `teamMembers` (Business plan).
 
 ## Sponsored results
 
@@ -80,8 +81,8 @@ Example gate: team invites require `teamMembers` (Premium+).
 RAZORPAY_KEY_ID=
 RAZORPAY_KEY_SECRET=
 RAZORPAY_WEBHOOK_SECRET=
-RAZORPAY_PLAN_PREMIUM=
 RAZORPAY_PLAN_BUSINESS=
+RAZORPAY_PLAN_PREMIUM=   # optional legacy fallback for Business checkout
 ```
 
-Map Razorpay Plan IDs onto `plans.external_price_id` or the env vars above.
+Map Razorpay Plan IDs onto `plans.external_price_id` or `RAZORPAY_PLAN_BUSINESS`.

@@ -145,7 +145,7 @@ export async function fetchOwnerListingSnapshot(
       photos ( id, storage_path, alt_text, sort_order, is_cover, deleted_at ),
       offers ( id, title, description, discount_label, is_active, deleted_at ),
       reviews ( id, rating, title, body, status, created_at, deleted_at, profiles!reviews_user_id_fkey ( display_name ) ),
-      leads ( id, lead_type, name, message, created_at ),
+      leads ( id, lead_type, name, message, created_at, read_at, phone, email ),
       menus (
         id, name, sort_order, is_active,
         menu_categories (
@@ -168,21 +168,33 @@ export async function fetchOwnerListingSnapshot(
   if (!row) return null;
 
   const businessId = asString(row.id);
-  const [membersResult, metricsResult] = await Promise.all([
-    supabase
-      .from("business_members")
-      .select(
-        "id, business_id, user_id, role, permissions, accepted_at, created_at, profiles!business_members_user_id_fkey ( display_name )",
-      )
-      .eq("business_id", businessId),
-    supabase
-      .from("business_metrics_daily")
-      .select(
-        "business_id, views, search_impressions, clicks, calls, direction_intents, leads, favorites",
-      )
-      .eq("business_id", businessId)
-      .gte("metric_date", startDate),
-  ]);
+  const monthStartIso = `${startDate}T00:00:00.000Z`;
+  const [membersResult, metricsResult, actionsResult, favoritesResult] =
+    await Promise.all([
+      supabase
+        .from("business_members")
+        .select(
+          "id, business_id, user_id, role, permissions, accepted_at, created_at, profiles!business_members_user_id_fkey ( display_name )",
+        )
+        .eq("business_id", businessId),
+      supabase
+        .from("business_metrics_daily")
+        .select(
+          "business_id, views, search_impressions, clicks, calls, direction_intents, leads, favorites, website_visits",
+        )
+        .eq("business_id", businessId)
+        .gte("metric_date", startDate),
+      supabase
+        .from("search_actions")
+        .select("action")
+        .eq("business_id", businessId)
+        .gte("created_at", monthStartIso),
+      supabase
+        .from("favorites")
+        .select("user_id", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .gte("created_at", monthStartIso),
+    ]);
   const locations = asArray<Record<string, unknown>>(row.business_locations);
   const primaryLocation =
     locations.find((location) => location.is_primary) ?? locations[0] ?? null;
@@ -199,8 +211,9 @@ export async function fetchOwnerListingSnapshot(
     directions: 0,
     leads: 0,
     favorites: 0,
+    websiteVisits: 0,
   };
-  const metrics = asArray<Record<string, unknown>>(metricsResult.data).reduce<
+  let metrics = asArray<Record<string, unknown>>(metricsResult.data).reduce<
     OwnerListingSnapshot["metrics"]
   >(
     (sum, metric) => ({
@@ -211,9 +224,45 @@ export async function fetchOwnerListingSnapshot(
       directions: sum.directions + asNumber(metric.direction_intents),
       leads: sum.leads + asNumber(metric.leads),
       favorites: sum.favorites + asNumber(metric.favorites),
+      websiteVisits: sum.websiteVisits + asNumber(metric.website_visits),
     }),
     emptyMetrics,
   );
+
+  const metricsEmpty =
+    metrics.views +
+      metrics.searchImpressions +
+      metrics.clicks +
+      metrics.calls +
+      metrics.directions +
+      metrics.leads +
+      metrics.favorites +
+      metrics.websiteVisits ===
+    0;
+
+  if (metricsEmpty && !actionsResult.error) {
+    const actionCounts: Record<string, number> = {};
+    for (const actionRow of asArray<Record<string, unknown>>(actionsResult.data)) {
+      const action = asString(actionRow.action);
+      if (!action) continue;
+      actionCounts[action] = (actionCounts[action] ?? 0) + 1;
+    }
+    const calls = actionCounts.call ?? 0;
+    const directions = actionCounts.directions ?? 0;
+    const websiteVisits = actionCounts.website ?? 0;
+    metrics = {
+      views: actionCounts.view ?? 0,
+      searchImpressions: 0,
+      clicks: actionCounts.click ?? 0,
+      calls,
+      directions,
+      leads: calls + directions + websiteVisits,
+      favorites: favoritesResult.count ?? 0,
+      websiteVisits,
+    };
+  } else if (metrics.favorites === 0 && (favoritesResult.count ?? 0) > 0) {
+    metrics = { ...metrics, favorites: favoritesResult.count ?? 0 };
+  }
 
   const memberRows = asArray<Record<string, unknown>>(membersResult.data);
   const emails = await memberEmails(
@@ -234,6 +283,14 @@ export async function fetchOwnerListingSnapshot(
   }
   if (metricsResult.error) {
     log.warn("owner_metrics_failed", { message: metricsResult.error.message });
+  }
+  if (actionsResult.error) {
+    log.warn("owner_actions_failed", { message: actionsResult.error.message });
+  }
+  if (favoritesResult.error) {
+    log.warn("owner_favorites_failed", {
+      message: favoritesResult.error.message,
+    });
   }
 
   return {
@@ -332,14 +389,17 @@ export async function fetchOwnerListingSnapshot(
               ? "FLAGGED"
               : "PUBLISHED",
       })),
-    leads: asArray<Record<string, unknown>>(row.leads).map((lead) => ({
-      id: asString(lead.id),
-      type: leadType(lead.lead_type),
-      name: asNullableString(lead.name),
-      message: asNullableString(lead.message),
-      createdAt: asString(lead.created_at),
-      status: "NEW" as const,
-    })),
+    leads: asArray<Record<string, unknown>>(row.leads)
+      .slice()
+      .sort((a, b) => asString(b.created_at).localeCompare(asString(a.created_at)))
+      .map((lead) => ({
+        id: asString(lead.id),
+        type: leadType(lead.lead_type),
+        name: asNullableString(lead.name),
+        message: asNullableString(lead.message),
+        createdAt: asString(lead.created_at),
+        status: lead.read_at ? ("READ" as const) : ("NEW" as const),
+      })),
     team,
     metrics,
   };
